@@ -1,406 +1,575 @@
-2.4.3 :: March 19, 1998
+Change Log:
+===========
 
-+ Note:  NcFTP will being reborn again someday, as version 3.0.
+3.0.0, 2000-03-19:
 
-+ Security problem fixed where a hostile FTP site could create specially
-  named files in a subdirectory, and if the directory was "get -R", the
-  hostile FTP site could execute arbitrary commands with the client's
-  privileges on the client machine.
++ New "redial-delay" preference setting, so you can easily set it and
+  forget it rather than doing "-r 30" on each open.
 
-+ Licensing terms have changed.
++ NcFTP's "file exists" prompt now includes options to apply the same
+  action to all files in the batch.  This should alleviate concerns by
+  users who didn't want to babysit NcFTP through a large batch of files
+  which exist locally.
 
-+ Changed the probe.net references to NcFTP.com, since probe.net is
-  essentially defunct.  I am thankful for Probe's service over the years
-  and I am deeply saddened to see them go!
++ Work around Y2K bug in old wu-ftpd servers.
 
-+ Long standing bug fixed where NcFTP would crash if the screen width
-  exceeded 160 columns.
++ Work around broken Novell 5.00 ftp servers.
 
-+ Fixed a problem where a socket connection could fail because it wasn't
-  initialized properly.
++ Fixed a getline problem where entering a character with the high-bit
+  set would cause NcFTP to exit.
 
-+ Cat bug fixed (Thanks, Sander van Malssen).
++ NcFTP now no longer complains when you redirect a file into it as stdin.
 
-+ A few other small fixes.
++ NcFTP's getline now recognizes alternate escape sequences for the arrow
+  keys.
 
-2.4.2 :: October 28, 1996.
++ NcFTP now allows a user to cancel an mget at the "file exists" prompt.
 
-+ Daylight savings time bug fixed (Thanks, Chris Hanson).
++ Continue redialing if the server returns a bad user reply, since
+  some servers do their "too many users logged in check" at that time.
 
-+ Fixed the spurious character that was appearing in the "User" and
-  "Password" prompt.
++ Try harder to display remote connect banner.
 
-+ Fixed a broken pipe problem.
++ Fixed bug in remote mkdir which would fail if the subdirectory was in
+  the root directory.
 
-+ Throughput results should be more accurate.  Previously they were
-  inflated a bit because the stoptime was recorded after the last write
-  instead of after the close.
++ A few small memory leaks plugged.
 
-2.4.1 :: October 18, 1996.
++ Try to remove extraneous slashes from paths when possible, since Win32
+  doesn't like them.
 
-+ Bug fixed which cause completion to seg fault.
++ Win32 version tries harder to sleep the actual number of seconds
+  requested even if means busy waiting, since Sleep() may return
+  immediately if the system has nothing else to do.
 
-+ Less lint.
++ Win32 version now checks for a HOME or NCFTPDIR environment variable.
 
-2.4.0 :: October 16, 1996.
++ Win32 version of ncftpbookmarks no longer locks up when trying to
+  send a bookmark back to NcFTP.
 
-+ Block transfer mode added.
++ The firewall password no longer echoes to the screen on the Win32 version.
 
-+ Fixed a seg fault in RCmd.c.
++ NcFTP tries harder to get the actual screen width so that getline
+  can use the whole line for input.  ncftpbookmarks has to be built
+  and installed where NcFTP can find it for this ugly hack to work.
 
-+ Added fix for Chinese character printing.
++ NcFTP now sends your anonymous password to batch jobs, rather than
+  having NcFTPBatch compute a default value.
 
-+ Added fix for long-lines (Thanks, Kohtala Marko).
++ Shell utilities now default to PASV-then-PORT mode like NcFTP does,
+  rather than use PORT only.
 
-2.3.0 :: December 5, 1995.
++ NcFTPGet and Put are now better about reporting a server error,
+  rather than simply printing the worthless "could not start data
+  transfer" message.
 
-+ New home FTP site, ftp://ftp.probe.net/pub/ncftp/.
++ Getline now handles emacs ^W sequence.
 
-+ New e-mail address, mgleason@probe.net.
 
-+ Now using the "bookmark" paradigm, in place of "recent," "host entry,"
-  and "nickname."
+Beta21, 1999-10-03:
 
-+ The "bookmarks" file, formerly "hosts" file, will rename itself to the
-  new name automatically and adds another field which denotes whether to
-  update the directory path when closing that site.
++ Included HTML versions of the manual pages.  This is mostly for the
+  Win32 port.
 
-+ New "bookmarks" commands which replaces the "hosts" command.  New "bookmark"
-  command can save a snapshot of the current session at the remote host as
-  a placeholder, so you can go back to that location later.  This works just
-  like a bookmark does in a Web browser does essentially.  That way a user
-  can make a bookmark whenever they want, in addition to the usual automatic
-  bookmarks that are saved when you close a newly opened site.
++ Bug fixed in ncftpls which was printing lines with \r\n instead of
+  just \n.
 
-+ Bookmarks added manually by the user will have "noSaveDir" on so the
-  directory won't change when you use that book mark but chdir around
-  afterward.
++ NcFTP 3 is now covered by the Artistic License.  See the LICENSE.txt
+  file for details.
 
-+ Added a "cat" command.  This is useful for visual mode, so you can just
-  dump a file to the screen and have the auto-pager kick on.
++ The "prefs" file is now called "prefs_v3" for better coexistence with
+  NcFTP 2.
 
-+ Forgot to turn the alarm off when longjmp'ing out.
 
-+ Minor configure script tweaks.
+Beta20, 1999-09-29:
 
-+ Visual mode's history no longer adds blank lines.
++ Win32 (Windows 95/98/NT) supported natively!  You can download a pre-fab
+  Setup, or build it yourself from the same source base that is used for
+  UNIX.
 
-+ Minutes remaining in "ETA" can be up to three digits now.
++ Readline is out, Getline is in!
 
-+ Cleanup curses upon a SIGTERM before exiting.
++ Using my "sio" library in conjunction with LibNcFTP.  This was done
+to be consistent with other platforms, which don't use alarm() and
+signal handline.
 
-+ Pruned Cpp.c.
++ Change of licensing.  Specifically, GPL was shown the door.  NcFTP is,
+has always been, and will continue to be free software.
 
-2.2.2 :: October 29, 1995.
++ Firewall type 6 bug fixed.
 
-+ Socks5 support (Thanks to Dave Blob, the author).
++ "put -f" fixed.
 
-+ Using ^Z and then backgrounding ncftp is less likely to abort a transfer
-  or cause the process to be stopped because of pending tty output.
++ When the server asks for a password, NcFTP will print the text, in case
+  you need that for a one-time password scheme like S/Key.
 
-+ Interrupting a transfer aborts all of the transfers in a batch instead of
-  just the current one.
++ "get -R" asks for all files by using the equivalent of /bin/ls -lRa on
+  the remote server.
 
-+ A few fixes for NeXT (Thanks, Vince Demarco).
++ A couple of small fixes for Cygwin, although in light of native support
+  for Windows this seems moot.
 
-+ Small bug fixed with forced-reget.
 
-+ Configure script tweaks.
+Beta19, 1999-06-09:
 
-+ Configure script's domain detection from /etc/resolv.conf is better.
++ Changed behavior so when auto-resume is off (still the default)
+  NcFTP will automatically continue without prompting if the remote
+  file's size and timestamp exactly match an existing local file.
+  This will make auto-resume=no a more friendly default, since you'll
+  still get prompted when the files differ, but won't bother you
+  like beta 18 did if the files are the same.
 
-+ Another small line-mode prompt bug fixed.
++ Bug fixed where "get -f" on an existing file would still have the
+  existing file prompt come up.
 
-2.2.1 :: October 7, 1995.
++ Work around bug with "-s" linker flag on IRIX 6.5.
 
-+ Really fixed bug where the prompt wasn't updating in line-mode.
-  (Thanks, Mark Nordberg)
++ Small fixes to support Mac OS X Server.
 
-+ Added "less" as an alias to "page."
++ Using inet_ntop function if available to work around IRIX 
+  DNS resolution problems.
 
-+ Small bug in completion code fixed (Thanks, Yakushiji Norihiro).
++ NcFTP's "rm -r" fixed to better handle empty directories and .dotfiles.
 
-+ Configure script's /etc/resolv.conf portion now allows ';' as comment
-  character.
++ Using SITE RETRBUFSIZE/RBUFSIZ/STORBUFSIZE/SBUFSIZ commands, if
+  available, to try and coordinate large TCP window support between
+  client and server.
 
-+ Old versions of readline.h do not prototype filename_completion_function.
-  (Thanks, Jody Goldberg).
++ Special case the IIS FTP server, so if it prints directory listings
+  in DOS mode, then NcFTP can parse them for file completion.
 
-+ Configure script may work better on SunOS with ncurses.
++ A few more changes for Cygwin/32.
 
-2.2.0 :: October 1, 1995.
++ Workaround definition of "lines" by AIX headers.
 
-+ Redial mode working again. 
++ Yet another permutation of firewall added.
 
-+ Bonus for CHANGELOG readers:  I'm adding Tim MacKenzie's filename
-  completion stuff on a test basis.
++ NcFTP 3 now keeps a simple transfer log like NcFTP 2 did.
 
-+ Now refreshing screen after predir.
++ Bug fixed in ncftpbatch which was looping if the file to get already
+  existed and was identical to the remote file.
 
-2.1.1 :: September 16, 1995.
++ Local commands now work better with wildcards.
 
-+ Visual mode now displays "RUNNING" in the status bar so you can tell
-  when a command is still going.  I'm not sure if I like this yet, so more
-  changes may be necessary.
++ Bug fixed where one of the firewall handlers was not prompting you
+  for your firewall password.
 
-+ Configure script jumps through hoops to find libreadline, for those of
-  you who are hellbent on using line-mode.
++ Bug fixed where logging in succeeded but NcFTP could not "pwd"
+  caused a crash.
 
-+ A few small work-arounds for Solaris.
++ You can now "ncftp -F" to dump a new firewall configuration template
+  to stdout.
 
-+ The startup-lcwd now expands ~.
 
-+ Using -f flag with csh/tcsh for local globbing  (Thanks, Chien-Ta Lee).
+Beta18, 1999-02-19:
 
-+ Avoiding clearing the screen on exit if an error occurred so you can
-  see the error message.
++ Bug fixed which caused downloads from servers other than wu-ftpd and
+  NcFTPd to skip the first byte in the file.
 
-+ Shouldn't crash if the remote server closes connection (Thanks,
-  Alexander Komlik).
++ NcFTP's new prompting-before-transferring feature had a bug which
+  occasionally caused it to detect a non-existant remote file as
+  existant.
 
-+ Fixed a condition that could crash the program if a file transfer
-  was interrupted (Thanks, Frank Crawford).
 
-+ Forgot <ctype.h> in Main.c (Thanks, David A. Avery).
+Beta17, 1999-02-09:
 
-+ Less lint.
++ New feature:  NcFTP now prompts you by default when you try to
+  get/put a file that already exists.  
 
-+ The "-C" command line option is now recognized properly.
++ A few resume bugs fixed in both get and put.
 
-+ If you're root, we don't write our .ncftp files.
++ New "jobs" command to list any running "ncftpbatch" tasks.
 
-+ Kludge around irix fcntl/NFS bug (Thanks, Victor Boyko).
++ Shell utilities now honor the ~/.ncftp/firewall file so they
+  can use the firewall settings.
 
-+ Kludge around ultrix fcntl/NFS bug (Thanks, Chris Metcalf).
++ If you're using the global version of the .firewall file,
+  as /etc/ncftp.firewall, you can also set the "passive" setting
+  in there.
 
-2.1.0 :: July 15, 1995.
++ Better large-file support for FreeBSD.
 
-+ Revamped the curses code in Win.c.
++ Capitulated to using the "install" utility in the Makefile.
 
-+ Revised the configure.in script to use some of my own m4 macros.
++ Using autoconf-2.13 and new functionality to assist in configuring
+  for UNIX on Win32 environments.
 
-+ Configure script should try the system V directories earlier, so
-  the resolv check works correctly.
++ Avoiding problems in Solaris 7 headers which cause curses to not
+  be autodetected.
 
-+ GetHostEntry changed to be more 64-bit friendly (Thanks, Matti Aarnio and
-  Murray S. Kucheraw).
++ Various improvements in FTP engine, including new support for
+  proposed FTP standard..
 
-+ Lint fixes (Thanks, Thomas E. Dickey).
++ TCP Large Window support, for those of you with obnoxiously large
+  pipes to the internet.  Use the new "so-bufsize" option for "set",
+  and "-B" options with ncftpget/put.
 
-+ Bug fixed in code that removes "CWD successful" lines (Thanks, Keith Steiger).
++ NcFTP now notes the server type, when possible, and works-around
+  problems with certain ones.
 
-+ Remote globbing improved.  This will help fix the problems caused by
-  "get -R *".
 
-+ You can once again use "cd <wildcard>" and it should actually work now :-)
+Beta16, 1998-11-30:
 
-+ New user log file format, which write the URL of files transferred.
++ NcFTP now does timestamp checking in addition to size checking to
+  determine when to reget/reput.  NcFTP 2 did this, but NcFTP 3 will
+  not be as aggressive to reduce the number of timezone synchronization
+  problems.
 
-2.0.7 :: June 10, 1995.
++ Fixed a problem where if the remote server suddenly disconnected
+  NcFTP would report the wrong error.
 
-+ Configure script is now smarter about when it should and should not try
-  looking for the resolver library.
++ NcFTP tries to print a message when it doesn't need to get a file.
 
-+ Visual mode now initializes before connecting to a site if needed, so when
-  you open a site from the command line you get to see the startup stuff
-  from the remote site.
++ Fixed more problems related to NcFTP being inconsistent about printing
+  startup messages and responses from the remote server.
 
-+ If your URL has a trailing slash, then ncftp knows that you want to run
-  it's shell.  After opening that site, it changes the directory to the one
-  your URL had.
++ User names, passwords, and accounts maximum length extended.
 
-+ A printf bug with too few parameters fixed (Thanks, Robin Cutshaw).
++ NcFTP now tries reput by default (ncftpput still does not).
 
-2.0.6 :: May 28, 1995.
++ Bug fixed in ncftpbatch which caused relative directory paths on
+  the second and successive transfers on the same host to fail.
 
-+ Configure script doesn't look for -lresolv.  It seems most people can do
-  without it even if they have it.
++ ncftpbatch now unspools an entry if a directory did not exist at
+  connect time.
 
-+ Not auto-saving accounts (nor passwords, but still usernames).
++ Account option added to shell utilties.
 
-+ Stuff for Newsos from SAKAI Kiyotaka.
++ More readline band-aids.
 
-+ Fixed bug where it was exiting 0 when colon mode failed (Thanks, L. Senator).
 
-+ Added -C flag to get, force reget, so you can try reget when the program gets
-  fooled into thinking you don't need to do it.
+Beta15(2), 1998-11-10:
 
-+ Divide by zero bug fixed in progress meters.
++ --bindir change was not pointing to ncftpbatch correctly.
 
-+ Fixed bug where an open macro wouldn't run from the shell command line.
++ "get -R -a" is now detected and treated as "get -R".
 
-+ Printing 331 messages for non-anonymous logins.
++ getpassphrase() function is used in place of getpass(), where available.
 
-+ WGets now uses ^K for kill-to-end-of-line (Thanks, ache).
 
-+ Statbar progress meter tweaks.
+Beta15, 1998-11-05:
 
-+ Transfer timeouts turned off, since the only purpose they served is to
-  update the progress meters and retry the same block.
++ NcFTP can now cope with cd'ing to unreadable directories.
 
-+ If I turn timeouts back on, it would be more difficult to timeout, since
-  the timeout value grows instead of staying constant.
++ The curses support (i.e. ncftpbookmarks) is now much more portable (for
+  example, FreeBSD 3, SunOS 4, BSD/OS).  Still, your best bet is to install
+  ncurses if you can.  At least one system's curses (HP-UX) compiles fine
+  but doesn't work worth jack, so use ncurses there.
 
-+ Should be more practical on a slow link, like a PPP or SLIP link.
++ Firewall not being used correctly when you ran NcFTP with a host from the
+  shell command-line.
 
-+ Increasing the Network Timeout in the prefs screen now affects transfers
-  like it should have been doing, instead of just the control stream.
++ Bug fixed where 32 spaces were being printed before running the pager.
 
-+ The current directory is now obtainable under VMS servers (Thanks W. Losh).
++ configure now recognizes --bindir.
 
-+ Domain name guessing a bit better now (Thanks, James Lick).
++ NcFTP now tries to print "server said" for a server related error,
+  so NcFTP quits getting blamed for server problems.
 
-+ Kludging around OSF/1 shell escape bug in visual mode so people quit
-  flooding my mailbox about it at least until we (or DEC) fix it.
++ More readline band-aids.
 
-2.0.5 :: May 1, 1995.
++ Rare problem fixed where a null pointer was being passed to a socket
+  library function was causing core dumps and, in some cases, kernel
+  panics.
 
-+ Major change:  Using alarms instead of select/poll on both data and
-  control streams.
++ Problem fixed with the new auto-TAR feature if the directory to download
+  was a first level directory.
 
-+ Fixed bug where prompt would be screwy if directory name had weird chars
-  (Thanks, Mark Rejhon).
++ When auto-TAR mode is on, you can tell in the progress meter.
 
-+ The cwd in the status bar will abbreviate as needed.
++ When auto-TAR is used for the first time, a one-time message is printed.
 
-+ gSprintfBuf only allocated once  (Thanks, Tim MacKenzie).
++ Bug fixed when using -R with a directory URL.
 
-+ Host editor stat bug fixed (Thanks, Albert Ma).
++ Doing a better job about displaying login and welcome messages.
 
-+ Progress meter ETA's now max out at 99:59.
++ Memory leak found and fixed.
 
-2.0.4 :: April 18, 1995.
++ Failed logins as non-anonymous no longer continue redialing and refailing.
 
-+ More tweaking the configure script with HP-UX.  It should work with
-  gcc, the useable cc/c89 and print an error for the useless cc.
++ Problem fixed where firewall user's firewall password could be logged
+  in the trace log.
 
-+ AIX problem with carriage returns (^M) fixed.  Carriage returns are
-  now emulated by the visual code.
++ URLs displayed include the port number, if non-standard.
 
-+ NcFTP now beeps after a long (15 sec) command completes.
++ ncftpbatch resets it's exponential waiting period.
 
-+ You can now do "set help" for a list of things to set manually.
-  (Thanks, Marcel Mol.)
++ Problem fixed where uploading invalid files wasn't considered an error.
 
-+ Username field in hosts file can now be 63 characters, for those who like
-  to put "user@machine.name" there for your gateway.
++ Local filesystem commands (lmkdir, etc) weren't handling files with
+  spaces in them correctly.
 
-+ Configure script explicitly checks for /usr/ccs/lib.
 
-+ "cd reg*ex" didn't work.  Now the code doesn't pretend to support that
-  behavior.  It will take a significant amount code to support that.
+Beta14, 1998-06-24:
 
-+ Directory listing and remote server responses have unprintable characters
-  represented by \xxx or ^X as needed.  Trailing spaces on a line are also
-  shown by \x where x is a space.
++ Firewall Type 5 now works.
 
-+ The command-line interpreter now lets you key in non-printing characters
-  by using the 4-character sequence \xxx or the two character sequence ^X.
++ "cd" command now properly recognizes a wildcard.
 
-+ Not printing a "Broken pipe" error if you end a "more" before reaching EOF.
++ NcFTP was failing to report an error when a wildcard did not match anything.
 
-+ Added a new progress meter, #5, the stat meter.  Inspired by Marcel Mol.
++ Progress reports on downloads had a bug where it wouldn't update as often
+  as it should have been.
 
-+ Added aliases for "ascii," "binary," "mget," and "mput."
++ A "put" on a short file is now more likely to errout with a timeout
+  error when the remote host is not responsive.
 
-+ Fixed a bug in Strn.c involving the const keyword.
++ Bookmarks and commands now readline-complete without regards to case
+  sensitivity.
 
-+ Current directory prompt is updated better when you cd . or cd ..  with
-  unreadable directories (Thanks, Brian Wellington).
 
-+ Man page has summary of command line flags  (Thanks, Janet Jackson).
+Beta13, 1998-06-21:
 
-+ Main program's usage screen includes flags for open and get.
++ Big change again -- NcFTP now automatically tries to take advantage of
+  servers that do on-the-fly TAR.  NcFTP can dynamically fallback to the
+  regular, non-TAR method when needed, so this should be somewhat
+  transparent.  You can tell when NcFTP uses TAR when the progress
+  meter shows only a directory being downloaded, instead of individual
+  items within the directory tree.  Of course the advantage to using
+  TAR mode is that the exact timestamps, permissions, etc can be
+  preserved, as well as reducing the number of total connections to the
+  server.
 
-=============================================================================
++ Bug fixed for regular get -R mode, which was causing failures on
+  some servers.
 
-2.0.3 :: April 3, 1995.
++ There is a now a "local directory" field for bookmarks.  This is only
+  settable using the Bookmark Editor.
 
-+ FTP cat/more mode now recognizes correct syntax.
++ Bug fixed where NcFTP wouldn't always fallback to PORT from PASV.
 
-+ Vacillated, using PORT now instead of PASV by default.
++ Bug fixed where NcFTP was not handling relative pathnames with more
+  than one node correctly  (i.e. "foo" was okay, but "foo/bar" was not.)
 
-+ Added a preference option to set default FTP mode.
++ The "-@" flag has been enhanced a little so it accepts a few more
+  types of date/time specifications.
 
-+ WGets added ^B/^F as equivalents for left/right arrow (Thx, Klaus Singvogel).
++ Bug fixed where NcFTP could be fooled into thinking a bookmark was not
+  saved.
 
-+ Polls try again if they get an interrupted system call.
++ Trying harder to print the host list if the Bookmark Editor is not
+  installed.
 
-+ Not polling in DataTransfer on writes unless writing to a socket.
++ Main usage message was not always printed.
 
-+ Not polling in BufferGets.  I hope this will resolve some of the problems
-  a few systems (Linux...) were having with timeouts.
++ Small tweaks to the progress meters.
 
-p13 : On NeXT, ncftp crashes trying to allocate memory in InitXferBuffer().
++ Shell utilities now identify themselves using CLNT command.
 
-=============================================================================
++ Completion bug fixed where a "/" was being appended for bookmarks and
+  commands.
 
-2.0.2 :: March 19, 1995.
 
-+ Using "real" locking now, so the problems with the "i.am.running" file
-  should be over with.
+Beta12, 1998-06-04:
 
-+ configure script now generated from Autoconf 2.2.
++ Big change -- curses is back, in limited form.  The bookmark editor
+  runs as the fullscreen applet that NcFTP 2.4 has.  It is a separate
+  program now (ncftpbookmarks) which is run by NcFTP (or you can run
+  it in stand-alone mode).  Note that if you have problems getting
+  the curses support to work, you do NOT have to build ncftpbookmarks.
+  To do that, remove the config.cache file and
+  "./configure --disable-curses".
 
-+ Prompt now shows path if you do "ncftp -L <site>"  (Thanks, Garner Halloran)
++ Bookmark completion and command name completion added.
 
-+ Man page is now makewhatis compliant.  (Thanks, Tuomo-Markus Tikkanen)
++ Recursive remote deletes are now possible (i.e. rm -r).
 
-+ Man page now puts version number in title.  (Thanks, Marty Leisner)
++ Shell command ("!") back.
 
-+ Man page now has reference to archive site in title.
++ Bug fixed where NcFTP would ignore ls output from OS/2 servers.
 
-+ pdir/pls now function properly under visual mode. (Thanks, ache)
++ Bug fixed where a trailing slash was confusing put -R.
 
-+ WGets recognizes KEY_ENTER as a newline/return key.  Not using it was 
-  causing problems on some IRIX machines.  (Thanks, Rob Kooper)
++ Bug fixed where a trailing slash was confusing file completion.
 
-+ Redial-mode now prints status messages before sleeping to avoid looking
-  like the program hanged.
++ ncftpget and ncftpput now have a "-b" flag which lets you submit
+  a batch job to ncftpbatch.  Now you don't need to run ncftp,
+  open the site, and do bgget commands.
 
-+ WGets now recognizes ^P/^N as equivalents to up and down arrow.
++ NcFTP now accepts URLs with the open command.
 
-+ Should now be able to compile with SYSLOG. (Thanks, Fabrizio Pivari)
++ A bit more lenient when using directory URLs with NcFTP without the
+  proper trailing slash.
 
-+ Fixed problem where password could echo.  (Thanks, Tuomo-Markus Tikkanen)
++ Various small configure script bugs fixed.
 
-+ Will now compile under Ultrix;  can't get it to work with curses or
-  cursesX however.
 
-+ Fixed the bug where a host dropping a connection core dumped.
+Beta11, 1998-05-10:
 
-+ Configure script looks for socks library now.
++ Another problem with Auto-resume-downloads fixed.
 
-+ Better compatibility with NeXT.  Well, should be less compile-time errors
-  anyway.
++ The xterm title setting feature is now configurable from "prefs" and
+  is off by default.
 
-+ Now checking for either curses.h or ncurses.h when using ncurses.
++ Problem fixed where files newer than the current date could be listed
+  as the year before.
 
-+ Fixed bug in WGets that caused a segfault when the arrow keys were used
-  when a command history was not in use.
++ Small firewall support problem fixed.
 
-=============================================================================
 
-2.0.1 :: March 7, 1995.
+Beta10, 1998-05-03:
 
-+ Fixed a silly error that prevented compilation when there was no curses
-  library available.
++ Several problems with Auto-resume-downloads fixed.
 
-=============================================================================
++ Several problems with Redial fixed.  It is on by default -- let me know
+  the specifics if it fails.
 
-2.0.0 :: March 5, 1995.
++ Problem fixed where a multiple get would try re-downloading files
+  over and over again.
 
-+ No longer beta!
++ Problem fixed where if a multiple get failed the files that were downloaded
+  successfully were deleted.
 
-+ Added redir and predir.
++ Bug fixed where "get -R" would create files as directories.
 
-+ Can now turn trace on and off from the prefs window.
++ Master source drive lost -- some things had to be restored from backup
+  and rebuilt entirely (such as the configure script stuff).  So, many things
+  which were fixed may suddenly be un-fixed again.
 
-+ The saved directory paths can how have commas and backslashes in them.
++ Readline completion works with local directories and remote symlinks.
 
-+ You can add -DPLAIN_TEXT_ONLY if you don't want to use bold, reverse, etc.,
-  text with curses.
++ NcFTP recovers better from aborted transfers.
 
-+ You can't edit the host entries while you have a connection open now. 
-  (If you edit the entry for the current host, it would be overwritten when
-  you closed the host.)
++ New signal handling, which will hopefully have the same behavior across
+  platforms.
+
++ A few minor firewall problems fixed.
+
++ You can now have system-wide firewall settings stored in /etc/ncftp.firewall
+  and /etc/ncftp.firewall.fixed, if you create them from a ~/.ncftp/firewall
+  file.
+
++ You can now spool transfers to FTP servers on non-standard ports.
+
++ NcFTP now changes your xterm window title.
+
++ Bug fixed with spool files using the firewall's IP number.
+
++ ncftpbatch now works on case-insensitive filesystems.
+
++ configure's readline check now runs the test program to be sure it was
+  linked correctly.
+
+
+Beta9, 1998-01-25:
+
++ Bug fixed that was introduced in b8 that caused a crash after a transfer.
+
++ Readline completion with <TAB><TAB> should work better.
+
++ Bookmark lookups changed to full bookmark name only.
+
++ Configure bug where scanf("%qd") wasn't checked right.
+
+
+Beta8, 1998-01-18:
+
++ Bug fix that broke the firewall support that used to work in Beta 6.
+
++ Bug fixes with RESTarting.
+
++ Smarter about using 64-bit or 32-bit mode (long longs or longs).
+
++ Yet another firewall added.
+
++ Fixes for HP-UX.
+
++ Readline 2.1 dependency worked around, so that Readline 2.0 is useable.
+
++ Unsupported -J flag added to use an ACCT name.
+
++ Uses NcFTPd's new "CLNT" command to specify FTP client type.
+
++ Hack so "open -u host" works like it did in earlier versions of NcFTP.
+
+
+Beta7, 1997-12-28:
+
++ Should now be able to retrieve very large files (> 2 gig), depending
+  on the libc and OS.
+
++ Namespace collision with GNU libc fixed (errno field).
+
++ get -R xxx now creates a ./xxx directory instead of dropping xxx/* 
+  in the local directory.
+
++ New firewall type added.
+
++ Many file completion tweaks.
+
++ Another bug fixed where ASCII mode was getting turned on.
+
++ If you use a firewall, the firewall is now responsible for resolving
+  host names.
+
++ Bug fixed with bgget/bgput with absolute pathnames.
+
++ Plug frequency reduced.
+
++ Bug fixed where command-line switches were not overriding bookmark settings.
+
++ Bug fixed where "set" commands were not taking effect until the current
+  connection was closed.
+
++ StatBar progress meter revised.
+
++ ncftp_batch back-off revised.
+
++ ncftpget transfer type bug fixed.
+
+
+Beta6, 1997-11-21:
+
++ Bookmark command bug fixed.
+
++ Bug with bookmarks fixed that could save the transfer type as ASCII.
+
++ Symlink hidden command added (only works with NcFTPd).
+
++ Including man page for ncftpls
+
++ Mkdir dirties cache
+
++ site and quote fixed
+
+
+Beta5, 1997-11-19:
+
++ Fixes for AIX 4.1
+
++ Bug in put -R fixed.
+
+
+Beta4, 1997-11-18:
+
++ Bug fixed that caused pdir/pls to act like ls.
+
++ Fixes for SunOS.
+
++ ncftpls added.
+
++ The philbar is back; you can now choose it as a progress meter
+  if you don't like the statbar.
+
++ Checking for ncftpbatch before trying to run it.
+
+
+Beta3, 1997-11-17:
+
++ Try not to use Readline when it is older than 2.0, or when its headers
+  aren't installed correctly.
+
++ Fix for get -R, which could cause a crash during the post-downloading
+  cleanup.
+
++ A little extra tracing for the firewall code.
+
+
+Beta2, 1997-11-15:
+
++ Fix for unrecognized ls flags that would cause a crash.
+
++ NcFTP 3.0 prefers GNU Readline version 2.1, but it should now also
+  work with version 2.0.
+
++ A few portability/lint fixes.
