@@ -1,6 +1,6 @@
 /* ftp.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -521,6 +521,9 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		} else if (strstr(firstLine, "(NetWare ") != NULL) {
 			cip->serverType = kServerTypeNetWareFTP;
 			srvr = "NetWare FTP Service";
+		} else if (strstr(firstLine, "(DG/UX ") != NULL) {
+			cip->serverType = kServerTypeDguxFTP;
+			srvr = "DG/UX FTP Service";
 		} else if (STRNEQ("WFTPD", firstLine, 5)) {
 			cip->serverType = kServerTypeWFTPD;
 			srvr = "WFTPD";
@@ -1132,7 +1135,7 @@ SendTelnetInterrupt(const FTPCIPtr cip)
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	(void) send(cip->ctrlSocketW, (const char *) msg, 2, 0);
 #else
-	(void) send(cip->ctrlSocketW, msg, 2, 0);
+	(void) send(cip->ctrlSocketW, (const char *) msg, 2, 0);
 #endif
 	/* 2. User system sends the Telnet "Sync" signal. */
 	msg[0] = (unsigned char) IAC;
@@ -1140,7 +1143,7 @@ SendTelnetInterrupt(const FTPCIPtr cip)
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (send(cip->ctrlSocketW, (const char *) msg, 2, MSG_OOB) != 2)
 #else
-	if (send(cip->ctrlSocketW, msg, 2, MSG_OOB) != 2)
+	if (send(cip->ctrlSocketW, (const char *) msg, 2, MSG_OOB) != 2)
 #endif
 		FTPLogError(cip, kDoPerror, "Could not send an urgent message.\n");
 }	/* SendTelnetInterrupt */

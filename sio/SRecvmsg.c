@@ -3,11 +3,6 @@
 #	pragma hdrstop
 #endif
 
-#ifndef NO_SIGNALS
-extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
-#endif
-
 #ifndef HAVE_RECVMSG
 int
 SRecvmsg(int UNUSED(sfd), void *const UNUSED(msg), int UNUSED(fl), int UNUSED(tlen))
@@ -22,72 +17,8 @@ SRecvmsg(int UNUSED(sfd), void *const UNUSED(msg), int UNUSED(fl), int UNUSED(tl
 	return (-1);
 }
 
-#elif !defined(NO_SIGNALS)
 
-int
-SRecvmsg(int sfd, void *const msg, int fl, int tlen)
-{
-	recv_return_t nread;
-	alarm_time_t tleft;
-	vsio_sigproc_t sigalrm, sigpipe;
-	time_t done, now;
-
-	if (tlen < 0) {
-		errno = 0;
-		for (;;) {
-			nread = recvmsg(sfd, (struct msghdr *) msg, fl);
-			if ((nread >= 0) || (errno != EINTR))
-				return ((int) nread);
-		}
-	}
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-
-	time(&now);
-	done = now + tlen;
-	tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-	forever {
-		(void) alarm(tleft);
-		nread = recvmsg(sfd, (struct msghdr *) msg, fl);
-		(void) alarm(0);
-		if (nread >= 0)
-			break;
-		if (errno != EINTR)
-			break;		/* Fatal error. */
-		errno = 0;
-		time(&now);
-		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-		if (tleft < 1) {
-			nread = kTimeoutErr;
-			errno = ETIMEDOUT;
-			break;
-		}
-	}
-
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-
-	return ((int) nread);
-}	/* SRecvmsg */
-
-#elif defined(HAVE_RECVMSG)
+#else
 
 int
 SRecvmsg(int sfd, void *const msg, int fl, int tlen)
@@ -98,8 +29,14 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 	fd_set ss;
 	struct timeval tv;
 	int result;
-
-	if (tlen < 0) {
+	DECL_SIGPIPE_VARS
+	
+	if (msg == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
+	if (tlen <= 0) {
 		errno = 0;
 		for (;;) {
 			nread = recvmsg(sfd, (struct msghdr *) msg, fl);
@@ -140,7 +77,9 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 			}
 		}
 
+		IGNORE_SIGPIPE
 		nread = recvmsg(sfd, (struct msghdr *) msg, fl);
+		RESTORE_SIGPIPE
 
 		if (nread >= 0)
 			break;

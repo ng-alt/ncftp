@@ -19,6 +19,12 @@ GetHomeDir(char *dst, size_t size)
 {
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	const char *homedrive, *homepath;
+	
+	homepath = getenv("USERPROFILE");	/* Windows XP */
+	if (homepath != NULL) {
+		(void) Strncpy(dst, homepath, size);
+		return;
+	}
 
 	homedrive = getenv("HOMEDRIVE");
 	homepath = getenv("HOMEPATH");

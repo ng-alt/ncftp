@@ -1,6 +1,6 @@
 /* ncftpbatch.c
  * 
- * Copyright (c) 1999-2000 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  * 
  */
@@ -225,26 +225,20 @@ Log(
 		const char *const fmt, ...)
 {
 	va_list ap;
-	struct tm *ltp, lt;
-
+	struct tm lt;
+	char tstr[128];
+	
 	if (gLogFile != NULL) {
-		ltp = Localtime(time(&gLogTime), &lt);
-		if (ltp != NULL) {
-			(void) fprintf(gLogFile,
+		strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S %Z", Gmtime(time(&gLogTime), &lt));
+		(void) fprintf(gLogFile,
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-				"%04d-%02d-%02d %02d:%02d:%02d [$%08x] | ",
+			"%s [$%08x] | ",
 #else
-				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
+			"%s [%06u] | ",
 #endif
-				lt.tm_year + 1900,
-				lt.tm_mon + 1,
-				lt.tm_mday,
-				lt.tm_hour,
-				lt.tm_min,
-				lt.tm_sec,
-				gMyPID
-			);
-		}
+			tstr,
+			gMyPID
+		);
 		va_start(ap, fmt);
 		(void) vfprintf(gLogFile, fmt, ap);
 		va_end(ap);
@@ -279,28 +273,22 @@ static void
 LogPerror(const char *const fmt, ...)
 {
 	va_list ap;
-	struct tm *ltp, lt;
+	struct tm lt;
 	int oerrno;
+	char tstr[128];
 	
 	oerrno = errno;
 	if (gLogFile != NULL) {
-		ltp = Localtime(time(&gLogTime), &lt);
-		if (ltp != NULL) {
-			(void) fprintf(gLogFile,
+		strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S %Z", Gmtime(time(&gLogTime), &lt));
+		(void) fprintf(gLogFile,
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-				"%04d-%02d-%02d %02d:%02d:%02d [$%08x] | ",
+			"%s [$%08x] | ",
 #else
-				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
+			"%s [%06u] | ",
 #endif
-				lt.tm_year + 1900,
-				lt.tm_mon + 1,
-				lt.tm_mday,
-				lt.tm_hour,
-				lt.tm_min,
-				lt.tm_sec,
-				gMyPID
-			);
-		}
+			tstr,
+			gMyPID
+		);
 		va_start(ap, fmt);
 		(void) vfprintf(gLogFile, fmt, ap);
 		va_end(ap);
@@ -1266,7 +1254,7 @@ Now(int *yyyymmdd, int *hhmmss)
 {
 	struct tm lt;
 
-	if (Localtime(0, &lt) == NULL) {
+	if (Gmtime(0, &lt) == NULL) {
 		*yyyymmdd = 0;
 		*hhmmss = 0;
 	} else {
@@ -1470,7 +1458,7 @@ EventShell(volatile unsigned int sleepval)
 						}
 					}
 					tnext = time(NULL) + (time_t) gDelaySinceLastFailure;
-					strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S", Localtime(tnext, &tnext_tm));
+					strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S %Z", Gmtime(tnext, &tnext_tm));
 
 					gMaySigExit = 0;
 					if (SpoolX(
@@ -1697,7 +1685,7 @@ static void OnDraw(HWND hwnd, HDC hdc)
 	LOGFONT lf;
 	char *cp;
 
-	strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", Localtime(0, &lt));
+	strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S %Z", Gmtime(0, &lt));
 
 	sizeIsUnknown = (gConn.expectedSize == kSizeUnknown);
 	inProgress = (gConn.bytesTransferred > 0);
@@ -2113,7 +2101,7 @@ Usage(void)
 		(void) fprintf(stderr, "\tncftpspooler -l\t\t\t\t(list spooled jobs)\n");
 	}
 	(void) fprintf(stderr, "\nLibrary version: %s.\n", gLibNcFTPVersion + 5);
-	(void) fprintf(stderr, "This is a freeware program by Mike Gleason (mgleason@probe.net).\n");
+	(void) fprintf(stderr, "This is a freeware program by Mike Gleason (http://www.NcFTP.com).\n");
 	DisposeWinsock();
 	exit(2);
 }	/* Usage */

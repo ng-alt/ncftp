@@ -40,7 +40,7 @@ dnl ---------------------------------------------------------------------------
 dnl
 AC_HEADER_STDC
 dnl Readline headers #ifdefs for string.h, sio needs strings.h for AIX
-AC_CHECK_HEADERS(arpa/nameser.h gnu/libc-version.h locale.h nserve.h resolv.h sgtty.h string.h strings.h sys/ioctl.h syslog.h sys/socket.h sys/time.h sys/types.h sys/utsname.h sys/systeminfo.h termio.h termios.h time.h utime.h unistd.h)
+AC_CHECK_HEADERS(arpa/nameser.h gnu/libc-version.h locale.h net/errno.h nserve.h resolv.h sgtty.h string.h strings.h sys/ioctl.h syslog.h sys/socket.h sys/time.h sys/types.h sys/utsname.h sys/systeminfo.h termio.h termios.h time.h utime.h unistd.h)
 AC_TIME_WITH_SYS_TIME
 
 dnl	# sio
@@ -105,7 +105,7 @@ dnl Checks for library functions.
 dnl ---------------------------------------------------------------------------
 dnl
 wi_FUNC_GETCWD
-AC_CHECK_FUNCS(fstat64 getdomainname gethostname getpass getpassphrase gnu_get_libc_release gnu_get_libc_version inet_aton inet_ntop llseek lseek64 lstat64 memmove mktime open64 pathconf readlink res_init setlocale setpgid setpgrp setsid setvbuf sigaction stat64 strcasecmp strcoll strdup strerror strncoll strstr strtoq symlink sysconf sysctl sysinfo syslog uname waitpid)
+AC_CHECK_FUNCS(fstat64 getdomainname gethostname getpass getpassphrase gnu_get_libc_release gnu_get_libc_version inet_aton inet_ntop llseek lseek64 lstat64 memmove mktime open64 pathconf readlink res_init setlocale setpgid setpgrp setsid setvbuf sigaction sigsetjmp stat64 strcasecmp strcoll strdup strerror strncoll strstr strtoq symlink sysconf sysctl sysinfo syslog uname waitpid)
 AC_CHECK_FUNCS(gethostbyaddr_r gethostbyname_r gethostbyname2_r getlogin_r getpwnam_r _posix_getpwnam_r getpwuid_r _posix_getpwuid_r getservbyname_r getservbyport_r gmtime_r localtime_r readdir_r)
 wi_SNPRINTF
 wi_FUNC_SIGSETJMP
@@ -190,12 +190,12 @@ NCFTP_VERSION=`sed -n '/gVersion\[\]/{
 	q
 }' ncftp/version.c`
 
-SIO_VERSION=`sed -n '/gSioVersion\[\]/{
+SIO_VERSION=`sed -n '/kSioVersion/{
 	s/^[^0-9]*//
 	s/\ .*$//
 	p
 	q
-}' sio/SRead.c`
+}' sio/sio.h`
 
 STRN_VERSION=`sed -n '/gStrnLibVersion\[\]/{
 	s/^[^0-9]*//

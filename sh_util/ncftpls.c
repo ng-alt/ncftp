@@ -1,6 +1,6 @@
 /* ncftpls.c
  *
- * Copyright (c) 1999-2000 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  * A non-interactive utility to list directories on a remote FTP server.

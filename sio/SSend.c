@@ -3,93 +3,6 @@
 #	pragma hdrstop
 #endif
 
-#ifndef NO_SIGNALS
-extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
-#endif
-
-#ifndef NO_SIGNALS
-
-int
-SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
-{
-	char *volatile buf = buf0;
-	send_return_t nwrote;
-	volatile send_size_t nleft;
-	alarm_time_t tleft;
-	vsio_sigproc_t sigalrm, sigpipe;
-	time_t done, now;
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = (send_return_t) size - (send_return_t) nleft;
-		if (nwrote > 0)
-			return ((int) nwrote);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = (send_return_t) size - (send_return_t) nleft;
-		if (nwrote > 0)
-			return ((int) nwrote);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-
-	nleft = (send_size_t) size;
-	time(&now);
-	done = now + tlen;
-	forever {
-		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-		if (tleft < 1) {
-			nwrote = (send_return_t) size - (send_return_t) nleft;
-			if (nwrote == 0) {
-				nwrote = kTimeoutErr;
-				errno = ETIMEDOUT;
-			}
-			goto done;
-		}
-		(void) alarm(tleft);
-		nwrote = send(sfd, buf, nleft, fl);
-		(void) alarm(0);
-		if (nwrote < 0) {
-			if (errno != EINTR) {
-				nwrote = (send_return_t) size - (send_return_t) nleft;
-				if (nwrote == 0)
-					nwrote = (send_return_t) -1;
-				goto done;
-			} else {
-				errno = 0;
-				nwrote = 0;
-				/* Try again. */
-			}
-		}
-		nleft -= (send_size_t) nwrote;
-		if (nleft == 0)
-			break;
-		buf += nwrote;
-		time(&now);
-	}
-	nwrote = (send_return_t) size - (send_return_t) nleft;
-
-done:
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-
-	return ((int) nwrote);
-}	/* SSend */
-
-#else
-
 int
 SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 {
@@ -101,6 +14,14 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 	fd_set ss;
 	struct timeval tv;
 	int result;
+	DECL_SIGPIPE_VARS
+	
+	if ((buf == NULL) || (size == 0) || (tlen <= 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
+	IGNORE_SIGPIPE
 
 	nleft = (send_size_t) size;
 	time(&now);
@@ -145,12 +66,16 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 			} else if (result == 0) {
 				/* timeout */		
 				nwrote = (send_return_t) size - (send_return_t) nleft;
-				if (nwrote > 0)
+				if (nwrote > 0) {
+					RESTORE_SIGPIPE
 					return ((int) nwrote);
+				}
 				errno = ETIMEDOUT;
 				SETWSATIMEOUTERR
+				RESTORE_SIGPIPE
 				return (kTimeoutErr);
 			} else if (errno != EINTR) {
+				RESTORE_SIGPIPE
 				return (-1);
 			}
 		}
@@ -178,7 +103,6 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 	nwrote = (send_return_t) size - (send_return_t) nleft;
 
 done:
+	RESTORE_SIGPIPE
 	return ((int) nwrote);
 }	/* SSend */
-
-#endif

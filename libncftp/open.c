@@ -1,6 +1,6 @@
 /* open.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -410,6 +410,11 @@ FTPQueryFeatures(const FTPCIPtr cip)
 		return (kNoErr);
 	}
 
+	if (cip->serverType == kServerTypeDguxFTP) {
+		/* DG/UX server chokes if you send HELP SITE */
+		cip->hasHELP_SITE = kCommandNotAvailable;
+	}
+	
 	rp = InitResponse();
 	if (rp == NULL) {
 		cip->errNo = kErrMallocFailed;

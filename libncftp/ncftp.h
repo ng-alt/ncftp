@@ -1,6 +1,6 @@
 /* ncftp.h
  *
- * Copyright (c) 1996-2003 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -13,7 +13,7 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.1.6 (August 24, 2003)"
+#define kLibraryVersion "@(#) LibNcFTP 3.1.7 (January 6, 2004)"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */
@@ -205,7 +205,7 @@ extern "C"
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.1.6"
+#define kLibraryMagic "LibNcFTP 3.1.7"
 
 #ifndef longest_int
 #define longest_int long long
@@ -661,6 +661,7 @@ typedef int (*FTPConfirmResumeUploadProc)(
 #define kServerTypeRoxen		10
 #define kServerTypeNetWareFTP		11
 #define kServerTypeWS_FTP		12
+#define kServerTypeDguxFTP		13
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Windows has separate functions to close and ioctl sockets. */

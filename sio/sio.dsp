@@ -103,11 +103,7 @@ SOURCE=.\PWrite.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\SAcceptA.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\SAcceptS.c
+SOURCE=.\SAccept.c
 # End Source File
 # Begin Source File
 

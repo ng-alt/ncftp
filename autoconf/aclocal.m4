@@ -3328,7 +3328,7 @@ if test "x$CCDV" = "x" ; then
 #define TEXT_BLOCK_SIZE 8192
 #define INDENT 2
 
-#define TERMS "vt100:vt102:vt220:vt320:xterm:ansi:linux:scoterm:scoansi:dtterm:cons25:cygwin"
+#define TERMS "vt100:vt102:vt220:vt320:xterm:xterm-color:ansi:linux:scoterm:scoansi:dtterm:cons25:cygwin"
 
 size_t gNBufUsed = 0, gNBufAllocated = 0;
 char *gBuf = NULL;
@@ -4745,7 +4745,11 @@ EOF
 		;;
 esac
 
+if [ "x$wi_cv_OS" != "x" ] && [ "$wi_cv_OS" != "$OS" ] ; then
 changequote([, ])
+	AC_MSG_ERROR([Your config.cache file is invalid.  It was created on $wi_cv_OS, but this machine is running $OS.  Remove the config.cache file if you wish to continue.])
+fi
+wi_cv_OS="$OS"
 
 AC_SUBST(NDEFS)
 AC_SUBST(OS)

@@ -5,7 +5,7 @@
 
 int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
 
-#ifndef NO_SIGNALS
+#ifdef UNIX_SIGNALS
 
 #if defined(HPUX) || defined(__hpux__)
 volatile Sjmp_buf gNetTimeoutJmp;
@@ -51,6 +51,6 @@ void (*SSignal(int signum, void (*handler)(int)))(int)
 #endif	/* HAVE_SIGACTION */
 }
 
-#endif	/* NO_SIGNALS */
+#endif	/* UNIX_SIGNALS */
 
 /* eof main.c */

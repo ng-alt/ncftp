@@ -1,6 +1,6 @@
 /* syshdrs.h
  *
- * Copyright (c) 2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -177,6 +177,21 @@ extern ssize_t nsendmsg(int, const struct msghdr *, int);
 #define xEOF    236             /* End of file: EOF is already used... */
 
 #define SYNCH   242             /* for telfunc calls */
+#endif
+
+#if ((defined(SIGALRM)) && (defined(SIGPIPE)))
+#	define UNIX_SIGNALS 1
+#endif
+
+/* Private decl; only for use when compiling sio code. */
+#ifdef HAVE_SIGSETJMP
+#	define SSetjmp(a) sigsetjmp(a, 1)
+#	define SLongjmp(a,b) siglongjmp(a, b)
+#	define Sjmp_buf sigjmp_buf
+#else
+#	define SSetjmp(a) setjmp(a)
+#	define SLongjmp(a,b) longjmp(a, b)
+#	define Sjmp_buf jmp_buf
 #endif
 
 #include "sio.h"			/* Library header. */

@@ -6,12 +6,17 @@
 void
 FlushSReadlineInfo(SReadlineInfo *srl)
 {
+	if (srl == NULL) {
+		errno = EINVAL;
+		return;
+	}
+	
 	/* Discards any input left in the current buffer,
 	 * and resets the buffer and its pointer.
 	 */
-	srl->bufSize = srl->bufSizeMax;
-	memset(srl->buf, 0, srl->bufSize);
-	srl->bufLim = srl->buf + srl->bufSizeMax;
+	memset(srl->buf, 0, srl->bufSizeMax);
+	srl->bufSize = 0;		/* Nothing buffered yet. */
+	srl->bufLim = srl->buf + srl->bufSize;
 
 	/* This line sets the buffer pointer
 	 * so that the first thing to do is reset and fill the buffer
@@ -26,6 +31,11 @@ FlushSReadlineInfo(SReadlineInfo *srl)
 int
 InitSReadlineInfo(SReadlineInfo *srl, int fd, char *buf, size_t bsize, int tlen, int requireEOLN)
 {
+	if ((srl == NULL) || (fd < 0) || (tlen <= 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
 	if (buf == NULL) {
 		if (bsize < 512)
 			bsize = 512;	/* Pointless, otherwise. */
@@ -38,9 +48,9 @@ InitSReadlineInfo(SReadlineInfo *srl, int fd, char *buf, size_t bsize, int tlen,
 	}
 	memset(buf, 0, bsize);
 	srl->buf = buf;
-	srl->bufSize = bsize;
 	srl->bufSizeMax = bsize;
-	srl->bufLim = srl->buf + bsize;
+	srl->bufSize = 0;			/* Nothing buffered yet. */
+	srl->bufLim = srl->buf + srl->bufSize;
 	srl->fd = fd;
 	srl->timeoutLen = tlen;
 	srl->requireEOLN = requireEOLN;
@@ -86,6 +96,11 @@ SReadline(SReadlineInfo *srl, char *const linebuf, size_t linebufsize)
 	int nr;
 	int requireEOLN;
 	int illegals;
+	
+	if ((srl == NULL) || (linebuf == NULL) || (linebufsize < 2)) {
+		errno = EINVAL;
+		return (-1);
+	}
 
 	illegals = 0;
 	err = 0;
@@ -93,11 +108,7 @@ SReadline(SReadlineInfo *srl, char *const linebuf, size_t linebufsize)
 	dstlim = dst + linebufsize - 1;		       /* Leave room for NUL. */
 	src = srl->bufPtr;
 	requireEOLN = srl->requireEOLN;
-	if (requireEOLN)
-		dstlim--;
-	if (dstlim <= dst)
-		return (-1);				/* Buffer too small. */
-
+	
 	forever {
 		if ((requireEOLN == 0) && (dst >= dstlim))
 			break;
@@ -120,6 +131,7 @@ SReadline(SReadlineInfo *srl, char *const linebuf, size_t linebufsize)
 			}
 			srl->bufPtr = src = srl->buf;
 			srl->bufLim = srl->buf + nr;
+			srl->bufSize = (size_t) nr;
 		}
 		if (*src == '\0') {
 			++src;
@@ -148,8 +160,6 @@ SReadline(SReadlineInfo *srl, char *const linebuf, size_t linebufsize)
 
 done:
 	srl->bufPtr = src;
-	if ((requireEOLN != 0) && (dst != linebuf) && (dst[-1] != '\n'))
-		*dst++ = '\n';
 	if ((requireEOLN != 0) && (dst == linebuf) && (illegals > 0))
 		*dst++ = '\n';
 	*dst = '\0';

@@ -147,7 +147,8 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 				continue;
 
 			/* Valid directory listing line of output */
-			if ((line[0] == '.') && ((line[1] == '\0') || ((line[1] == '.') && ((line[2] == '\0') || (iscntrl((int) line[2]))))))
+#define islsenddelim(c) ((c == '\0') || ((iscntrl((int) c)) && (! isspace((int) c))))
+			if ((line[0] == '.') && ((islsenddelim(line[1])) || ((line[1] == '.') && (islsenddelim(line[2])))))
 				continue;	/* Skip . and .. */
 
 			(void) AddLine(llines, line);

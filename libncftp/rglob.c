@@ -137,7 +137,7 @@ RemoteGlobCollapse(const FTPCIPtr cip, const char *pattern, FTPLineListPtr fileL
 	for (lp=fileList->first; lp != NULL; lp = nextLine) {
 		nextLine = lp->next;
 		if (strncmp(lp->line, patPrefix, plen) == 0) {
-			if (Dynscpy(&cur, lp->line + plen, 0) == NULL)
+			if (Dynsrecpy(&cur, lp->line + plen, 0) == NULL)
 				goto done;
 			cp = strpbrk(cur, "/\\");
 			if (cp != NULL)
@@ -149,7 +149,7 @@ RemoteGlobCollapse(const FTPCIPtr cip, const char *pattern, FTPLineListPtr fileL
 				PrintF(cip, "  Rglob omitted: [%s] (type 3)\n", lp->line);
 				nextLine = RemoveLine(fileList, lp);
 			} else {
-				if (Dynscpy(&prev, cur, 0) == NULL)
+				if (Dynsrecpy(&prev, cur, 0) == NULL)
 					goto done;
 
 				/* We are playing with a dynamically
@@ -163,7 +163,7 @@ RemoteGlobCollapse(const FTPCIPtr cip, const char *pattern, FTPLineListPtr fileL
 		} else if (strpbrk(lp->line, "/\\") == NULL) {
 			if (patDir != NULL) {
 				newpath = NULL;
-				if (Dynscpy(&newpath, patDir, lp->line, 0) == NULL)
+				if (Dynsrecpy(&newpath, patDir, lp->line, 0) == NULL)
 					goto done;
 				PrintF(cip, "  Rglob changed: [%s] to [%s]\n", lp->line, newpath);
 				free(lp->line);

@@ -3,10 +3,6 @@
 #	pragma hdrstop
 #endif
 
-#if !defined(NO_SIGNALS) && defined(SIGPIPE)
-extern Sjmp_buf gPipeJmp;
-#endif
-
 /* Read up to "size" bytes on sfd.
  *
  * If "retry" is on, after a successful read of less than "size"
@@ -22,27 +18,17 @@ int
 PRead(int sfd, char *const buf0, size_t size, int retry)
 {
 	read_return_t nread;
-#if defined(NO_SIGNALS) || !defined(SIGPIPE)
 	read_size_t nleft;
 	char *buf = buf0;
-#else
-	char *volatile buf = buf0;
-	volatile read_size_t nleft;
-	vsio_sigproc_t sigpipe;
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nread = (read_return_t) size - (read_return_t) nleft;
-		if (nread > 0)
-			return ((int) nread);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
+	DECL_SIGPIPE_VARS
+	
+	if ((buf == NULL) || (size == 0)) {
+		errno = EINVAL;
+		return (-1);
 	}
-
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-#endif
+	
+	IGNORE_SIGPIPE
 	errno = 0;
-
 	nleft = (read_size_t) size;
 	forever {
 		nread = read(sfd, buf, nleft);
@@ -70,8 +56,6 @@ PRead(int sfd, char *const buf0, size_t size, int retry)
 	nread = (read_return_t) size - (read_return_t) nleft;
 
 done:
-#if !defined(NO_SIGNALS) && defined(SIGPIPE)
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-#endif
+	RESTORE_SIGPIPE
 	return ((int) nread);
 }	/* PRead */

@@ -55,7 +55,7 @@ time_t UnMDTMDate(char *dstr)
 		ut.tm_isdst = -1;
 		mt = mktime(&ut);
 		if (mt != (time_t) -1) {
-			mt += GetUTCOffset(ut.tm_mon + 1, ut.tm_mday);
+			mt += GetUTCOffset2(ut.tm_year, ut.tm_mon + 1, ut.tm_mday, ut.tm_hour, ut.tm_min);
 			result = (time_t) mt;
 		}
 	}

@@ -2149,6 +2149,15 @@ gl_set_home_dir(const char *homedir)
 
 	if (homedir == NULL) {
 #ifdef __windows__
+		homepath = getenv("USERPROFILE");
+		if (homepath != NULL) {
+			gl_home_dir = (char *) malloc(strlen(homepath) + 1);
+			if (gl_home_dir != NULL) {
+				strcpy(gl_home_dir, homepath);
+				return;
+			}
+		}
+		
 		homedrive = getenv("HOMEDRIVE");
 		homepath = getenv("HOMEPATH");
 		if ((homedrive != NULL) && (homepath != NULL)) {

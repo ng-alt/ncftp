@@ -12,22 +12,11 @@ extern "C"
 #define kUBindFailed (-10)
 #define kUListenFailed (-11)
 
-/* Don't change the following line -- it is modified by the Configure script. */
-#define UAccept UAcceptS
+/* For compatibility with Sio 6.1.5 and earlier */
+#define UAcceptS UAccept
 
-#ifndef UAccept
-#	if defined(NO_SIGNALS) || ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )
-#		define UAccept UAcceptS
-#	else
-#		define UAccept UAcceptA
-#	endif
-#endif
-
-/* UAcceptA.c */
-int UAcceptA(int, struct sockaddr_un *const, int *, int);
-
-/* UAcceptS.c */
-int UAcceptS(int, struct sockaddr_un *const, int *, int);
+/* UAccept.c */
+int UAccept(int, struct sockaddr_un *const, int *, int);
 
 /* UBind.c */
 int UBind(int, const char *const, const int, const int);

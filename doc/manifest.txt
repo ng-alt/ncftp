@@ -229,11 +229,8 @@ sio/SocketUtil.c
 sio/SReadline.c
 sio/StrAddr.c
 sio/main.c
-sio/SAcceptA.c
 sio/SBind.c
 sio/SSelect.c
-sio/UAcceptA.c
-sio/UAcceptS.c
 sio/UBind.c
 sio/UConnect.c
 sio/UConnectByName.c
@@ -246,7 +243,6 @@ sio/SError.c
 sio/SRecvmsg.c
 sio/PRead.c
 sio/PWrite.c
-sio/SAcceptS.c
 sio/SConnect.c
 sio/SRecv.c
 sio/SRecvfrom.c
@@ -261,7 +257,9 @@ sio/configure.in
 sio/SRead.c
 sio/SWrite.c
 sio/sio.h
+sio/SAccept.c
 sio/SWait.c
+sio/UAccept.c
 sio/DNSUtil.c
 sio/pch.mk.macosx
 sio/pch.mk.none

@@ -280,7 +280,7 @@ InitOurDirectory(void)
 			cp = strrchr(gOurDirectoryPath, '"');
 			if ((cp != NULL) && (cp[1] == '\0'))
 				*cp = '\0';
-		} else if ((cp = getenv("HOME")) != NULL) {
+		} else if ((cp = getenv("USERPROFILE")) != NULL) {
 			if (*cp == '"')
 				cp++;
 			(void) STRNCPY(gOurDirectoryPath, cp);

@@ -1,6 +1,6 @@
 /* ncftpget.c
  *
- * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  * A non-interactive utility to grab files from a remote FTP server.
@@ -203,7 +203,7 @@ main(int argc, char **argv)
 	}
 
 	InitUserInfo();
-	fi.dataPortMode = kPassiveMode;
+	fi.dataPortMode = kFallBackToSendPortMode;
 	LoadFirewallPrefs(0);
 	if (gFwDataPortMode >= 0)
 		fi.dataPortMode = gFwDataPortMode;
@@ -479,7 +479,7 @@ main(int argc, char **argv)
 			/* List of files specified */
 			for (i=0; flist[i] != NULL; i++) {
 				STRNCPY(urlfile, flist[i]);
-				urlfilep = strrchr(urlfile, '/');
+				urlfilep = StrRFindLocalPathDelim(urlfile);
 				if (urlfilep == NULL) {
 					urldirp = ".";
 					urlfilep = urlfile;

@@ -10,6 +10,11 @@ UConnect(int sfd, const struct sockaddr_un *const addr, int ualen, int tlen)
 {
 	int result;
 	
+	if ((addr == NULL) || (ualen == 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
 	result = _SConnect(sfd, (const struct sockaddr_in *) addr, (size_t) ualen, tlen);
 	return (result);
 }	/* UConnect */

@@ -11,6 +11,11 @@ UBind(int sockfd, const char *const astr, const int nTries, const int reuseFlag)
 	sockopt_size_t onsize;
 	struct sockaddr_un localAddr;
 	sockaddr_size_t ualen;
+	
+	if ((astr == NULL) || (astr[0] == '\0'))  {
+		errno = EINVAL;
+		return (-1);
+	}
 
 	ualen = (sockaddr_size_t) MakeSockAddrUn(&localAddr, astr);
 	(void) unlink(localAddr.sun_path);

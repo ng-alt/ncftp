@@ -3,72 +3,6 @@
 #	pragma hdrstop
 #endif
 
-#ifndef NO_SIGNALS
-extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
-#endif
-
-#ifndef NO_SIGNALS
-
-int
-SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *const fromAddr, int tlen)
-{
-	recv_return_t nread;
-	alarm_time_t tleft;
-	vsio_sigproc_t sigalrm, sigpipe;
-	time_t done, now;
-	sockaddr_size_t alen;
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-
-	time(&now);
-	done = now + tlen;
-	tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-	forever {
-		if (tleft < 1) {
-			nread = kTimeoutErr;
-			errno = ETIMEDOUT;
-			break;
-		}
-		alen = (sockaddr_size_t) sizeof(struct sockaddr_in);
-		(void) alarm(tleft);
-		nread = recvfrom(sfd, buf, (recv_size_t) size, fl,
-			(struct sockaddr *) fromAddr, &alen);
-		(void) alarm(0);
-		if (nread >= 0)
-			break;
-		if (errno != EINTR)
-			break;		/* Fatal error. */
-		errno = 0;
-		time(&now);
-		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-	}
-
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-
-	return ((int) nread);
-}	/* SRecvfrom */
-
-#else
-
 int
 SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *const fromAddr, int tlen)
 {
@@ -79,7 +13,13 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 	int result;
 	time_t done, now;
 	sockaddr_size_t alen;
-
+	DECL_SIGPIPE_VARS
+	
+	if ((buf == NULL) || (size == 0) || (fromAddr == NULL) || (tlen <= 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
 	time(&now);
 	done = now + tlen;
 	tleft = (done > now) ? ((int) (done - now)) : 0;
@@ -114,8 +54,10 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 			}
 		}
 
+		IGNORE_SIGPIPE
 		nread = recvfrom(sfd, buf, (recv_size_t) size, fl,
 			(struct sockaddr *) fromAddr, &alen);
+		RESTORE_SIGPIPE
 
 		if (nread >= 0)
 			break;
@@ -134,6 +76,3 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 
 	return ((int) nread);
 }	/* SRecvfrom */
-
-#endif
-

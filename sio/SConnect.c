@@ -3,11 +3,6 @@
 #	pragma hdrstop
 #endif
 
-#ifndef NO_SIGNALS
-extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
-#endif
-
 int _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t saddrsiz, const int tlen);
 
 int
@@ -61,30 +56,6 @@ SSetFIONBIO(
 int
 _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t saddrsiz, const int tlen)
 {
-#ifndef NO_SIGNALS
-	int result;
-	vsio_sigproc_t sigalrm;
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	alarm((alarm_time_t) tlen);
-
-	errno = 0;
-	do {
-		result = connect(sfd, (const struct sockaddr *) addr,
-			(sockaddr_size_t) saddrsiz);
-	} while ((result < 0) && (errno == EINTR));
-
-	alarm(0);
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-	return (result);
-#else	/* NO_SIGNALS */
 	fd_set ss, xx;
 	struct timeval tv;
 	int result;
@@ -100,13 +71,21 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	int optval;
 	sockopt_size_t optlen;
 #endif
-
+	DECL_SIGPIPE_VARS
+	
+	if (addr == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
 	errno = 0;
 	if (tlen <= 0) {
 		do {
+			IGNORE_SIGPIPE
 			result = connect(sfd, (const struct sockaddr *) addr,
 				(sockaddr_size_t) saddrsiz);
 			SETERRNO
+			RESTORE_SIGPIPE
 		} while ((result < 0) && (errno == EINTR));
 		return (result);
 	}
@@ -127,8 +106,10 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 #endif
 
 	errno = 0;
+	IGNORE_SIGPIPE
 	result = connect(sfd, (const struct sockaddr *) addr,
 			(sockaddr_size_t) saddrsiz);
+	RESTORE_SIGPIPE
 	if (result == 0) 
 		goto connected;	/* Already?!? */
 
@@ -265,5 +246,4 @@ connected:
 #endif
 
 	return (0);
-#endif	/* NO_SIGNALS */
 }	/* _SConnect */

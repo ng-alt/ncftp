@@ -1,6 +1,6 @@
 /* ncftpput.c
  *
- * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  * A simple, non-interactive utility to send files to a remote FTP server.
@@ -417,7 +417,7 @@ main(int argc, char **argv)
 		/* List of files specified */
 		for (i=0; files[i] != NULL; i++) {
 			STRNCPY(ufile, files[i]);
-			ufilep = strrchr(ufile, '/');
+			ufilep = StrRFindLocalPathDelim(ufile);
 			if (ufilep == NULL) {
 				udirp = ".";
 				ufilep = ufile;

@@ -3,68 +3,6 @@
 #	pragma hdrstop
 #endif
 
-#ifndef NO_SIGNALS
-
-extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
-
-int
-USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockaddr_un *const toAddr, int ualen, int tlen)
-{
-	send_return_t nwrote;
-	alarm_time_t tleft;
-	vsio_sigproc_t sigalrm, sigpipe;
-	time_t done, now;
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-
-	time(&now);
-	done = now + tlen;
-	tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-	forever {
-		if (tleft < 1) {
-			nwrote = kTimeoutErr;
-			errno = ETIMEDOUT;
-			break;
-		}
-		(void) alarm(tleft);
-		nwrote = sendto(sfd, buf, (send_size_t) size, fl,
-			(const struct sockaddr *) toAddr, (sockaddr_size_t) ualen);
-		(void) alarm(0);
-		if (nwrote >= 0)
-			break;
-		if (errno != EINTR)
-			break;		/* Fatal error. */
-		errno = 0;
-		time(&now);
-		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-	}
-
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-
-	return ((int) nwrote);
-}	/* USendto */
-
-#else
-
 int
 USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockaddr_un *const toAddr, int ualen, int tlen)
 {
@@ -74,7 +12,13 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 	fd_set ss;
 	struct timeval tv;
 	int result;
-
+	DECL_SIGPIPE_VARS
+	
+	if ((buf == NULL) || (size == 0) || (toAddr == NULL) || (tlen <= 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
 	time(&now);
 	done = now + tlen;
 	nwrote = 0;
@@ -113,9 +57,11 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 			time(&now);
 		}
 
+		IGNORE_SIGPIPE
 		nwrote = sendto(sfd, buf, (send_size_t) size, fl,
 			(const struct sockaddr *) toAddr,
 			(sockaddr_size_t) ualen);
+		RESTORE_SIGPIPE
 
 		if (nwrote >= 0)
 			break;
@@ -125,6 +71,3 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 
 	return ((int) nwrote);
 }	/* USendto */
-
-#endif
-

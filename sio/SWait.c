@@ -20,6 +20,31 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 		return (0);
 	}
 
+	if (tlen <= 0) {
+		forever {
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			ss2 = ss;
+			result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, NULL);
+			if (result == 1) {
+				/* ready */
+				return (1);
+			} else if ((result < 0) && (errno != EINTR)) {
+				/* error */
+				return (0);
+			}
+			/* else try again */
+		}
+		/*NOTREACHED*/
+	}
+	
 	time(&now);
 	done = now + tlen;
 	tleft = tlen;
@@ -82,6 +107,31 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 	if (sfd < 0) {
 		errno = EBADF;
 		return (0);
+	}
+
+	if (tlen <= 0) {
+		forever {
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			ss2 = ss;
+			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, NULL);
+			if (result == 1) {
+				/* ready */
+				return (1);
+			} else if ((result < 0) && (errno != EINTR)) {
+				/* error */
+				return (0);
+			}
+			/* else try again */
+		}
+		/*NOTREACHED*/
 	}
 
 	time(&now);

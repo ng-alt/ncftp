@@ -1,6 +1,6 @@
 /* rcmd.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -394,6 +394,8 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 		}
 		if (str[result - 1] == '\n')
 			str[result - 1] = '\0';
+		else
+			PrintF(cip, "Warning: Remote line was too long: [%s]\n", str);
 		break;
 	}
 

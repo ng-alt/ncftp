@@ -1,6 +1,6 @@
 /* cmds.c
  *
- * Copyright (c) 1992-2003 by Mike Gleason.
+ * Copyright (c) 1992-2004 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -268,7 +268,9 @@ SaveCurrentAsBookmark(void)
 
 	saveBmPassword = gSavePasswords;
 	if ((saveBmPassword < 0) && (gBm.pass[0] != '\0')) {
-		if (gIsTTYr == 0) {
+	 	if (gLoadedBm != 0) {
+	 		saveBmPassword = 1;
+	 	} else if (gIsTTYr == 0) {
 			saveBmPassword = 0;
 		} else {
 			(void) printf("\n\nYou logged into this site using a password.\nWould you like to save the password with this bookmark?\n\n");

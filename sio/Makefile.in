@@ -18,34 +18,31 @@ LIB=libsio.a
 LIBSO=libsio.so.5
 LIBSOS=libsio.so
 STRIP=strip
+MAKE=@MAKE@
 
 OBJS_U=\
-UAcceptA.o  UAcceptS.o	UBind.o      UConnectByName.o \
-UConnect.o  UNew.o	URecvfrom.o  USendtoByName.o \
-USendto.o
+	UAccept.o  UBind.o	UConnectByName.o  UConnect.o \
+	UNew.o	   URecvfrom.o	USendtoByName.o   USendto.o
 
 OBJS=@SIO_OBJS_U@\
-main.o	     PRead.o	PWrite.o     SAcceptA.o \
-SAcceptS.o   SBind.o	SClose.o     SConnectByName.o \
-SConnect.o   SError.o	SNew.o	     SocketUtil.o \
-SReadline.o  SRead.o	SRecvfrom.o  SRecvmsg.o \
-SRecv.o      SSelect.o	SSend.o      SSendtoByName.o \
-SSendto.o    StrAddr.o	SWait.o      SWrite.o \
-DNSUtil.o
+	DNSUtil.o   main.o	 PRead.o   PWrite.o \
+	SAccept.o   SBind.o	 SClose.o  SConnectByName.o \
+	SConnect.o  SError.o	 SNew.o    SocketUtil.o \
+	SRead.o     SReadline.o  SRecv.o   SRecvfrom.o \
+	SRecvmsg.o  SSelect.o	 SSend.o   SSendtoByName.o \
+	SSendto.o   StrAddr.o	 SWait.o   SWrite.o
 
 SOBJS_U=\
-UAcceptA.so  UAcceptS.so  UBind.so	UConnectByName.so \
-UConnect.so  UNew.so	  URecvfrom.so	USendtoByName.so \
-USendto.so
+	UAccept.so  UBind.so	UConnectByName.so  UConnect.so \
+	UNew.so	   URecvfrom.so	USendtoByName.so   USendto.so
 
 SOBJS=@SIO_SOBJS_U@\
-main.so       PRead.so	  PWrite.so	SAcceptA.so \
-SAcceptS.so   SBind.so	  SClose.so	SConnectByName.so \
-SConnect.so   SError.so   SNew.so	SocketUtil.so \
-SReadline.so  SRead.so	  SRecvfrom.so	SRecvmsg.so \
-SRecv.so      SSelect.so  SSend.so	SSendtoByName.so \
-SSendto.so    StrAddr.so  SWait.so	SWrite.so \
-DNSUtil.so
+	DNSUtil.so   main.so	 PRead.so   PWrite.so \
+	SAccept.so   SBind.so	 SClose.so  SConnectByName.so \
+	SConnect.so  SError.so	 SNew.so    SocketUtil.so \
+	SRead.so     SReadline.so  SRecv.so   SRecvfrom.so \
+	SRecvmsg.so  SSelect.so	 SSend.so   SSendtoByName.so \
+	SSendto.so   StrAddr.so	 SWait.so   SWrite.so
 
 all: $(LIB)
 	-@/bin/ls -l $(LIB)
@@ -115,7 +112,7 @@ SHELL=/bin/sh
 ### Cleaning supplies ########################################################
 
 clean:
-	-/bin/rm -f *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch
+	-/bin/rm -f *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch *.gch
 
 distclean: clean
 	-/bin/rm -f config.h Makefile config.status config.cache config.log sio.version
@@ -123,15 +120,14 @@ distclean: clean
 ### Archiving #################################################################
 
 CFILES=\
-DNSUtil.c	  main.c	    PRead.c	 PWrite.c \
-SAcceptA.c	  SAcceptS.c	    SBind.c	 SClose.c \
-SConnectByName.c  SConnect.c	    SError.c	 SNew.c \
-SocketUtil.c	  SRead.c	    SReadline.c  SRecv.c \
-SRecvfrom.c	  SRecvmsg.c	    srltest.c	 SSelect.c \
-SSend.c		  SSendtoByName.c   SSendto.c	 StrAddr.c \
-SWait.c		  SWrite.c	    UAcceptA.c	 UAcceptS.c \
-UBind.c		  UConnectByName.c  UConnect.c	 UNew.c \
-URecvfrom.c	  USendtoByName.c   USendto.c
+	DNSUtil.c   main.c	 PRead.c	   PWrite.c \
+	SAccept.c   SBind.c	 SClose.c	   SConnectByName.c \
+	SConnect.c  SError.c	 SNew.c		   SocketUtil.c \
+	SRead.c     SReadline.c  SRecv.c	   SRecvfrom.c \
+	SRecvmsg.c  SSelect.c	 SSend.c	   SSendtoByName.c \
+	SSendto.c   StrAddr.c	 SWait.c	   SWrite.c \
+	UAccept.c   UBind.c	 UConnectByName.c  UConnect.c \
+	UNew.c	    URecvfrom.c  USendtoByName.c   USendto.c
 
 HFILES=sio.h usio.h
 
@@ -154,11 +150,11 @@ tarcp:
 	-@chmod 755 $(TMPDIR)/TAR/$(TARDIR)
 	cp -pr $(PACKAGE) $(TMPDIR)/TAR/$(TARDIR)
 
-tar: $(PACKAGE)
+tar: clean
 	-@mkdir $(TMPDIR)/TAR
 	-@mkdir $(TMPDIR)/TAR/$(TARDIR)
 	-@chmod ga+r $(PACKAGE)
-	find . -follow -depth -type f -print | cut -c3- | egrep -i -v '((\.(o|so|log|a|lib|ncb|obj|exe|idb|cache|opt|zip|gz|swp|tar|plg))|(config\.h))$$' | cpio -Lpdm $(TMPDIR)/TAR/$(TARDIR)
+	find . -follow -depth -type f -print | cut -c3- | egrep -i -v '(((\.(o|so|log|a|lib|ncb|obj|exe|idb|cache|opt|zip|gz|swp|tar|plg|pch|gch))|(config\.h))$$|(/\.)|(^\.))' | cpio -Lpdm $(TMPDIR)/TAR/$(TARDIR)
 	( cd $(TMPDIR)/TAR ; @TAR@ @TARFLAGS@ $(TARFILE) $(TARDIR) )
 	cp $(TMPDIR)/TAR/$(TARFILE) .
 	-@chmod 644 $(TARFILE)
@@ -178,8 +174,7 @@ gz: tar
 DNSUtil.o: DNSUtil.c $(SYSHDRS_DEP)
 PRead.o: PRead.c $(SYSHDRS_DEP)
 PWrite.o: PWrite.c $(SYSHDRS_DEP)
-SAcceptA.o: SAcceptA.c $(SYSHDRS_DEP)
-SAcceptS.o: SAcceptS.c $(SYSHDRS_DEP)
+SAccept.o: SAccept.c $(SYSHDRS_DEP)
 SBind.o: SBind.c $(SYSHDRS_DEP)
 SClose.o: SClose.c $(SYSHDRS_DEP)
 SConnect.o: SConnect.c $(SYSHDRS_DEP)
@@ -198,8 +193,7 @@ SWrite.o: SWrite.c $(SYSHDRS_DEP)
 SWait.o: SWait.c $(SYSHDRS_DEP)
 SocketUtil.o: SocketUtil.c $(SYSHDRS_DEP)
 StrAddr.o: StrAddr.c $(SYSHDRS_DEP)
-UAcceptA.o: UAcceptA.c $(SYSHDRS_DEP)
-UAcceptS.o: UAcceptS.c $(SYSHDRS_DEP)
+UAccept.o: UAccept.c $(SYSHDRS_DEP)
 UBind.o: UBind.c $(SYSHDRS_DEP)
 UConnect.o: UConnect.c $(SYSHDRS_DEP)
 UConnectByName.o: UConnectByName.c $(SYSHDRS_DEP)

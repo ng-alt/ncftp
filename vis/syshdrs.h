@@ -1,6 +1,6 @@
 /* syshdrs.h
  * 
- * Copyright (c) 1992-1999 by Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  * 
  */

@@ -1,7 +1,13 @@
-/* sio.h */
+/* sio.h 
+ *
+ * Copyright 1992-2003 Mike Gleason, NcFTP Software.  All Rights Reserved.
+ *
+ */
 
 #ifndef _sio_h_
 #define _sio_h_ 1
+
+#define kSioVersion "@(#) libsio 6.2.0 (September 1, 2003)"
 
 #ifdef __cplusplus
 extern "C"
@@ -35,16 +41,8 @@ typedef struct SReadlineInfo {
 #	define forever for ( ; ; )
 #endif
 
-/* Private decl; only for use when compiling sio code. */
-#ifdef HAVE_SIGSETJMP
-#	define SSetjmp(a) sigsetjmp(a, 1)
-#	define SLongjmp(a,b) siglongjmp(a, b)
-#	define Sjmp_buf sigjmp_buf
-#else
-#	define SSetjmp(a) setjmp(a)
-#	define SLongjmp(a,b) longjmp(a, b)
-#	define Sjmp_buf jmp_buf
-#endif
+/* For some (not all) functions that accept a timeout, you can use this to mean wait forever. */
+#define kNoTimeLimit 0
 
 /* Parameter to SBind */
 #define kReUseAddrYes 1
@@ -72,8 +70,6 @@ typedef struct SReadlineInfo {
 
 #define kSrlBufSize 2048
 
-#define kNoTimeLimit 0
-
 /* Return value from GetOurHostName */
 #define kGethostnameFailed (-1)
 #define kDomainnameUnknown (-2)
@@ -89,24 +85,17 @@ typedef struct SReadlineInfo {
 #define kEtcResolvConfDomainFound 9
 #define kEtcResolvConfSearchFound 10
 
+/* For compatibility with Sio 6.1.5 and earlier */
+#define SAcceptS SAccept
 
-#if 1 /* %config2% -- set by configure script -- do not modify */
-#	ifndef NO_SIGNALS
-#		define NO_SIGNALS 1
-#	endif
+#ifdef SIGPIPE
+#	define DECL_SIGPIPE_VARS	sio_sigproc_t sigpipe = (sio_sigproc_t) 0;
+#	define IGNORE_SIGPIPE		sigpipe = signal(SIGPIPE, SIG_IGN);
+#	define RESTORE_SIGPIPE		if (sigpipe != (sio_sigproc_t) 0) {(void) signal(SIGPIPE, sigpipe);}
 #else
-	/* #undef NO_SIGNALS */
-#endif
-
-/* Don't change the following line -- it is modified by the Configure script. */
-#define SAccept SAcceptS
-
-#ifndef SAccept
-#	if defined(NO_SIGNALS) || ((defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__))
-#		define SAccept SAcceptS
-#	else
-#		define SAccept SAcceptA
-#	endif
+#	define DECL_SIGPIPE_VARS
+#	define IGNORE_SIGPIPE
+#	define RESTORE_SIGPIPE
 #endif
 
 #if !defined(ETIMEDOUT) && defined(WSAETIMEDOUT)
@@ -167,7 +156,6 @@ typedef struct SReadlineInfo {
 
 
 typedef void (*sio_sigproc_t)(int);
-typedef volatile sio_sigproc_t vsio_sigproc_t;
 
 extern int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 
@@ -208,17 +196,15 @@ int PRead(int, char *const, size_t, int);
 /* PWrite.c */
 int PWrite(int, const char *const, size_t);
 
-/* SAcceptA.c */
-int SAcceptA(int, struct sockaddr_in *const, int);
-
-/* SAcceptS.c */
-int SAcceptS(int, struct sockaddr_in *const, int);
+/* SAccept.c */
+int SAccept(int, struct sockaddr_in *const, int);
 
 /* SBind.c */
 int SBind(int, const int, const int, const int);
 int SListen(int, int);
 
 /* SClose.c */
+int SCloseSocket(int);
 int SClose(int, int);
 
 /* SConnect.c */

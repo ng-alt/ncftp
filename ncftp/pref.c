@@ -1,6 +1,6 @@
 /* pref.c
  *
- * Copyright (c) 1992-2003 by Mike Gleason.
+ * Copyright (c) 1992-2004 by Mike Gleason.
  * All rights reserved.
  * 
  */

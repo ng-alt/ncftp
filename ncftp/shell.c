@@ -1,6 +1,6 @@
 /* shell.c
  *
- * Copyright (c) 1992-2003 by Mike Gleason.
+ * Copyright (c) 1992-2004 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -225,15 +225,12 @@ MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t 
 	char *dcp;
 	char *scp;
 	char *arg;
-	char xclam[4];
+	static char xclam[4];
 
 	*cargc = 0;
 	scp = line;
 	dlim = dbuf + dbufsize - 1;
 	dcp = dbuf;
-
-	xclam[0] = '!';
-	xclam[1] = '\0';
 
 	for (*cargc = 0; *cargc < cargcmax; ) {
 		/* Eat preceding junk. */
@@ -260,6 +257,8 @@ MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t 
 			if (scp[1] == '!') {
 				scp[1] = '\0';
 			} else if ((scp[1] != '\0') && (!isspace((int) scp[1]))) {
+				xclam[0] = '!';
+				xclam[1] = '\0';
 				cargv[0] = xclam;
 				scp++;
 				arg = dcp;

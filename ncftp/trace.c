@@ -1,6 +1,6 @@
 /* trace.c
  *
- * Copyright (c) 1992-2003 by Mike Gleason.
+ * Copyright (c) 1992-2004 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -117,6 +117,7 @@ OpenTrace(void)
 	FILE *fp;
 	char pathName[256];
 	char tName[32];
+	char timeStr[128];
 	int pid;
 	const char *cp;
 
@@ -134,7 +135,9 @@ OpenTrace(void)
 #endif	/* HAVE_SETVBUF */
 		/* Opened the trace file. */
 		(void) time(&gTraceTime);
-		(void) fprintf(fp, "SESSION STARTED at:  %s", ctime(&gTraceTime));
+		memset(timeStr, 0, sizeof(timeStr));
+		(void) strftime(timeStr, sizeof(timeStr) - 1, "%Y-%m-%d %H:%M:%S %Z %z", localtime(&gTraceTime));
+		(void) fprintf(fp, "SESSION STARTED at:  %s\n", timeStr);
 		(void) fprintf(fp, "   Program Version:  %s\n", gVersion + 5);
 		(void) fprintf(fp, "   Library Version:  %s\n", gLibNcFTPVersion + 5);
 		(void) fprintf(fp, "        Process ID:  %u\n", pid);

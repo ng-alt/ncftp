@@ -3,33 +3,20 @@
 #	pragma hdrstop
 #endif
 
-#if !defined(NO_SIGNALS) && defined(SIGPIPE)
-extern Sjmp_buf gPipeJmp;
-#endif
 int
 PWrite(int sfd, const char *const buf0, size_t size)
 {
 	write_return_t nwrote;
-#if defined(NO_SIGNALS) || !defined(SIGPIPE)
 	write_size_t nleft;
 	const char *buf = buf0;
-#else
-	volatile write_size_t nleft;
-	const char *volatile buf = buf0;
-	vsio_sigproc_t sigpipe;
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = (write_return_t) size - (write_return_t) nleft;
-		if (nwrote > 0)
-			return ((int) nwrote);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
+	DECL_SIGPIPE_VARS
+	
+	if ((buf == NULL) || (size == 0)) {
+		errno = EINVAL;
+		return (-1);
 	}
-
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-#endif
-
+	
+	IGNORE_SIGPIPE
 	nleft = (write_size_t) size;
 	forever {
 		nwrote = write(sfd, buf, nleft);
@@ -53,9 +40,6 @@ PWrite(int sfd, const char *const buf0, size_t size)
 	nwrote = (write_return_t) size - (write_return_t) nleft;
 
 done:
-#if !defined(NO_SIGNALS) && defined(SIGPIPE)
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-#endif
-
+	RESTORE_SIGPIPE
 	return ((int) nwrote);
 }	/* PWrite */

@@ -1,6 +1,6 @@
 /* spoolutil.c
  *
- * Copyright (c) 1992-2003 by Mike Gleason.
+ * Copyright (c) 1992-2004 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -55,7 +55,7 @@ SpoolName(char *const sp, const size_t size, const int flag, const int serial, t
 
 	if ((when == (time_t) 0) || (when == (time_t) -1))
 		(void) time(&when);
-	if (Localtime(when, &lt) == NULL) {
+	if (Gmtime(when, &lt) == NULL) {
 		/* impossible */
 		(void) Strncpy(dstr, "20010101-000000", size);
 	} else {

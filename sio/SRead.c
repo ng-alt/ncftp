@@ -3,14 +3,9 @@
 #	pragma hdrstop
 #endif
 
-static const char UNUSED(gSioVersion[]) = "@(#) sio 6.1.5 ** Copyright 1992-2003 Mike Gleason. All rights reserved.";
+static const char UNUSED(gSioVersion[]) = kSioVersion;
+static const char UNUSED(gCopyright[]) = "@(#) libsio Copyright 1992-2003, by Mike Gleason.  All rights reserved.";
 
-#ifdef NO_SIGNALS
-static const char UNUSED(gNoSignalsMarker[]) = "@(#) sio - NO_SIGNALS";
-#else
-extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
-#endif
 
 /* Read up to "size" bytes on sfd before "tlen" seconds.
  *
@@ -26,97 +21,6 @@ extern Sjmp_buf gPipeJmp;
  * return as soon as there is a chunk of data whose size is <= "size".
  */
 
-#ifndef NO_SIGNALS
-
-int
-SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
-{
-	read_return_t nread;
-	volatile read_size_t nleft;
-	char *volatile buf = buf0;
-	alarm_time_t tleft;
-	vsio_sigproc_t sigalrm, sigpipe;
-	time_t done, now;
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nread = (read_return_t) size - (read_return_t) nleft;
-		if ((nread > 0) && ((retry & (kFullBufferRequired|kFullBufferRequiredExceptLast)) == 0))
-			return ((int) nread);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nread = (read_return_t) size - (read_return_t) nleft;
-		if ((nread > 0) && ((retry & (kFullBufferRequired|kFullBufferRequiredExceptLast)) == 0))
-			return ((int) nread);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-	errno = 0;
-
-	nleft = (read_size_t) size;
-	time(&now);
-	done = now + tlen;
-	forever {
-		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-		if (tleft < 1) {
-			nread = (read_return_t) size - (read_return_t) nleft;
-			if ((nread == 0) || ((retry & (kFullBufferRequired)) != 0)) {
-				nread = kTimeoutErr;
-				errno = ETIMEDOUT;
-			}
-			goto done;
-		}
-		(void) alarm(tleft);
-		nread = read(sfd, (char *) buf, nleft);
-		(void) alarm(0);
-		if (nread <= 0) {
-			if (nread == 0) {
-				/* EOF */
-				if (retry == ((retry & (kFullBufferRequiredExceptLast)) != 0))
-					nread = (read_return_t) size - (read_return_t) nleft;
-				goto done;
-			} else if (errno != EINTR) {
-				nread = (read_return_t) size - (read_return_t) nleft;
-				if (nread == 0)
-					nread = (read_return_t) -1;
-				goto done;
-			} else {
-				errno = 0;
-				nread = 0;
-				/* Try again. */
-
-				/* Ignore this line... */
-				LIBSIO_USE_VAR(gSioVersion);
-			}
-		}
-		nleft -= (read_size_t) nread;
-		if ((nleft == 0) || (((retry & (kFullBufferRequired|kFullBufferRequiredExceptLast)) == 0) && (nleft != (read_size_t) size)))
-			break;
-		buf += nread;
-		time(&now);
-	}
-	nread = (read_return_t) size - (read_return_t) nleft;
-
-done:
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-
-	return ((int) nread);
-}	/* SRead */
-
-#else
-
 int
 SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 {
@@ -128,7 +32,14 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 	fd_set ss;
 	struct timeval tv;
 	int result, firstRead;
-
+	DECL_SIGPIPE_VARS
+	
+	if ((buf == NULL) || (size == 0) || (tlen <= 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
+	IGNORE_SIGPIPE
 	errno = 0;
 
 	nleft = (read_size_t) size;
@@ -160,7 +71,7 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 #if defined(__DECC) || defined(__DECCXX)
 #pragma message restore
 #endif
-				tv.tv_sec = (tv_sec_t) tlen;
+				tv.tv_sec = (tv_sec_t) tleft;
 				tv.tv_usec = 0;
 				result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, SELECT_TYPE_ARG5 &tv);
 				if (result == 1) {
@@ -169,12 +80,16 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 				} else if (result == 0) {
 					/* timeout */		
 					nread = (read_return_t) size - (read_return_t) nleft;
-					if ((nread > 0) && ((retry & (kFullBufferRequired|kFullBufferRequiredExceptLast)) == 0))
+					if ((nread > 0) && ((retry & (kFullBufferRequired|kFullBufferRequiredExceptLast))  == 0)) {
+						RESTORE_SIGPIPE
 						return ((int) nread);
+					}
 					errno = ETIMEDOUT;
 					SETWSATIMEOUTERR
-						return (kTimeoutErr);
+					RESTORE_SIGPIPE
+					return (kTimeoutErr);
 				} else if (errno != EINTR) {
+					RESTORE_SIGPIPE
 					return (-1);
 				}
 			}
@@ -205,7 +120,7 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 
 				/* Ignore these two lines */
 				LIBSIO_USE_VAR(gSioVersion);
-				LIBSIO_USE_VAR(gNoSignalsMarker);
+				LIBSIO_USE_VAR(gCopyright);
 			}
 		}
 		nleft -= (read_size_t) nread;
@@ -217,7 +132,6 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 	nread = (read_return_t) size - (read_return_t) nleft;
 
 done:
+	RESTORE_SIGPIPE
 	return ((int) nread);
 }	/* SRead */
-
-#endif

@@ -1,6 +1,32 @@
 NcFTP Change Log:
 ================
 
+3.1.7, 2004-01-07
+
+  + Fixed a memory leak introduced in 3.1.6.
+
+  + Fixed problem where it was assumed that daylight saving's time occurred
+    at the same time each year for all timezones.
+
+  + Bug fixed with running a shell escape.
+  
+  + Ncftpget now uses passive-with-fall-back-to-port mode like ncftpput and
+    ncftpls.
+  
+  + Problem fixed with "ls -a" where occasionally a row with ".." and another
+    file would be omitted.
+  
+  + Ncftpbatch now uses the UTC timezone for spool files.
+  
+  + The configure script can now detect when the config.cache file has been
+    improperly recycled from a machine with a different OS.
+  
+  + The Windows version now uses the USERPROFILE environment variable, if it
+    was set, as the location of the user's home directory.
+
+  + Recognize broken DG/UX servers and work around them.
+
+
 3.1.6, 2003-08-25
 
   + Fixed an important bug that was causing socket leaks on Windows.

@@ -3,93 +3,6 @@
 #	pragma hdrstop
 #endif
 
-#ifndef NO_SIGNALS
-extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
-#endif
-
-#ifndef NO_SIGNALS
-
-int
-SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
-{
-	const char *volatile buf = buf0;
-	write_return_t nwrote;
-	volatile write_size_t nleft;
-	alarm_time_t tleft;
-	vsio_sigproc_t sigalrm, sigpipe;
-	time_t done, now;
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = (write_return_t) size - (write_return_t) nleft;
-		if (nwrote > 0)
-			return ((int) nwrote);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	if (SSetjmp(gPipeJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = (write_return_t) size - (write_return_t) nleft;
-		if (nwrote > 0)
-			return ((int) nwrote);
-		errno = EPIPE;
-		return (kBrokenPipeErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
-
-	nleft = (write_size_t) size;
-	time(&now);
-	done = now + tlen;
-	forever {
-		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
-		if (tleft < 1) {
-			nwrote = (write_return_t) size - (write_return_t) nleft;
-			if (nwrote == 0) {
-				nwrote = kTimeoutErr;
-				errno = ETIMEDOUT;
-			}
-			goto done;
-		}
-		(void) alarm(tleft);
-		nwrote = write(sfd, buf, nleft);
-		(void) alarm(0);
-		if (nwrote < 0) {
-			if (errno != EINTR) {
-				nwrote = (write_return_t) size - (write_return_t) nleft;
-				if (nwrote == 0)
-					nwrote = (write_return_t) -1;
-				goto done;
-			} else {
-				errno = 0;
-				nwrote = 0;
-				/* Try again. */
-			}
-		}
-		nleft -= (write_size_t) nwrote;
-		if (nleft == 0)
-			break;
-		buf += nwrote;
-		time(&now);
-	}
-	nwrote = (write_return_t) size - (write_return_t) nleft;
-
-done:
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-
-	return ((int) nwrote);
-}	/* SWrite */
-
-#else
-
 int
 SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 {
@@ -101,6 +14,14 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 	fd_set ss;
 	struct timeval tv;
 	int result, firstSelect;
+	DECL_SIGPIPE_VARS
+	
+	if ((buf == NULL) || (size == 0) || (tlen <= 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	
+	IGNORE_SIGPIPE
 
 	nleft = (write_size_t) size;
 	time(&now);
@@ -147,12 +68,16 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 				} else if (result == 0) {
 					/* timeout */		
 					nwrote = (write_return_t) size - (write_return_t) nleft;
-					if (nwrote > 0)
+					if (nwrote > 0) {
+						RESTORE_SIGPIPE
 						return ((int) nwrote);
+					}
 					errno = ETIMEDOUT;
 					SETWSATIMEOUTERR
-						return (kTimeoutErr);
+					RESTORE_SIGPIPE
+					return (kTimeoutErr);
 				} else if (errno != EINTR) {
+					RESTORE_SIGPIPE
 					return (-1);
 				}
 			}
@@ -186,7 +111,6 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 	nwrote = (write_return_t) size - (write_return_t) nleft;
 
 done:
+	RESTORE_SIGPIPE
 	return ((int) nwrote);
 }	/* SWrite */
-
-#endif
