@@ -17,7 +17,7 @@ static const char *rwx[9] = { "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "
 static void
 CheckForLS_d(FTPCIPtr cip)
 {
-	LineList lines;
+	FTPLineList lines;
 	char *cp;
 
 	if (cip->hasNLST_d == kCommandAvailabilityUnknown) {
@@ -473,11 +473,10 @@ UnLslRLine(	char *const line,
 
 
 int
-UnLslR(FileInfoListPtr filp, LineListPtr llp, int serverType)
+UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 {
 	char curdir[256];
 	char line[256];
-	int hadblankline = 0;
 	int len;
 	size_t curdirlen = 0;
 	char fname[256];
@@ -489,8 +488,8 @@ UnLslR(FileInfoListPtr filp, LineListPtr llp, int serverType)
 	int thisyear;
 	struct tm nowtm;
 	int rc;
-	LinePtr lp;
-	FileInfo fi;
+	FTPLinePtr lp;
+	FTPFileInfo fi;
 	int linesread = 0;
 	int linesconverted = 0;
 	size_t maxFileLen = 0;
@@ -508,54 +507,26 @@ UnLslR(FileInfoListPtr filp, LineListPtr llp, int serverType)
 	InitFileInfoList(filp);
 	for (lp = llp->first; lp != NULL; lp = lp->next) {
 		len = (int) strlen(STRNCPY(line, lp->line));
-		if ((line[0] == 't') && (strncmp(line, "total", 5) == 0)) {
-			/* total XX line? */
-			if (line[len - 1] != ':') {
-				hadblankline = 0;
-				continue;
-			}
-			/* else it was a subdir named total */
-		} else {
-			for (cp = line; ; cp++) {
-				if ((*cp == '\0') || (!isspace((int) *cp)))
-					break;
-			}
-			if (*cp == '\0') {
-				/* Entire line was blank. */
-				/* separator line between dirs */
-				hadblankline = 1;
-				continue;
-			}
-			if (serverType == kServerTypeMicrosoftFTP) {
-				/* IIS runs on WinNT only, and NT
-				 * can use / as a separator rather
-				 * that \.  We will convert them
-				 * here.
-				 */
-				for (cp = line; *cp != '\0'; cp++) {
-					if (*cp == '\\')
-						*cp = '/';
-				}
-			}
+		for (cp = line; ; cp++) {
+			if ((*cp == '\0') || (!isspace((int) *cp)))
+				break;
+		}
+		if (*cp == '\0') {
+			/* Entire line was blank. */
+			/* separator line between dirs */
+			continue;
 		}
 
-		if ((hadblankline != 0) && (line[len - 1] == ':')) {
-			/* newdir */
-			hadblankline = 0;
-			if ((line[0] == '.') && (line[1] == '/')) {
-				line[len - 1] = '/';
-				(void) memcpy(curdir, line + 2, (size_t) len + 1 - 2);
-				curdirlen = (size_t) (len - 2);
-			} else if ((line[0] == '.') && (line[1] == '\\')) {
-				line[len - 1] = '\\';
-				(void) memcpy(curdir, line + 2, (size_t) len + 1 - 2);
-				curdirlen = (size_t) (len - 2);
-			} else {
-				line[len - 1] = '/';
-				(void) memcpy(curdir, line, (size_t) len + 1);
-				curdirlen = (size_t) len;
+		if (serverType == kServerTypeMicrosoftFTP) {
+			/* IIS runs on WinNT only, and NT
+			 * can use / as a separator rather
+			 * that \.  We will convert them
+			 * here.
+			 */
+			for (cp = line; *cp != '\0'; cp++) {
+				if (*cp == '\\')
+					*cp = '/';
 			}
-			continue;
 		}
 
 		linesread++;
@@ -567,13 +538,20 @@ UnLslR(FileInfoListPtr filp, LineListPtr llp, int serverType)
 				plugend = 0;
 			}
 		}
+
 		if (rc == 0) {
+			cp = fname + curdirlen;
+			if ((cp[0] == '.') && ((cp[1] == '\0') || ((cp[1] == '.') && (cp[2] == '\0'))))
+				continue;	/* ignore . and .. */
 			linesconverted++;
-			fileLen = strlen(fname);
+			cp = fname;
+			if ((cp[0] == '.') && ((cp[1] == '/') || (cp[1] == '\\')))
+				cp += 2;
+			fileLen = strlen(cp);
 			if (fileLen > maxFileLen)
 				maxFileLen = fileLen;
 			fi.relnameLen = fileLen;
-			fi.relname = StrDup(fname);
+			fi.relname = StrDup(cp);
 			fi.rname = NULL;
 			fi.lname = NULL;
 			fi.rlinkto = (linkto[0] == '\0') ? NULL : StrDup(linkto);
@@ -599,9 +577,21 @@ UnLslR(FileInfoListPtr filp, LineListPtr llp, int serverType)
 				}
 			}
 			(void) AddFileInfo(filp, &fi);
+		} else if ((rc < 0) && (line[len - 1] == ':')) {
+			if ((line[0] == '.') && (line[1] == '/')) {
+				line[len - 1] = '/';
+				(void) memcpy(curdir, line + 2, (size_t) len + 1 - 2);
+				curdirlen = (size_t) (len - 2);
+			} else if ((line[0] == '.') && (line[1] == '\\')) {
+				line[len - 1] = '\\';
+				(void) memcpy(curdir, line + 2, (size_t) len + 1 - 2);
+				curdirlen = (size_t) (len - 2);
+			} else {
+				line[len - 1] = '/';
+				(void) memcpy(curdir, line, (size_t) len + 1);
+				curdirlen = (size_t) len;
+			}
 		}
-
-		hadblankline = 0;
 	}
 
 	filp->maxFileLen = maxFileLen;
@@ -749,14 +739,14 @@ UnMlsT(const char *const line0, const MLstItemPtr mlip)
 
 
 int
-UnMlsD(FileInfoListPtr filp, LineListPtr llp)
+UnMlsD(FTPFileInfoListPtr filp, FTPLineListPtr llp)
 {
 	MLstItem mli;
 	char plug[64];
 	char og[32];
 	int rc;
-	LinePtr lp;
-	FileInfo fi;
+	FTPLinePtr lp;
+	FTPFileInfo fi;
 	int linesread = 0;
 	int linesconverted = 0;
 	int linesignored = 0;

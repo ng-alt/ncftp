@@ -1,6 +1,5 @@
-AC_DEFUN(wi_ARG_ENABLE_SOCKS5, [
-	wi_want_socks5=no
-	AC_ARG_ENABLE(socks5,[  --enable-socks5         try to find and use the socks5 library],wi_want_socks5=yes,wi_want_socks5=no)
+AC_DEFUN(wi_ARG_WITH_SOCKS5, [
+	AC_ARG_WITH(socks5,[  --with-socks5           try to find and use the SOCKS5 library],wi_want_socks5=$enableval,wi_want_socks5=no)
 ])
 dnl
 dnl
@@ -60,14 +59,17 @@ AC_DEFUN(wi_ARG_ENABLE_DEBUG, [
 # with debugging symbols enabled.  Example macros which are affected are
 # wi_CFLAGS and wi_SFLAG.
 #
-DEBUGBUILD=no
-DEBUGCONFIGUREFLAG=""
 AC_ARG_ENABLE(debug,
 [  --enable-debug          enable debugging symbols],
 [
-	DEBUGBUILD=yes
-	DEBUGCONFIGUREFLAG="--enable-debug"
+	DEBUGBUILD=no
+	DEBUGCONFIGUREFLAG=""
+	if test "$enableval" != "no" ; then
+		DEBUGBUILD=yes
+		DEBUGCONFIGUREFLAG="--enable-debug"
+	fi
 ],[
+dnl	# Argument not specified; default is disabled.
 	DEBUGBUILD=no
 	DEBUGCONFIGUREFLAG=""
 ])
@@ -243,6 +245,22 @@ AC_DEFUN(wi_LD_READONLY_TEXT, [
 if test "$SYS$wi_cv_prog_ld" = "linuxgld" ; then
 	LDFLAGS="$LDFLAGS -Xlinker -n"
 fi
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_FUNC_STRSIGNAL, [
+	case "$OS" in
+		aix4.3*)
+			# It didn't appear until several ML packs
+			# into 4.3.3
+			#
+			;;
+		*)
+			AC_CHECK_FUNCS(strsignal)
+			;;
+	esac
 ])
 dnl
 dnl
@@ -455,7 +473,7 @@ if test "$wi_os_default_cflags" = yes ; then
 				wi_os_default_cflags="-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wbad-function-cast -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-declarations -Winline"
 				;;
 			3.*)
-				wi_os_default_cflags="-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wbad-function-cast -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-declarations -Winline -Wdisabled-optimization -Wmissing-format-attribute -Wformat-security"
+				wi_os_default_cflags="-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wbad-function-cast -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-declarations -Winline -Wmissing-format-attribute -Wformat-security"
 				wi_gcc_optimizer_flags='-Wdisabled-optimization'
 				;;
 			*)
@@ -478,7 +496,7 @@ if test "$wi_os_default_cflags" = yes ; then
 				wi_os_default_cflags=`echo "$wi_os_default_cflags" | sed 's/\ -Wcast-qual//g'`		# avoid va_start() problem
 				wi_os_default_cflags=`echo "$wi_os_default_cflags" | sed 's/\ -Wredundant-decls//g'`
 				;;
-			openbsd*|unixware*)
+			openbsd*|unixware*|openunix*)
 				wi_os_default_cflags=`echo "$wi_os_default_cflags" | sed 's/\ -Wredundant-decls//g'`
 				;;
 		esac
@@ -523,10 +541,10 @@ if test "$wi_os_default_cflags" = yes ; then
 			yes_tru64*)
 				wi_os_default_cflags="-g -std1 -readonly_strings -portable -warnprotos -msg_enable level6 -msg_disable longlongtype,hexoctunsign,unusedincl,unnecincl,nestincl,unusedtop,unknownmacro,ignorecallval,strctpadding,truncintasn,truncintcast,trunclongcast,ansialiascast,conststocls,unrefsdecl,subscrbounds2"
 				;;
-			no_unixware*)
+			no_unixware*|no_openunix*)
 				wi_os_default_cflags='-O -K inline -K host -Q n'
 				;;
-			yes_unixware*)
+			yes_unixware*|yes_openunix*)
 				wi_os_default_cflags='-g -K host -Q n'
 				;;
 			*)
@@ -2847,6 +2865,7 @@ if [ -f "$wi_tmpdir/protos.h" ] ; then
 	#
 	x="write"
 	wi_cv_write_return_t=`sed -n 's/extern//;s/static//;
+		s/__attribute__((__cdecl__))//;
 		/[\ \*]'"$x"'\ *(/{
 			s/'"$x"'\ *(.*//
 			s/^\ *//
@@ -2857,12 +2876,13 @@ if [ -f "$wi_tmpdir/protos.h" ] ; then
 	# Check what type write() expects for the size parameter
 	#
 	x="write"
-	wi_cv_write_size_t=`"$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_write_size_t=`/bin/sh "$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
 	#
 	# Check the return type of send()
 	#
 	x="send"
 	wi_cv_send_return_t=`sed -n 's/extern//;s/static//;
+		s/__attribute__((__cdecl__))//;
 		/[\ \*]'"$x"'\ *(/{
 			s/'"$x"'\ *(.*//
 			s/^\ *//
@@ -2874,37 +2894,37 @@ if [ -f "$wi_tmpdir/protos.h" ] ; then
 	# Tru64 is one example where send() differs from write()  :-(
 	#
 	x="send"
-	wi_cv_send_size_t=`"$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_send_size_t=`/bin/sh "$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
 	#
 	# Check what type connect() expects for the size parameter
 	#
 	x="connect"
-	wi_cv_sockaddr_size_t=`"$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_sockaddr_size_t=`/bin/sh "$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
 	#
 	# Check what type setsockopt() expects for the size parameter
 	#
 	x="setsockopt"
-	wi_cv_sockopt_size_t=`"$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_sockopt_size_t=`/bin/sh "$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
 	#
 	# Check what type listen() expects for the backlog parameter
 	#
 	x="listen"
-	wi_cv_listen_backlog_t=`"$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_listen_backlog_t=`/bin/sh "$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
 	#
 	# Check what type alarm() expects for the seconds parameter
 	#
 	x="alarm"
-	wi_cv_alarm_time_t=`"$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_alarm_time_t=`/bin/sh "$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
 	#
 	# Check what type gethostbyaddr() expects for the addr parameter
 	#
 	x="gethostbyaddr"
-	wi_cv_gethost_addrptr_t=`"$wi_tmpdir/sed2.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_gethost_addrptr_t=`/bin/sh "$wi_tmpdir/sed2.sh" "$x" < "$wi_tmpdir/protos.h"`
 	#
 	# Check what type gethostname() expects for the size parameter
 	#
 	x="gethostname"
-	wi_cv_gethostname_size_t=`"$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_gethostname_size_t=`/bin/sh "$wi_tmpdir/sed.sh" "$x" < "$wi_tmpdir/protos.h"`
 fi
 if [ "x$wi_cv_write_return_t" = "x" ] ; then
 	wi_cv_write_return_t="int"
@@ -3060,6 +3080,7 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_PROG_CCDV, [
+unset wi_cv_path_ccdv	# can't use cache if it was a temp prog last time
 wi_used_cache_path_ccdv="yes"
 AC_CACHE_CHECK([for ccdv], [wi_cv_path_ccdv], [
 wi_used_cache_path_ccdv="no"
@@ -3656,7 +3677,7 @@ if [ -f "$wi_tmpdir/protos.h" ] ; then
 	# Check what type waddstr() expects for the string parameter
 	#
 	x="waddstr"
-	wi_cv_waddstr_str_t=`"$wi_tmpdir/sed2.sh" "$x" < "$wi_tmpdir/protos.h"`
+	wi_cv_waddstr_str_t=`/bin/sh "$wi_tmpdir/sed2.sh" "$x" < "$wi_tmpdir/protos.h"`
 fi
 if [ "x$wi_cv_waddstr_str_t" = "x" ] ; then
 	wi_cv_waddstr_str_t="const char *"
@@ -4358,6 +4379,16 @@ EOF
 				NDEFS="$NDEFS -DUNIXWARE=1"
 				;;
 		esac
+		;;
+	openunix)
+		OS="openunix${os_v}"
+		SYS=openunix
+		os_v1=`echo "$os_v" | cut -d. -f1`
+		os_v2=`echo "$os_v" | cut -d. -f2`
+		os_v3=`echo "$os_v" | cut -d. -f3`
+		if [ "$os_v3" = "" ] ; then os_v3=0 ; fi
+		os_int=`expr "$os_v1" '*' 100 + "$os_v2" '*' 10 + "$os_v3"`
+		NDEFS="$NDEFS -DOPENUNIX=$os_int -DUNIXWARE=$os_int"
 		;;
 	macos*|darwin|rhapsody)
 		OS="macosx"

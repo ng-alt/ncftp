@@ -28,7 +28,7 @@ int gScreenColumns;
 
 FTPLibraryInfo gLib;
 FTPConnectionInfo gConn;
-LineList gStartupURLCdList;
+FTPLineList gStartupURLCdList;
 char *gXBuf = NULL;
 size_t gXBufSize = 0;
 int gTransferTypeInitialized = 0;
@@ -227,7 +227,7 @@ SetStartupURL(const char *const urlgiven)
 static void
 OpenURL(void)
 {
-	LinePtr lp;
+	FTPLinePtr lp;
 	int result;
 
 	if (gURLMode == 1) {
@@ -267,9 +267,12 @@ PreInit(void)
 #ifdef HAVE_SETLOCALE
 	setlocale(LC_ALL, "");
 #endif
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	gIsTTY = 1;
 	gIsTTYr = 1;
+#elif defined(__CYGWIN__)
+	gIsTTY = (isatty(2) != 0) ? 1 : 0;
+	gIsTTYr = (isatty(0) != 0) ? 1 : 0;
 #else
 	gIsTTY = ((isatty(2) != 0) && (getppid() > 1)) ? 1 : 0;
 	gIsTTYr = ((isatty(0) != 0) && (getppid() > 1)) ? 1 : 0;
@@ -289,7 +292,7 @@ PreInit(void)
 		(void) fprintf(stderr, "ncftp: init library error %d (%s).\n", result, FTPStrError(result));
 		exit(1);
 	}
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	srand((unsigned int) (GetTickCount() & 0x7FFF));
 #else
 	srand((unsigned int) getpid());
@@ -352,7 +355,7 @@ PostInit(void)
 static void
 Plug(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 	/* NcFTPd hasn't been ported to Windows. */
 #else
 	if ((gDoNotDisplayAds == 0) && ((gNumProgramRuns % 7) == 2)) {

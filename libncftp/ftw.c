@@ -5,7 +5,14 @@
  *
  */
 
+#if defined(SOLARIS) && (SOLARIS >= 250)
+#	define _POSIX_PTHREAD_SEMANTICS 1
+#endif
+
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 /* Internal to ftw.c */
 typedef struct FtwSubDirList *FtwSubDirListPtr;
@@ -20,7 +27,7 @@ struct dirent *Readdir(DIR *const dir, struct dirent *const dp);
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 DIR *opendir(const char *const path)
 {
 	DIR *p;
@@ -93,7 +100,7 @@ Readdir(DIR *const dir, struct dirent *const dp)
 {
 	struct dirent *p;
 
-#if defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS)) || (defined(SCO)) || (defined(HPUX) && (HPUX < 1100)) )
+#if defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(SCO)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
 	p = readdir_r(dir, dp);
 	if (p != NULL)
 		return (dp);
@@ -118,7 +125,7 @@ void
 FtwInit(FtwInfo *const ftwip)
 {
 	memset(ftwip, 0, sizeof(FtwInfo));
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	ftwip->dirSeparator = '\\';
 	ftwip->rootDir[0] = '\\';
 #else

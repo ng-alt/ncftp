@@ -10,6 +10,7 @@
 #	pragma hdrstop
 #endif
 
+
 void
 FTPDeallocateHost(const FTPCIPtr cip)
 {
@@ -291,6 +292,8 @@ okay:
 
 	if (result < 0)
 		cip->errNo = result;
+	else
+		(void) gettimeofday(&cip->loginTime, NULL);
 	return result;
 
 done:
@@ -313,6 +316,8 @@ done2:
 	}
 	if (result < 0)
 		cip->errNo = result;
+	else
+		(void) gettimeofday(&cip->loginTime, NULL);
 	return result;
 }	/* FTPLoginHost */
 
@@ -368,7 +373,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 {
 	ResponsePtr rp;
 	int result;
-	LinePtr lp;
+	FTPLinePtr lp;
 	char *cp, *p;
 
 	if (cip == NULL)
@@ -541,9 +546,121 @@ FTPCloseHost(const FTPCIPtr cip)
 	 * if you OpenHost with this again.
 	 */
 	FTPDeallocateHost(cip);
+
+	if (cip->disconnectTime.tv_sec == 0)
+		(void) gettimeofday(&cip->disconnectTime, NULL);
 	return (result);
 }	/* FTPCloseHost */
 
+
+
+
+void
+FTPInitialLogEntry(const FTPCIPtr cip)
+{
+#if defined(HAVE_UNAME) && defined(HAVE_SYS_UTSNAME_H)
+	struct utsname u;
+#endif
+
+	if (cip->startTime.tv_sec == 0) {
+		(void) gettimeofday(&cip->startTime, NULL);
+
+		/* Log some headers for debugging.
+		 *
+		 * Note that this is the soonest we can do this,
+		 * since the user may not have set the debugLog
+		 * fields right away.
+		 */
+		PrintF(cip, "%s compiled for %s\n",
+			gLibNcFTPVersion + 5,
+#ifdef O_S
+			O_S
+#elif (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+			"Windows"
+#elif defined(__CYGWIN__)
+			"Cygwin"
+#else
+			"UNIX"
+#endif
+		);
+	
+#if defined(HAVE_UNAME) && defined(HAVE_SYS_UTSNAME_H)
+		memset(&u, 0, sizeof(u));
+		if (uname(&u) == 0) {
+			PrintF(cip, "Uname: %s|%s|%s|%s|%s\n",
+				u.sysname,
+				u.nodename,
+				u.release,
+				u.version,
+				u.machine
+			);
+		}
+#endif
+
+#if defined(SOLARIS) || defined(AIX)
+		{
+			FILE *fp;
+			char line[256], *cp;
+
+#if defined(SOLARIS)
+			fp = fopen("/etc/release", "r");
+#elif defined(AIX)
+			fp = fopen("/usr/lpp/bos/aix_release.level", "r");
+#endif
+			if (fp != NULL) {
+				memset(line, 0, sizeof(line));
+				(void) fgets(line, sizeof(line) - 1, fp);
+				cp = line + strlen(line) - 1;
+				while (cp > line) {
+					if (! isspace(*cp))
+						break;
+					--cp;
+				}
+				cp[1] = '\0';
+				cp = line;
+				while ((*cp != '\0') && (isspace(*cp)))
+					cp++;
+				fclose(fp);
+				PrintF(cip, "Release: %s\n", cp);
+			}
+		}
+#endif
+
+
+#if defined(HAVE_SYSINFO) && defined(SI_ARCHITECTURE) && defined(SI_ISALIST) && defined(SI_PLATFORM)
+		{
+			char si_platform[64];
+			char si_arch[32];
+			char si_isalist[256];
+
+			memset(si_platform, 0, sizeof(si_platform));
+			memset(si_arch, 0, sizeof(si_arch));
+			memset(si_isalist, 0, sizeof(si_isalist));
+
+			(void) sysinfo(SI_PLATFORM, si_platform, sizeof(si_platform) - 1);
+			(void) sysinfo(SI_ARCHITECTURE, si_arch, sizeof(si_arch) - 1);
+			(void) sysinfo(SI_ISALIST, si_isalist, sizeof(si_isalist) - 1);
+			PrintF(cip, "Sysinfo: %s|%s|%s\n",
+				si_platform,
+				si_arch,
+				si_isalist
+			);
+		}
+#endif
+
+#if defined(HAVE_GNU_GET_LIBC_VERSION) && defined(HAVE_GNU_GET_LIBC_RELEASE)
+		PrintF(cip, "Glibc: %s (%s)\n",
+			gnu_get_libc_version(),
+			gnu_get_libc_release()
+		);
+#endif
+	} else {
+		/* Starting a new set of opens, but simply update
+		 * the timestamp rather than re-log the headers.
+		 */
+		(void) gettimeofday(&cip->startTime, NULL);
+	}
+}	/* FTPInitialLogEntry */
 
 
 
@@ -553,7 +670,6 @@ FTPOpenHost(const FTPCIPtr cip)
 	int result;
 	time_t t0, t1;
 	int elapsed;
-	int dials;
 
 	if (cip == NULL)
 		return (kErrBadParameter);
@@ -565,9 +681,11 @@ FTPOpenHost(const FTPCIPtr cip)
 		return (kErrBadParameter);
 	}
 
-	for (	result = kErrConnectMiscErr, dials = 0;
-		cip->maxDials < 0 || dials < cip->maxDials;
-		dials++)
+	FTPInitialLogEntry(cip);
+
+	for (	result = kErrConnectMiscErr, cip->numDials = 0;
+		cip->maxDials < 0 || cip->numDials < cip->maxDials;
+	)	
 	{
 		/* Allocate (or if the host was closed, reallocate)
 		 * the transfer data buffer.
@@ -576,15 +694,22 @@ FTPOpenHost(const FTPCIPtr cip)
 		if (result < 0)
 			return (result);
 
-		if (dials > 0)
-			PrintF(cip, "Retry Number: %d\n", dials);
+		memset(&cip->connectTime, 0, sizeof(cip->connectTime));
+		memset(&cip->loginTime, 0, sizeof(cip->loginTime));
+		memset(&cip->disconnectTime, 0, sizeof(cip->disconnectTime));
+
+		cip->totalDials++;
+		cip->numDials++;
+		if (cip->numDials > 1)
+			PrintF(cip, "Retry Number: %d\n", cip->numDials - 1);
 		if (cip->redialStatusProc != 0)
-			(*cip->redialStatusProc)(cip, kRedialStatusDialing, dials);
+			(*cip->redialStatusProc)(cip, kRedialStatusDialing, cip->numDials - 1);
 		(void) time(&t0);
 		result = OpenControlConnection(cip, cip->host, cip->port);
 		(void) time(&t1);
 		if (result == kNoErr) {
 			/* We were hooked up successfully. */
+			(void) gettimeofday(&cip->connectTime, NULL);
 			PrintF(cip, "Connected to %s.\n", cip->host);
 
 			result = FTPLoginHost(cip);
@@ -621,7 +746,7 @@ FTPOpenHost(const FTPCIPtr cip)
 		/* Retryable error, wait and then redial. */
 		if (cip->redialDelay > 0) {
 			/* But don't sleep if this is the last loop. */
-			if ((cip->maxDials < 0) || (dials < (cip->maxDials - 1))) {
+			if ((cip->maxDials < 0) || (cip->numDials < (cip->maxDials))) {
 				elapsed = (int) (t1 - t0);
 				if (elapsed < cip->redialDelay) {
 					PrintF(cip, "Sleeping %u seconds.\n",
@@ -699,6 +824,7 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->shutdownUnusedSideOfSockets = 0;
 	(void) STRNCPY(cip->magic, kLibraryMagic);
 	(void) STRNCPY(cip->user, "anonymous");
+	(void) gettimeofday(&cip->initTime, NULL);
 	return (kNoErr);
 }	/* FTPInitConnectionInfo2 */
 

@@ -36,10 +36,10 @@ FTPFtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 	int rc = (-1);
 	int lsl, mls, unlsrc;
 	FTPCIPtr cip = (FTPCIPtr) ftwip->cip;
-	LineList ll;
-	FileInfoList fil;
-	LinePtr filePtr;
-	FileInfoPtr fip;
+	FTPLineList ll;
+	FTPFileInfoList fil;
+	FTPLinePtr filePtr;
+	FTPFileInfoPtr fip;
 	int result;
 	int isRootDir;
 	longest_int sz;

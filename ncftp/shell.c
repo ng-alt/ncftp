@@ -30,7 +30,7 @@ int gNumInterruptions = 0;
 int gEventNumber = 0;
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #elif defined(HAVE_SIGSETJMP)
 /* A command function can set this to have a user generated signal
  * cause execution to jump here.
@@ -335,7 +335,7 @@ MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t 
 					}
 				}
 			} else
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				if (c == '|') {
 #else
 				if (c == '\\') {
@@ -423,7 +423,7 @@ XferCanceller(int sigNum)
 {
 	gGotSig = sigNum;
 	if (gConn.cancelXfer > 0) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		signal(SIGINT, SIG_DFL);
 #else
 		/* User already tried it once, they
@@ -447,7 +447,7 @@ XferCanceller(int sigNum)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 
 /* Allows the user to cancel a long operation and get back to the shell. */
@@ -505,7 +505,7 @@ CommandShell(void)
 	ArgvInfo ai;
 	char prompt[64];
 	char *lineRead;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	int sj;
 #endif
@@ -513,7 +513,7 @@ CommandShell(void)
 	int oldcount;
 
 	/* Execution may jump back to this point to restart the shell. */
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 
 #elif defined(HAVE_SIGSETJMP)
 	sj = sigsetjmp(gBackToTopJmp, 1);
@@ -521,7 +521,7 @@ CommandShell(void)
 	sj = setjmp(gBackToTopJmp);
 #endif	/* HAVE_SIGSETJMP */
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	if (sj != 0) {
 		Trace(0, "Caught signal %d, back at top.\n", gGotSig);
@@ -547,7 +547,7 @@ CommandShell(void)
 	++gEventNumber;
 
 	while (gDoneApplication == 0) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		(void) NcSignal(SIGINT, BackToTop);
 		(void) NcSignal(SIGPIPE, BackToTop);
@@ -594,7 +594,7 @@ CommandShell(void)
 				/* Let the user know that a time-consuming
 				 * operation has completed.
 				 */
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				MessageBeep(MB_OK);
 #else
 				(void) fprintf(stderr, "\007");

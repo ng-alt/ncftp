@@ -13,7 +13,7 @@
 void
 GetUsrName(char *dst, size_t size)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	DWORD size1;
 
 	size1 = size - 1;

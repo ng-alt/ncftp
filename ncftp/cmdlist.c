@@ -18,7 +18,7 @@
  * they should already be listed that way.
  */
 Command gCommands[] = {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	{ "!",
 		ShellCmd,
@@ -201,7 +201,7 @@ Examples:\n\
 		kCmdMustBeDisconnected | kCmdHidden,
 		kNoMin, kNoMax,
 	},
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	{ "jobs",
 		(CmdProc) JobsCmd,
@@ -218,7 +218,7 @@ Examples:\n\
 		kCompleteLocalDir,
 		kNoMin, 1,
 	},
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	{ "lchmod",
 		LocalChmodCmd,
@@ -256,7 +256,7 @@ Examples:\n\
 		0,
 		1, kNoMax,
 	},
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	{ "lpage",
 		LocalPageCmd,

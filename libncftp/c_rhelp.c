@@ -11,7 +11,7 @@
 #endif
 
 int
-FTPRemoteHelp(const FTPCIPtr cip, const char *const pattern, const LineListPtr llp)
+FTPRemoteHelp(const FTPCIPtr cip, const char *const pattern, const FTPLineListPtr llp)
 {
 	int result;
 	ResponsePtr rp;

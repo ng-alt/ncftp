@@ -10,7 +10,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define ASCII_TRANSLATION 0
 #endif
 
@@ -271,7 +271,7 @@ FTPGetOneF(
 
 		if ((expectedSize == (longest_int) 0) && (startPoint <= (longest_int) 0) && (zaction != kConfirmResumeProcSaidOverwrite)) {
 			/* Don't go to all the trouble of downloading nothing. */
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			/* Note: Windows doesn't allow zero-size files. */
 			(void) write(fd, "\r\n", (write_size_t) 2);
 #endif

@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  */
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
@@ -139,7 +139,7 @@
 #	endif
 #endif /* ---------------------------- UNIX ---------------------------- */
 
-#if defined(AIX) || defined(_AIX)
+#if (defined(AIX) && (AIX >= 430))
 /* AIX 4.3's sys/socket.h doesn't properly prototype these for C */
 extern int naccept(int, struct sockaddr *, socklen_t *);
 extern int ngetpeername(int, struct sockaddr *, socklen_t *);

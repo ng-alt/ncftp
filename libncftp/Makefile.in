@@ -9,7 +9,7 @@ PREFIX=@prefix@
 
 @SET_MAKE@
 CC=@CC@
-DEFS=@DEFS@@NDEFS@
+DEFS=-DO_S=\"@OS@\" @DEFS@@NDEFS@
 CFLAGS=@CFLAGS@
 #CC=gcc
 #CFLAGS=-g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion

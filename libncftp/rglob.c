@@ -39,9 +39,9 @@
  */
 
 void
-RemoteGlobCollapse(const char *pattern, LineListPtr fileList)
+RemoteGlobCollapse(const char *pattern, FTPLineListPtr fileList)
 {
-	LinePtr lp, nextLine;
+	FTPLinePtr lp, nextLine;
 	string patPrefix;
 	string cur, prev;
 	char *endp, *cp, *dp;
@@ -97,11 +97,11 @@ RemoteGlobCollapse(const char *pattern, LineListPtr fileList)
 
 
 int
-FTPRemoteGlob(FTPCIPtr cip, LineListPtr fileList, const char *pattern, int doGlob)
+FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int doGlob)
 {
 	char *cp;
 	const char *lsflags;
-	LinePtr lp;
+	FTPLinePtr lp;
 	int result;
 
 	if (cip == NULL)

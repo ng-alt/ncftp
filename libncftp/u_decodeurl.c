@@ -55,7 +55,7 @@ int
 FTPDecodeURL(
 	const FTPCIPtr cip,	/* area pointed to may be modified */
 	char *const url,	/* always modified */
-	LineListPtr cdlist,	/* always modified */
+	FTPLineListPtr cdlist,	/* always modified */
 	char *const fn,		/* always modified */
 	const size_t fnsize,
 	int *const xtype,	/* optional; may be modified */

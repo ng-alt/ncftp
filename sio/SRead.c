@@ -3,7 +3,7 @@
 #	pragma hdrstop
 #endif
 
-static const char UNUSED(gSioVersion[]) = "@(#) sio 6.1.2 ** Copyright 1992-2002 Mike Gleason. All rights reserved.";
+static const char UNUSED(gSioVersion[]) = "@(#) sio 6.1.3 ** Copyright 1992-2002 Mike Gleason. All rights reserved.";
 
 #ifdef NO_SIGNALS
 static const char UNUSED(gNoSignalsMarker[]) = "@(#) sio - NO_SIGNALS";
@@ -181,7 +181,7 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 			firstRead = 0;
 		}
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		nread = recv(sfd, (char *) buf, (recv_size_t) nleft, 0);
 #else
 		nread = read(sfd, (char *) buf, nleft);

@@ -14,7 +14,7 @@ int
 FTPChdir3(FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_t newCwdSize, int flags)
 {
 	char *cp, *startcp;
-	int result;
+	int result = kErrBadParameter;
 	int lastSubDir;
 	int mkd, pwd, one, ful;
 	int chdir_err;

@@ -5,12 +5,16 @@
  *
  */
 
+#if defined(SOLARIS) && (SOLARIS >= 250)
+#	define _POSIX_PTHREAD_SEMANTICS 1
+#endif
+
 #include "syshdrs.h"
 #ifdef PRAGMA_HDRSTOP
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 
 #ifdef BSDOS
@@ -23,7 +27,7 @@ GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsiz
 {
 	struct passwd *p;
 
-#if defined(HAVE_GETPWUID_R) && ( (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS)) || (defined(HPUX) && (HPUX < 1100)) )
+#if defined(HAVE_GETPWUID_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
 	memset(pwbuf, 0, pwbufsize);
 	p = getpwuid_r(uid, pwp, pwbuf, pwbufsize);
 	if (p != NULL)
@@ -61,7 +65,7 @@ GetPwNam(struct passwd *pwp, const char *const nam, char *const pwbuf, size_t pw
 {
 	struct passwd *p;
 
-#if defined(HAVE_GETPWNAM_R) && ( (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS)) || (defined(HPUX) && (HPUX < 1100)) )
+#if defined(HAVE_GETPWNAM_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
 	memset(pwbuf, 0, pwbufsize);
 	p = getpwnam_r(nam, pwp, pwbuf, pwbufsize);
 	if (p != NULL)

@@ -91,12 +91,12 @@ static int gEchoMode = 0;
  * the user can use the arrow keys to move up and down through the history
  * to edit previous lines.
  */
-static LineListPtr gHistory = 0;
+static FTPLineListPtr gHistory = 0;
 
 /* This is a pointer to the line in the history that is being used as a copy
  * for editing.
  */
-static LinePtr gCurHistLine = 0;
+static FTPLinePtr gCurHistLine = 0;
 
 static void
 wg_SetCursorPos(char *newPos)

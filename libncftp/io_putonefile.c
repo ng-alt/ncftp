@@ -10,7 +10,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define ASCII_TRANSLATION 0
 #endif
 

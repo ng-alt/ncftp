@@ -12,9 +12,9 @@
 
 #if 0
 static void
-print1(FileInfoListPtr list)
+print1(FTPFileInfoListPtr list)
 {
-	FileInfoPtr fip;
+	FTPFileInfoPtr fip;
 	int i;
 
 	for (i = 1, fip = list->first; fip != NULL; fip = fip->next, i++)
@@ -24,9 +24,9 @@ print1(FileInfoListPtr list)
 
 
 static void
-print2(FileInfoListPtr list)
+print2(FTPFileInfoListPtr list)
 {
-	FileInfoPtr fip;
+	FTPFileInfoPtr fip;
 	int i, n;
 
 	n = list->nFileInfos;
@@ -40,7 +40,7 @@ print2(FileInfoListPtr list)
 
 
 static void
-SortRecursiveFileList(FileInfoListPtr files)
+SortRecursiveFileList(FTPFileInfoListPtr files)
 {
 	VectorizeFileInfoList(files);
 	SortFileInfoList(files, 'b', '?');
@@ -52,10 +52,10 @@ SortRecursiveFileList(FileInfoListPtr files)
 
 
 int
-FTPRemoteRecursiveFileList1(FTPCIPtr cip, char *const rdir, FileInfoListPtr files)
+FTPRemoteRecursiveFileList1(FTPCIPtr cip, char *const rdir, FTPFileInfoListPtr files)
 {
-	LineList dirContents;
-	FileInfoList fil;
+	FTPLineList dirContents;
+	FTPFileInfoList fil;
 	char cwd[512];
 	int result;
 
@@ -101,11 +101,11 @@ FTPRemoteRecursiveFileList1(FTPCIPtr cip, char *const rdir, FileInfoListPtr file
 
 
 int
-FTPRemoteRecursiveFileList(FTPCIPtr cip, LineListPtr fileList, FileInfoListPtr files)
+FTPRemoteRecursiveFileList(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInfoListPtr files)
 {
-	LinePtr filePtr, nextFilePtr;
-	LineList dirContents;
-	FileInfoList fil;
+	FTPLinePtr filePtr, nextFilePtr;
+	FTPLineList dirContents;
+	FTPFileInfoList fil;
 	char cwd[512];
 	int result;
 	char *rdir;

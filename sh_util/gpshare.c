@@ -12,14 +12,14 @@
 #endif
 #include "gpshare.h"
 #ifndef ncftp
-#	if defined(WIN32) || defined(_WINDOWS)
+#	if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #		include "..\ncftp\util.h"
 #	else
 #		include "../ncftp/util.h"
 #	endif
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	extern WSADATA wsaData;
 	extern int wsaInit;
 #endif
@@ -403,7 +403,7 @@ GetDefaultProgressMeterSetting(void)
 {
 	int progmeters;
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	progmeters = _isatty(_fileno(stderr));
 #else
 	progmeters = ((isatty(2) != 0) && (getppid() > 1)) ? 1 : 0;
@@ -418,15 +418,19 @@ OpenPager(void)
 {
 	FILE *fp;
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	fp = stdout;
 #else
 	const char *cp;
 
 	cp = (const char *) getenv("PAGER");
 	if (cp == NULL)
+#if defined(__CYGWIN__)
+		cp = "less";
+#else
 		cp = "more";
-	fp = popen(cp, "w");
+#endif
+		fp = popen(cp, "w");
 	if (fp == NULL)
 		fp = stderr;
 #endif
@@ -439,7 +443,7 @@ void ClosePager(FILE *fp)
 {
 	if ((fp == stderr) || (fp == stdout))
 		return;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	(void) pclose(fp);
 #endif

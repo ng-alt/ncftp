@@ -21,7 +21,7 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
  * Note:  This version has been updated by Mike Gleason <mgleason@ncftp.com>
  */
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
 #	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
@@ -123,11 +123,22 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
 			struct termio   new_termio, old_termio;
 #		endif /* TIOCSETN */
 #	endif /* HAVE_TERMIOS_H */
-#	define LOCAL_PATH_DELIM '/'
-#	define LOCAL_PATH_DELIM_STR "/"
-#	define _StrFindLocalPathDelim(a) strchr(a, LOCAL_PATH_DELIM)
-#	define _StrRFindLocalPathDelim(a) strrchr(a, LOCAL_PATH_DELIM)
-#	define IsLocalPathDelim(c) (c == LOCAL_PATH_DELIM)
+#	if defined(__CYGWIN__)
+#		define LOCAL_PATH_DELIM '/'
+#		define LOCAL_PATH_DELIM_STR "/"
+#		define LOCAL_PATH_ALTDELIM '\\'
+#		define IsLocalPathDelim(c) ((c == LOCAL_PATH_DELIM) || (c == LOCAL_PATH_ALTDELIM))
+#		define UNC_PATH_PREFIX "//"
+#		define IsUNCPrefixed(s) (IsLocalPathDelim(s[0]) && IsLocalPathDelim(s[1]))
+/* _StrFindLocalPathDelim(a) -- use windows-specific function; understands '/' and '\\' */
+/* _StrRFindLocalPathDelim(a) -- use windows-specific function; understands '/' and '\\' */
+#	else
+#		define LOCAL_PATH_DELIM '/'
+#		define LOCAL_PATH_DELIM_STR "/"
+#		define _StrFindLocalPathDelim(a) strchr(a, LOCAL_PATH_DELIM)
+#		define _StrRFindLocalPathDelim(a) strrchr(a, LOCAL_PATH_DELIM)
+#		define IsLocalPathDelim(c) (c == LOCAL_PATH_DELIM)
+#	endif
 #endif
 
 /********************* C library headers ********************************/

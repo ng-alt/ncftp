@@ -46,7 +46,7 @@ typedef volatile sigproc_t vsigproc_t;
 #define kPasswordMagic "*encoded*"
 #define kPasswordMagicLen 9
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define kOurDirectoryName	"ncftp"
 #	define kNcFTPBookmarksMailslot "\\\\.\\mailslot\\ncftpbm.slt"
 #	define kNcFTPBookmarksMailslotMsgSize 128
@@ -96,9 +96,9 @@ int StrToBool(const char *const);
 void AbsoluteToRelative(char *const, const size_t, const char *const, const char *const, const size_t);
 int MyGetHostByName(char *const volatile, size_t, const char *const, int);
 time_t UnDate(char *dstr);
-int DecodeDirectoryURL(const FTPCIPtr, char *, LineListPtr, char *, size_t);
+int DecodeDirectoryURL(const FTPCIPtr, char *, FTPLineListPtr, char *, size_t);
 char *OurInstallationPath(char *const dst, const size_t siz, const char *const fname);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 void SysPerror(const char *const errMsg);
 #endif
 

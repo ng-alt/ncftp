@@ -9,7 +9,7 @@
 #	include <config.h>
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
@@ -72,6 +72,8 @@
 #		define FOPEN_WRITE_BINARY "wb"
 #		define FOPEN_APPEND_BINARY "ab"
 #	endif
+#elif defined(__CYGWIN__)
+#	error "This version is for native Windows only."
 #else	/* UNIX */
 #	error "This version is for Windows only."
 #endif	/* UNIX */

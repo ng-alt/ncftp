@@ -13,8 +13,8 @@
 int
 FTPChmod(const FTPCIPtr cip, const char *const pattern, const char *const mode, const int doGlob)
 {
-	LineList fileList;
-	LinePtr filePtr;
+	FTPLineList fileList;
+	FTPLinePtr filePtr;
 	char *file;
 	int onceResult, batchResult;
 

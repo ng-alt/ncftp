@@ -119,9 +119,6 @@ OpenTrace(void)
 	char tName[32];
 	int pid;
 	const char *cp;
-#if defined(HAVE_SYS_UTSNAME_H) && defined(HAVE_UNAME)
-	struct utsname u;
-#endif
 
 	if (gOurDirectoryPath[0] == '\0')
 		return;		/* Don't create in root directory. */
@@ -143,11 +140,6 @@ OpenTrace(void)
 		(void) fprintf(fp, "        Process ID:  %u\n", pid);
 		if (gOS[0] != '\0')
 			(void) fprintf(fp, "          Platform:  %s\n", gOS);
-#if defined(HAVE_SYS_UTSNAME_H) && defined(HAVE_UNAME)
-		if (uname(&u) == 0) {
-			(void) fprintf(fp, "             Uname:  %.63s|%.63s|%.63s|%.63s|%.63s\r\n", u.sysname, u.nodename, u.release, u.version, u.machine);
-		}
-#endif	/* UNAME */
 		if (gGetOurHostNameResult == 100)
 			gGetOurHostNameResult = GetOurHostName(gOurHostName, sizeof(gOurHostName));
 		(void) fprintf(fp, "          Hostname:  %s  (rc=%d)\n", gOurHostName, gGetOurHostNameResult);

@@ -1,11 +1,40 @@
 Change Log:
 ===========
 
-3.1.2, 2002-01-16:
+3.1.3, 2002-03-27
+
+ + Bug fixed on Solaris where a socket could be left in non-blocking mode.
+ 
+ + Ls parsing is now more forgiving of weird /bin/ls implementations (AIX).
+
+ + Be more lenient on broken server implementations which include extra
+   blank lines in the control connection conversation.
+
+ + Fix for ncftpget which was exiting with code 3 if URL mode was used
+   and the file already existed.
+
+ + Fix for resume prompts which in some cases was printing dates in the
+   format like "Sun Feb 20:02:15 CST 2002" instead of
+   "Sun Feb 24 20:02:15 CST 2002".  (I.e. the day of the month was
+   missing.)
+
+ + Compatibility fixes for IRIX 5.x and AIX 4.2.x.
+
+ + Compatibility fixes for Cygwin
+   (Thanks, Charles Wilson <cwilson AT ece.gatech.edu>).
+
+ + Some extra debugging information is now logged to the trace logs.
+
+ + When running the Windows bookmark editor in standalone mode, the
+   program may not have launched NcFTP correctly with the selected
+   bookmark (Thanks, Jochen.Erwied AT mbs-software.de).
+
+
+3.1.2, 2002-01-30:
 
  + A fix for the local hostname detection code which could result with only
    the first character of the domain appended, rather than the entire domain
-   (Thanks Bernhard Sadlowski <sadlowsk@mathematik.uni-bielefeld.de>).
+   (Thanks, Bernhard Sadlowski <sadlowsk AT mathematik.uni-bielefeld.de>).
 
  + Another bug fixed in local hostname detection where looking up the host
    by IP address was not done correctly.
@@ -287,7 +316,7 @@ Change Log:
   be closed and generate a SIGPIPE which caused it to exit uncleanly,
   and possibly leave the terminal state hosed.
 
-+ Added a snippet from Felix von Leitner <leitner@fefe.de> to get the
++ Added a snippet from Felix von Leitner <leitner AT fefe.de> to get the
   terminal width fairly painlessly, so the aforementioned hack should
   not be necessary in many cases.
 

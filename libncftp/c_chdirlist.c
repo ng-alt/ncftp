@@ -11,11 +11,11 @@
 #endif
 
 int
-FTPChdirList(FTPCIPtr cip, LineListPtr const cdlist, char *const newCwd, const size_t newCwdSize, int flags)
+FTPChdirList(FTPCIPtr cip, FTPLineListPtr const cdlist, char *const newCwd, const size_t newCwdSize, int flags)
 {
 	size_t len;
 	char *cdstr;
-	LinePtr lp;
+	FTPLinePtr lp;
 	int lastSubDir;
 	int mkd, pwd;
 	int result;

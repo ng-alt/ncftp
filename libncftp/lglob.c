@@ -19,7 +19,7 @@ ExpandTilde(char *pattern, size_t siz)
 {
 	string pat;
 	char *cp, *rest, *firstent;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	struct passwd pw;
 	char pwbuf[256];
@@ -40,7 +40,7 @@ ExpandTilde(char *pattern, size_t siz)
 			GetHomeDir(hdir, sizeof(hdir));
 			firstent = hdir;
 		} else {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			return;
 #else
 			/* Was just a ~username or ~username/rest type.  */
@@ -63,10 +63,10 @@ ExpandTilde(char *pattern, size_t siz)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 
 static int
-WinLocalGlob(FTPCIPtr cip, LineListPtr fileList, const char *const srcpat)
+WinLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *const srcpat)
 {
 	char pattern[_MAX_PATH];
 	WIN32_FIND_DATA ffd;
@@ -125,7 +125,7 @@ WinLocalGlob(FTPCIPtr cip, LineListPtr fileList, const char *const srcpat)
 #else
 
 static int
-LazyUnixLocalGlob(FTPCIPtr cip, LineListPtr fileList, const char *const pattern)
+LazyUnixLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *const pattern)
 {
 	string cmd;
 	longstring gfile;
@@ -166,7 +166,7 @@ LazyUnixLocalGlob(FTPCIPtr cip, LineListPtr fileList, const char *const pattern)
 
 
 int
-FTPLocalGlob(FTPCIPtr cip, LineListPtr fileList, const char *pattern, int doGlob)
+FTPLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int doGlob)
 {
 	string pattern2;
 	int result;
@@ -191,7 +191,7 @@ FTPLocalGlob(FTPCIPtr cip, LineListPtr fileList, const char *pattern, int doGlob
 	result = kNoErr;
 
 	if ((doGlob == 1) && (GLOBCHARSINSTR(pattern2))) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		result = WinLocalGlob(cip, fileList, pattern2);
 #else
 		result = LazyUnixLocalGlob(cip, fileList, pattern2);

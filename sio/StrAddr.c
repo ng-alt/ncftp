@@ -14,7 +14,7 @@
 /* Linux libc 5.3.x has a bug that causes isalnum() to not work! */
 #define ISALNUM(c) ( (((c) >= 'A') && ((c) <= 'Z')) || (((c) >= 'a') && ((c) <= 'z')) || (((c) >= '0') && ((c) <= '9')) )
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma warning(disable : 4711)	// warning: function 'ServiceNameToPortNumber' selected for automatic inline expansion
 #endif
 unsigned int

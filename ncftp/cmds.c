@@ -96,7 +96,7 @@ extern int gLoadedBm, gConfirmClose, gSavePasswords, gScreenColumns;
 extern char gLocalCWD[512], gPrevLocalCWD[512];
 extern int gMayCancelJmp;
 extern char gOurHostName[64];
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 extern char gOurInstallationPath[];
 #elif defined(HAVE_SIGSETJMP)
 extern sigjmp_buf gCancelJmp;
@@ -112,7 +112,7 @@ __attribute__ ((format (printf, 1, 2)))
 ;
 
 #if (defined(__GNUC__)) && (__GNUC__ == 2)
-#	define DATE_SPEC "%a %b %H:%M:%S %Z %Y"
+#	define DATE_SPEC "%a %b %d %H:%M:%S %Z %Y"
 #else
 	/* For GCC 3, we can disable the Y2K warnings. */
 #	define DATE_SPEC "%c"
@@ -404,8 +404,8 @@ CatCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoP
 static void
 NcFTPCdResponseProc(const FTPCIPtr cipUNUSED, ResponsePtr rp)
 {
-	LinePtr lp;
-	LineListPtr llp;
+	FTPLinePtr lp;
+	FTPLineListPtr llp;
 
 	gUnusedArg = (cipUNUSED != NULL);
 	if ((rp->printMode & kResponseNoPrint) != 0)
@@ -427,9 +427,9 @@ NcFTPCdResponseProc(const FTPCIPtr cipUNUSED, ResponsePtr rp)
 
 /* Manually print a response obtained from the remote FTP user. */
 void
-PrintResp(LineListPtr llp)
+PrintResp(FTPLineListPtr llp)
 {
-	LinePtr lp;
+	FTPLinePtr lp;
 	
 	if (llp != NULL) {
 		for (lp = llp->first; lp != NULL; lp = lp->next) {
@@ -595,8 +595,8 @@ void
 ChdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 
 	ARGSUSED(gUnusedArg);
 
@@ -746,8 +746,8 @@ EchoCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	int i;
 	int result;
 	int np = 0;
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 
 	ARGSUSED(gUnusedArg);
 	for (i=1; i<argc; i++) {
@@ -1106,7 +1106,7 @@ commands.  'help <command>' gives a brief description of <command>.\n\n");
 			if ((!iscntrl((int) c->name[0])) && (!(c->flags & kCmdHidden) || showall))
 				nCmds2Print++;
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		(void) memset((void *) cmdnames, 0, sizeof(cmdnames));
 #else
 		(void) memset(cmdnames, 0, sizeof(cmdnames));
@@ -1229,7 +1229,7 @@ PrintHosts(void)
 static int
 RunBookmarkEditor(char *selectedBmName, size_t dsize)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	char ncftpbookmarks[260];
 	const char *prog;
 	int winExecResult;
@@ -1422,7 +1422,7 @@ ListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	volatile int listmode;
 	FILE *volatile stream;
 	volatile int paging;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	int sj;
 	vsigproc_t osigpipe, osigint;
@@ -1501,7 +1501,7 @@ ListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 			return;
 		}
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #elif defined(HAVE_SIGSETJMP)
 		osigpipe = osigint = (sigproc_t) 0;
 		sj = sigsetjmp(gCancelJmp, 1);
@@ -1510,7 +1510,7 @@ ListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 		sj = setjmp(gCancelJmp);
 #endif	/* HAVE_SIGSETJMP */
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		if (sj != 0) {
 			/* Caught a signal. */
@@ -1542,7 +1542,7 @@ ListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 
 	if (paging != 0) {
 		ClosePager(stream);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		(void) NcSignal(SIGPIPE, osigpipe);
 		(void) NcSignal(SIGINT, osigint);
@@ -1596,7 +1596,7 @@ LocalChdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const Ar
 void
 LocalListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	volatile int i;
 	int j;
 	char options[32];
@@ -1769,7 +1769,7 @@ Sys(const int argc, char **const argv, const ArgvInfoPtr aip, const char *syscmd
 			(void) STRNCAT(cmd, "\" ");
 		}
 	}
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	fprintf(stderr, "Cannot run command: %s\n", cmd);
 #else
 	Trace(0, "Sys: %s\n", cmd);
@@ -1780,7 +1780,7 @@ Sys(const int argc, char **const argv, const ArgvInfoPtr aip, const char *syscmd
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 void
 LocalChmodCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
@@ -1795,7 +1795,7 @@ LocalChmodCmd(const int argc, char **const argv, const CommandPtr cmdp, const Ar
 void
 LocalMkdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	const char *arg;
 	int i;
 
@@ -1814,7 +1814,7 @@ LocalMkdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const Ar
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 void
 LocalPageCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
@@ -1830,7 +1830,7 @@ LocalPageCmd(const int argc, char **const argv, const CommandPtr cmdp, const Arg
 void
 LocalRenameCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (rename(argv[1], argv[2]) < 0) {
 		perror("rename");
 	}
@@ -1846,11 +1846,11 @@ LocalRenameCmd(const int argc, char **const argv, const CommandPtr cmdp, const A
 void
 LocalRmCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	int i;
 	int result;
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 
 	ARGSUSED(gUnusedArg);
 	for (i=1; i<argc; i++) {
@@ -1880,11 +1880,11 @@ LocalRmCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvI
 void
 LocalRmdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	int i;
 	int result;
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 
 	ARGSUSED(gUnusedArg);
 	for (i=1; i<argc; i++) {
@@ -1991,9 +1991,9 @@ MlsCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoP
 {
 	int i;
 	int optrc;
-	LinePtr linePtr, nextLinePtr;
+	FTPLinePtr linePtr, nextLinePtr;
 	int result;
-	LineList dirContents;
+	FTPLineList dirContents;
 	int mlsd = 1, x;
 	const char *item;
 	GetoptInfo opt;
@@ -2199,9 +2199,9 @@ NcFTPRedialStatusProc(const FTPCIPtr cipUNUSED, int mode, int val)
 
 
 static void
-NcFTPGetPassphraseProc(const FTPCIPtr cip, LineListPtr pwPrompt, char *pass, size_t dsize)
+NcFTPGetPassphraseProc(const FTPCIPtr cip, FTPLineListPtr pwPrompt, char *pass, size_t dsize)
 {
-	LinePtr lp;
+	FTPLinePtr lp;
 
 	(void) printf("\nPassword requested by %s for user \"%s\".\n\n",
 		cip->host,
@@ -2384,8 +2384,8 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	char url[256];
 	char urlfile[128];
 	int directoryURL = 0;
-	LineList cdlist;
-	LinePtr lp;
+	FTPLineList cdlist;
+	FTPLinePtr lp;
 	char prompt[256];
 	GetoptInfo opt;
 
@@ -2571,7 +2571,7 @@ PageCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	int result;
 	int i;
 	FILE *volatile stream;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	int sj;
 	vsigproc_t osigpipe, osigint;
@@ -2583,7 +2583,7 @@ PageCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 		return;
 	}
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 
 #ifdef HAVE_SIGSETJMP
@@ -2624,7 +2624,7 @@ PageCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 		}
 	}
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	ClosePager(stream);
 #else
 	(void) NcSignal(SIGPIPE, (FTPSigProc) SIG_IGN);
@@ -3031,8 +3031,8 @@ RGlobCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInf
 	int i;
 	int result;
 	int np = 0;
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 
 	ARGSUSED(gUnusedArg);
 	for (i=1; i<argc; i++) {
@@ -3117,8 +3117,8 @@ void
 RmtHelpCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i, result;
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 
 	ARGSUSED(gUnusedArg);
 	if (argc == 1) {
@@ -3169,7 +3169,7 @@ SetCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoP
 void
 ShellCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	const char *cp;
 	pid_t pid;
@@ -3326,14 +3326,14 @@ static int
 SpoolCheck(void)
 {
 	if (CanSpool() < 0) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		(void) printf("Sorry, spooling isn't allowed until you run Setup.exe.\n");
 #else
 		(void) printf("Sorry, spooling isn't allowed because this user requires that the NCFTPDIR\nenvironment variable be set to a directory to write datafiles to.\n");
 #endif
 		return (-1);
 	} else if (HaveSpool() == 0) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		(void) printf("Sorry, the \"ncftpbatch\" program could not be found.\nPlease re-run Setup to correct this problem.\n");
 #else
 		(void) printf("Sorry, the \"ncftpbatch\" program could not be found.\nThis program must be installed and in your PATH in order to use this feature.\n");
@@ -3360,7 +3360,7 @@ BGStartCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvI
 	if ((argc < 2) || ((n = atoi(argv[1])) < 2)) {
 		RunBatch();
 		(void) printf("Background process started.\n");
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		(void) printf("Watch the \"%s/spool/log\" file to see how it is progressing.\n", gOurDirectoryPath);
 #endif
@@ -3368,7 +3368,7 @@ BGStartCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvI
 		for (i=0; i<n; i++)
 			RunBatch();
 		(void) printf("Background processes started.\n");
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		(void) printf("Watch the \"%s/spool/log\" file to see how it is progressing.\n", gOurDirectoryPath);
 #endif
@@ -3445,7 +3445,7 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 	if (ldir == NULL)
 		return (-1);
 	CompressPath(ldir, ldir1, len + 1,
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		1);
 #else
 		0);
@@ -3537,8 +3537,8 @@ SpoolGetCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 	char pattern[256];
 	char *lname;
 	char *base;
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 	GetoptInfo opt;
 	FtwInfo ftwi;
 	SpoolCmdInfo cinfo;
@@ -3794,7 +3794,7 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 	if (ldir == NULL)
 		return (-1);
 	CompressPath(ldir, ldir1, len + 1,
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		1);
 #else
 		0);
@@ -3885,8 +3885,8 @@ SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 	int i;
 	int nD = 0;
 	char pattern[256];
-	LineList ll;
-	LinePtr lp;
+	FTPLineList ll;
+	FTPLinePtr lp;
 	char *rname;
 	char *base;
 	GetoptInfo opt;

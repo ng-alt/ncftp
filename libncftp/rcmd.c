@@ -66,7 +66,7 @@ InitResponse(void)
 void
 TraceResponse(const FTPCIPtr cip, ResponsePtr rp)
 {
-	LinePtr lp;
+	FTPLinePtr lp;
 	
 	if (rp != NULL)	{
 		lp = rp->msg.first;
@@ -83,9 +83,9 @@ TraceResponse(const FTPCIPtr cip, ResponsePtr rp)
 
 
 void
-PrintResponse(const FTPCIPtr cip, LineListPtr llp)
+PrintResponse(const FTPCIPtr cip, FTPLineListPtr llp)
 {
-	LinePtr lp;
+	FTPLinePtr lp;
 	
 	if (llp != NULL) {
 		for (lp = llp->first; lp != NULL; lp = lp->next)
@@ -292,7 +292,7 @@ done:
 
 
 /* Returns 0 if a response was read, or (-1) if an error occurs.
- * This reads the entire response text into a LineList, which is kept
+ * This reads the entire response text into a FTPLineList, which is kept
  * in the 'Response' structure.
  */
 int
@@ -347,45 +347,55 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 #ifdef NO_SIGNALS
 	cp = str;
 	eofError = 0;
-	if (cip->dataTimedOut > 0) {
-		/* Give up immediately unless the server had already
-		 * sent a message. Odds are since the data is timed
-		 * out, so is the control.
-		 */
-		if (SWaitUntilReadyForReading(cip->ctrlSocketR, 0) == 0) {
+	for (;;) {
+		if (cip->dataTimedOut > 0) {
+			/* Give up immediately unless the server had already
+			 * sent a message. Odds are since the data is timed
+			 * out, so is the control.
+			 */
+			if (SWaitUntilReadyForReading(cip->ctrlSocketR, 0) == 0) {
+				/* timeout */
+				Error(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
+				FTPShutdownHost(vcip);
+				cip->errNo = kErrControlTimedOut;
+				return (cip->errNo);
+			}
+		}
+		result = SReadline(&cip->ctrlSrl, str, sizeof(str) - 1);
+		if (result == kTimeoutErr) {
 			/* timeout */
 			Error(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrControlTimedOut;
 			return (cip->errNo);
+		} else if (result == 0) {
+			/* eof */
+			eofError = 1;
+			rp->hadEof = 1;
+			if (rp->eofOkay == 0)
+				Error(cip, kDontPerror, "Remote host has closed the connection.\n");
+			FTPShutdownHost(vcip);
+			cip->errNo = kErrRemoteHostClosedConnection;
+			return (cip->errNo);
+		} else if (result < 0) {
+			/* error */
+			Error(cip, kDoPerror, "Could not read reply from control connection");
+			FTPShutdownHost(vcip);
+			cip->errNo = kErrInvalidReplyFromServer;
+			return (cip->errNo);
 		}
-	}
-	result = SReadline(&cip->ctrlSrl, str, sizeof(str) - 1);
-	if (result == kTimeoutErr) {
-		/* timeout */
-		Error(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
-		FTPShutdownHost(vcip);
-		cip->errNo = kErrControlTimedOut;
-		return (cip->errNo);
-	} else if (result == 0) {
-		/* eof */
-		eofError = 1;
-		rp->hadEof = 1;
-		if (rp->eofOkay == 0)
-			Error(cip, kDontPerror, "Remote host has closed the connection.\n");
-		FTPShutdownHost(vcip);
-		cip->errNo = kErrRemoteHostClosedConnection;
-		return (cip->errNo);
-	} else if (result < 0) {
-		/* error */
-		Error(cip, kDoPerror, "Could not read reply from control connection");
-		FTPShutdownHost(vcip);
-		cip->errNo = kErrInvalidReplyFromServer;
-		return (cip->errNo);
-	}
 
-	if (str[result - 1] == '\n')
-		str[result - 1] = '\0';
+		if ((str[0] == '\n') || (str[0] == '\0')) {
+			/* Blank lines are violation of protocol, but try to be
+			 * lenient with broken servers.
+			 */
+			Error(cip, kDontPerror, "Protocol violation by server: blank line on control.\n");
+			continue;
+		}
+		if (str[result - 1] == '\n')
+			str[result - 1] = '\0';
+		break;
+	}
 
 #else	/* NO_SIGNALS */
 	/* Get the first line of the response. */

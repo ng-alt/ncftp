@@ -16,7 +16,6 @@ FTPOpenHostNoLogin(const FTPCIPtr cip)
 	int result;
 	time_t t0, t1;
 	int elapsed;
-	int dials;
 
 	if (cip == NULL)
 		return (kErrBadParameter);
@@ -28,9 +27,11 @@ FTPOpenHostNoLogin(const FTPCIPtr cip)
 		return (kErrBadParameter);
 	}
 
-	for (	result = kErrConnectMiscErr, dials = 0;
-		cip->maxDials < 0 || dials < cip->maxDials;
-		dials++)
+	FTPInitialLogEntry(cip);
+
+	for (	result = kErrConnectMiscErr, cip->numDials = 0;
+		cip->maxDials < 0 || cip->numDials < cip->maxDials;
+	)	
 	{
 
 		/* Allocate (or if the host was closed, reallocate)
@@ -40,10 +41,16 @@ FTPOpenHostNoLogin(const FTPCIPtr cip)
 		if (result < 0)
 			return (result);
 
-		if (dials > 0)
-			PrintF(cip, "Retry Number: %d\n", dials);
+		memset(&cip->connectTime, 0, sizeof(cip->connectTime));
+		memset(&cip->loginTime, 0, sizeof(cip->loginTime));
+		memset(&cip->disconnectTime, 0, sizeof(cip->disconnectTime));
+
+		cip->totalDials++;
+		cip->numDials++;
+		if (cip->numDials > 1)
+			PrintF(cip, "Retry Number: %d\n", cip->numDials - 1);
 		if (cip->redialStatusProc != 0)
-			(*cip->redialStatusProc)(cip, kRedialStatusDialing, dials);
+			(*cip->redialStatusProc)(cip, kRedialStatusDialing, cip->numDials - 1);
 		(void) time(&t0);
 		result = OpenControlConnection(cip, cip->host, cip->port);
 		(void) time(&t1);
@@ -66,7 +73,7 @@ FTPOpenHostNoLogin(const FTPCIPtr cip)
 		/* Retryable error, wait and then redial. */
 		if (cip->redialDelay > 0) {
 			/* But don't sleep if this is the last loop. */
-			if ((cip->maxDials < 0) || (dials < (cip->maxDials - 1))) {
+			if ((cip->maxDials < 0) || (cip->numDials < (cip->maxDials))) {
 				elapsed = (int) (t1 - t0);
 				if (elapsed < cip->redialDelay) {
 					PrintF(cip, "Sleeping %u seconds.\n",

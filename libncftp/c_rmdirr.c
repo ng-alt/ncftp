@@ -13,8 +13,8 @@
 static int
 FTPRmdirRecursiveL2(const FTPCIPtr cip)
 {
-	LineList fileList;
-	LinePtr filePtr;
+	FTPLineList fileList;
+	FTPLinePtr filePtr;
 	char *file;
 	int result;
 

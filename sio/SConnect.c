@@ -49,12 +49,12 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	return (result);
 #else	/* NO_SIGNALS */
-	unsigned long opt;
+	int opt;
 	fd_set ss, xx;
 	struct timeval tv;
 	int result;
 	int cErrno;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	int wsaErrno;
 	int soerr;
 	sockopt_size_t soerrsize;
@@ -75,19 +75,19 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 
 #ifdef FIONBIO
 	opt = 1;
-#if defined(__DECC) || defined(__DECCXX)
-#pragma message save
-#pragma message disable intconcastsgn
-#endif
+#	if defined(__DECC) || defined(__DECCXX)
+#		pragma message save
+#		pragma message disable intconcastsgn
+#	endif
 	if (ioctlsocket(sfd, (int) FIONBIO, &opt) != 0) {
 		SETERRNO
 		return (-1);
 	}
-#if defined(__DECC) || defined(__DECCXX)
-#pragma message restore
-#endif
+#	if defined(__DECC) || defined(__DECCXX)
+#		pragma message restore
+#	endif
 #else
-	if (fcntl(sfd, F_GETFL, &opt) < 0) {
+	if ((opt = fcntl(sfd, F_GETFL, 0)) < 0) {
 		SETERRNO
 		return (-1);
 	} else if (fcntl(sfd, F_SETFL, opt | O_NONBLOCK) < 0) {
@@ -100,10 +100,10 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	result = connect(sfd, (const struct sockaddr *) addr,
 			(sockaddr_size_t) saddrsiz);
 	if (result == 0) 
-		return 0;	/* Already?!? */
+		goto connected;	/* Already?!? */
 
 	if ((result < 0) 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		&& ((wsaErrno = WSAGetLastError()) != WSAEWOULDBLOCK)
 		&& (wsaErrno != WSAEINPROGRESS)
 #else
@@ -119,17 +119,17 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	cErrno = errno;
 
 	forever {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		WSASetLastError(0);
 #endif
 		MY_FD_ZERO(&ss);
 #if defined(__DECC) || defined(__DECCXX)
-#pragma message save
-#pragma message disable trunclongint
+#	pragma message save
+#	pragma message disable trunclongint
 #endif
 		MY_FD_SET(sfd, &ss);
 #if defined(__DECC) || defined(__DECCXX)
-#pragma message restore
+#	pragma message restore
 #endif
 		xx = ss;
 		tv.tv_sec = (tv_sec_t) tlen;
@@ -159,14 +159,14 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	 */
 
 #if defined(__DECC) || defined(__DECCXX)
-#pragma message save
-#pragma message disable trunclongint
+#	pragma message save
+#	pragma message disable trunclongint
 #endif
 	if (MY_FD_ISSET(sfd, &xx)) {
 #if defined(__DECC) || defined(__DECCXX)
-#pragma message restore
+#	pragma message restore
 #endif
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		errno = 0;
 		soerr = 0;
 		soerrsize = (sockopt_size_t) sizeof(soerr);
@@ -188,7 +188,7 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 		return (-1);
 	}
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	if (cErrno == EINPROGRESS) {
 		/*
@@ -217,20 +217,23 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	}
 #endif
 
+
+connected:
+
 #ifdef FIONBIO
-#if defined(__DECC) || defined(__DECCXX)
-#pragma message save
-#pragma message disable intconcastsgn
-#endif
+#	if defined(__DECC) || defined(__DECCXX)
+#		pragma message save
+#		pragma message disable intconcastsgn
+#	endif
 	opt = 0;
 	if (ioctlsocket(sfd, (int) FIONBIO, &opt) != 0) {
 		SETERRNO
 		shutdown(sfd, 2);
 		return (-1);
 	}
-#if defined(__DECC) || defined(__DECCXX)
-#pragma message restore
-#endif
+#	if defined(__DECC) || defined(__DECCXX)
+#		pragma message restore
+#	endif
 #else
 	if (fcntl(sfd, F_SETFL, opt) < 0) {
 		SETERRNO

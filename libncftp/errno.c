@@ -135,7 +135,7 @@ FTPStrError(int e)
 char *
 FTPStrError2(const FTPCIPtr cip, int e, char *const dst, const size_t dstsize, int eerr)
 {
-	LinePtr lp;
+	FTPLinePtr lp;
 
 	if ((dst == NULL) || (dstsize == 0))
 		return NULL;

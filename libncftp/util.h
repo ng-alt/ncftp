@@ -72,7 +72,7 @@ typedef int (*cmp_t)(const void *, const void *);
 
 
 /* Util.c */
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 int GetMyPwEnt(struct passwd *pwp, char *const pwbuf, size_t pwbufsize);
 int GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsize);
@@ -89,11 +89,13 @@ void Error(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
 __attribute__ ((format (printf, 3, 4)))
 #endif
 ;
-#if defined(WIN32) || defined(_WINDOWS)
+#if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 char *StrFindLocalPathDelim(const char *src);
 char *StrRFindLocalPathDelim(const char *src);
 void TVFSPathToLocalPath(char *dst);
 void LocalPathToTVFSPath(char *dst);
+#endif
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 int gettimeofday(struct timeval *const tp, void *junk);
 #endif
 
@@ -142,6 +144,6 @@ int FTPAllocateHost(const FTPCIPtr cip);
 /* cmds misc */
 int FTPRmdirRecursive(const FTPCIPtr cip, const char *const dir);
 void FTPRequestMlsOptions(const FTPCIPtr cip);
-void RemoteGlobCollapse(const char *pattern, LineListPtr fileList);
+void RemoteGlobCollapse(const char *pattern, FTPLineListPtr fileList);
 
 #endif	/* _util_h_ */

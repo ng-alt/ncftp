@@ -12,7 +12,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
@@ -154,7 +154,7 @@ main(int argc, char **argv)
 	int longMode = 0;
 	int i;
 	char lsflag[32] = "";
-	LineList cdlist;
+	FTPLineList cdlist;
 	int rc;
 	int ndirs;
 	int dfmode = 0;

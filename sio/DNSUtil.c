@@ -281,7 +281,7 @@ starttok:
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 int
 getdomainname(char *const domain, unsigned int dsize)
 {
@@ -516,7 +516,8 @@ GetOurHostName(char *const host, const size_t siz)
 		}
 	}
 
-#	if defined(HAVE_GETDOMAINNAME) || defined(WIN32) || defined(_WINDOWS)
+#	if defined(HAVE_GETDOMAINNAME) || \
+		((defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__))
 	if (domain[0] == '\0') {
 		if (getdomainname(domain, (gethostname_size_t) (sizeof(domain) - 1)) != 0) {
 			domain[0] = '\0';

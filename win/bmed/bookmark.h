@@ -1,6 +1,6 @@
 /* bookmark.h
  *
- * Copyright (c) 1992-1999 by Mike Gleason.
+ * Copyright (c) 1992-2002 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -31,7 +31,7 @@ typedef struct Bookmark {
 
 #define kBookmarkVersion		8
 #define kBookmarkMinVersion		3
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define kBookmarkFileName		"bookmarks.txt"
 #else
 #	define kBookmarkFileName		"bookmarks"
@@ -66,3 +66,4 @@ int AddNewItemToBookmarkTable(void);
 #ifdef __cplusplus
 }
 #endif
+

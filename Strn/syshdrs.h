@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  */
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter

@@ -159,7 +159,7 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 			firstWrite = 0;
 		}
 		
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		nwrote = send(sfd, buf, (send_size_t) nleft, 0);
 #else
 		nwrote = write(sfd, buf, nleft);

@@ -24,7 +24,7 @@ int gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
 static int gResolveSig;
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #elif defined(HAVE_SIGSETJMP)
 sigjmp_buf gGetHostByNameJmp;
 #else	/* HAVE_SIGSETJMP */
@@ -322,7 +322,7 @@ OurInstallationPath(char *const dst, const size_t siz, const char *const fname)
 void
 InitOurDirectory(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	DWORD dwType, dwSize;
 	HKEY hkey;
 	char *cp;
@@ -448,7 +448,7 @@ InitOurDirectory(void)
 void
 InitUserInfo(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	DWORD nSize;
 	char *cp;
 
@@ -618,7 +618,7 @@ AbsoluteToRelative(char *const dst, const size_t dsize, const char *const dir, c
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 
 /* Some commands may want to jump back to the start too. */
@@ -643,7 +643,7 @@ CancelGetHostByName(int sigNum)
 int
 MyGetHostByName(char *const volatile dst, size_t dsize, const char *const hn, int t)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	struct hostent *hp;
 	struct in_addr ina;
 
@@ -889,7 +889,7 @@ int
 DecodeDirectoryURL(
 	const FTPCIPtr cip,	/* area pointed to may be modified */
 	char *url,		/* always modified */
-	LineListPtr cdlist,	/* always modified */
+	FTPLineListPtr cdlist,	/* always modified */
 	char *fn,		/* always modified */
 	size_t fnsize
 )
@@ -920,7 +920,7 @@ DecodeDirectoryURL(
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 void SysPerror(const char *const errMsg)
 {
 	char reason[128];

@@ -10,7 +10,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define ASCII_TRANSLATION 0
 #endif
 
@@ -47,9 +47,9 @@ FTPPutFiles3(
 	const FTPConfirmResumeUploadProc resumeProc,
 	int UNUSED(reserved))
 {
-	LineList globList;
-	FileInfoList files;
-	FileInfoPtr filePtr;
+	FTPLineList globList;
+	FTPFileInfoList files;
+	FTPFileInfoPtr filePtr;
 	int batchResult;
 	int result;
 	const char *dstdir;

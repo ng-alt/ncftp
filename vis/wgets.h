@@ -19,7 +19,7 @@
 
 #define wg_Bullet '.'
 
-#define wg_NoHistory	((LineListPtr) 0)
+#define wg_NoHistory	((FTPLineListPtr) 0)
 
 typedef struct WGetsParams {
 	WINDOW *w;				/* in */
@@ -31,7 +31,7 @@ typedef struct WGetsParams {
 	int echoMode;			/* in */
 	int changed;			/* out */
 	int dstLen;				/* out */
-	LineListPtr history;	/* in, out */
+	FTPLineListPtr history;	/* in, out */
 } WGetsParams, *WGetsParamPtr;
 
 int wg_Gets(WGetsParamPtr wgpp);

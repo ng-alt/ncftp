@@ -16,9 +16,13 @@ MkDirs(const char *const newdir, int mode1)
 	char s[512];
 	int rc;
 	char *cp, *sl;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	struct _stat st;
 	char *share;
+#elif defined(__CYGWIN__)
+	char *share;
+	struct Stat st;
+	mode_t mode = (mode_t) mode1;
 #else
 	struct Stat st;
 	mode_t mode = (mode_t) mode1;
@@ -26,7 +30,7 @@ MkDirs(const char *const newdir, int mode1)
 
 	errno = 0;	/* We can return 0 but set errno to EEXIST */
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 	if ((isalpha(newdir[0])) && (newdir[1] == ':')) {
 		if (! IsLocalPathDelim(newdir[2])) {
 			/* Special case "c:blah", and errout.
@@ -46,7 +50,9 @@ MkDirs(const char *const newdir, int mode1)
 			return (-1);
 		}
 	}
-
+#endif
+	
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (_access(newdir, 00) == 0) {
 		if (_stat(newdir, &st) < 0)
 			return (-1);
@@ -82,7 +88,7 @@ MkDirs(const char *const newdir, int mode1)
 
 	cp = StrRFindLocalPathDelim(s);
 	if (cp == NULL) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		if (! CreateDirectory(newdir, (LPSECURITY_ATTRIBUTES) 0))
 			return (-1);
 		return (0);
@@ -101,7 +107,7 @@ MkDirs(const char *const newdir, int mode1)
 		cp[1] = '\0';
 		cp = StrRFindLocalPathDelim(s);
 		if (cp == NULL) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			if (! CreateDirectory(s, (LPSECURITY_ATTRIBUTES) 0))
 				return (-1);
 #else
@@ -122,7 +128,7 @@ MkDirs(const char *const newdir, int mode1)
 	sl = NULL;
 	for (;;) {
 		*cp = '\0';
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		rc = _access(s, 00);
 #else
 		rc = access(s, F_OK);
@@ -177,7 +183,7 @@ MkDirs(const char *const newdir, int mode1)
 		if (sl != NULL) {
 			*sl = '\0';
 		}
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		if (! CreateDirectory(s, (LPSECURITY_ATTRIBUTES) 0))
 			return (-1);
 #else

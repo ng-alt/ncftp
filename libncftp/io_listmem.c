@@ -10,7 +10,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define ASCII_TRANSLATION 0
 #endif
 
@@ -32,7 +32,7 @@
 #endif
 
 int
-FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const LineListPtr llines, const char *const lsflags, const int blankLines, int *const tryMLSD)
+FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineListPtr llines, const char *const lsflags, const int blankLines, int *const tryMLSD)
 {
 	char secondaryBuf[768];
 	char line[512];
@@ -234,7 +234,7 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const LineListPt
 
 
 int
-FTPListToMemory(const FTPCIPtr cip, const char *const pattern, const LineListPtr llines, const char *const lsflags)
+FTPListToMemory(const FTPCIPtr cip, const char *const pattern, const FTPLineListPtr llines, const char *const lsflags)
 {
 	return (FTPListToMemory2(cip, pattern, llines, lsflags, 1, (int *) 0));
 }	/* FTPListToMemory */

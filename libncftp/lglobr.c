@@ -13,13 +13,13 @@
 /* Used by FTPLocalRecursiveFileList */
 typedef struct LRFLState {
 	int relativePathStartOffset;
-	FileInfoListPtr filp;
+	FTPFileInfoListPtr filp;
 } LRFLState;
 
 static int
 FTPLocalRecursiveFileListFtwProc(const FtwInfoPtr ftwip)
 {
-	FileInfo fi;
+	FTPFileInfo fi;
 	mode_t m;
 	LRFLState *lrflstate;
 	const char *cp;
@@ -84,14 +84,14 @@ FTPLocalRecursiveFileListFtwProc(const FtwInfoPtr ftwip)
 
 
 int
-FTPLocalRecursiveFileList2(FTPCIPtr cip, LineListPtr fileList, FileInfoListPtr files, int erelative)
+FTPLocalRecursiveFileList2(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInfoListPtr files, int erelative)
 {
-	LinePtr filePtr, nextFilePtr;
+	FTPLinePtr filePtr, nextFilePtr;
 	char *cp;
 	FtwInfo ftwi;
 	LRFLState lrflstate;
 	struct Stat st;
-	FileInfo fi;
+	FTPFileInfo fi;
 
 	FtwInit(&ftwi);
 	InitFileInfoList(files);
@@ -156,7 +156,7 @@ FTPLocalRecursiveFileList2(FTPCIPtr cip, LineListPtr fileList, FileInfoListPtr f
 
 
 int
-FTPLocalRecursiveFileList(FTPCIPtr cip, LineListPtr fileList, FileInfoListPtr files)
+FTPLocalRecursiveFileList(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInfoListPtr files)
 {
 	return (FTPLocalRecursiveFileList2(cip, fileList, files, 0));
 }	/* FTPLocalRecursiveFileList */

@@ -12,7 +12,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
@@ -135,7 +135,7 @@ Copy(FTPCIPtr cip, const char *const dstdir, char **const files, const int rflag
 		if (file == NULL)
 			break;
 		result = FTPPutFiles3(cip, file, dstdir, rflag,
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			kGlobYes,
 #else
 			kGlobNo,	/* Shell does the glob for you */

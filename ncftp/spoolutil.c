@@ -19,7 +19,7 @@ int gSpoolSerial = 0;
 
 extern FTPLibraryInfo gLib;
 extern char gOurDirectoryPath[];
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 extern char gOurInstallationPath[];
 #endif
 #ifdef ncftp
@@ -61,7 +61,7 @@ SpoolName(char *const sp, const size_t size, const int flag, const int serial, t
 	} else {
 		(void) strftime(dstr, sizeof(dstr), "%Y%m%d-%H%M%S", &lt);
 	}
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	(void) sprintf(sp, "%c-%s-%08X-%d",
 		flag,
 		dstr,
@@ -147,7 +147,7 @@ SpoolX(
 	char ldir2[256];
 	char *ldir3;
 	FILE *fp;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	mode_t um;
 #endif
@@ -167,7 +167,7 @@ SpoolX(
 		Path(spathname, sizeof(spathname), sdir, sname);
 	}
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	fp = (ofp == NULL) ? fopen(spathname, FOPEN_WRITE_TEXT) : ofp;
 #else
 	um = umask(077);
@@ -221,7 +221,7 @@ SpoolX(
 		FTPGetLocalCWD(ldir2, sizeof(ldir2));
 		if (fprintf(fp, "local-dir=%s\n", ldir2) < 0)
 			goto err;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	} else if ((ldir[0] != '/') && (ldir[0] != '\\')) {
 		FTPGetLocalCWD(ldir2, sizeof(ldir2));
 		if (DPathCat(&ldir3, ldir2, ldir, 1) == 0) {
@@ -308,7 +308,7 @@ err3:
 void
 RunBatch(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	char ncftpbatch[260];
 	const char *prog;
 	int winExecResult;

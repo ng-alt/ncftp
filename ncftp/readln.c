@@ -32,7 +32,8 @@ int gXterm;
 int gXtermTitle;	/* Idea by forsberg@lysator.liu.se */
 char gCurXtermTitleStr[256];
 
-#if (defined(WIN32) || defined(_WINDOWS)) && defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
+	&& defined(_CONSOLE)
 	char gSavedConsoleTitle[64];
 #endif
 
@@ -57,7 +58,7 @@ extern int gServerUsesMSDOSPaths;
 void
 GetScreenColumns(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 
 	if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
@@ -150,7 +151,8 @@ GetScreenColumns(void)
 void
 InitTermcap(void)
 {
-#if (defined(WIN32) || defined(_WINDOWS)) && defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
+	&& defined(_CONSOLE)
 	gXterm = gXtermTitle = 0;
 	gCurXtermTitleStr[0] = '\0';
 
@@ -271,13 +273,13 @@ done:
 
 
 
-static FileInfoListPtr
+static FTPFileInfoListPtr
 GetLsCacheFileList(const char *const item)
 {
 	int ci;
 	int sortBy;
 	int sortOrder;
-	FileInfoListPtr filp;
+	FTPFileInfoListPtr filp;
 
 	ci = LsCacheLookup(item);
 	if (ci < 0) {
@@ -308,12 +310,12 @@ RemoteCompletionFunction(const char *text, int state, int fTypeFilter)
 	char *cp2;
 	const char *textbasename;
 	int fType;
-	FileInfoPtr diritemp;
-	FileInfoListPtr filp;
+	FTPFileInfoPtr diritemp;
+	FTPFileInfoListPtr filp;
 	int textdirlen;
 	size_t tbnlen;
 	size_t flen, mlen;
-	static FileInfoVec diritemv;
+	static FTPFileInfoVec diritemv;
 	static int i;
 
 	textbasename = strrchr(text, '/');
@@ -741,7 +743,8 @@ SetXtermTitle(const char *const fmt, ...)
 
 	if ((gXtermTitle != 0) && (gMaySetXtermTitle != 0)) {
 		if ((fmt == NULL) || (ISTRCMP(fmt, "RESTORE") == 0)) {
-#if (defined(WIN32) || defined(_WINDOWS)) && defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
+	&& defined(_CONSOLE)
 			STRNCPY(buf, gSavedConsoleTitle);
 #else
 			STRNCPY(buf, gTerm);
@@ -759,7 +762,8 @@ SetXtermTitle(const char *const fmt, ...)
 			va_end(ap);
 		}
 		if (buf[0] != '\0') {
-#if (defined(WIN32) || defined(_WINDOWS)) && defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
+	&& defined(_CONSOLE)
 			SetConsoleTitle(buf);
 #else
 			if (strcmp(gCurXtermTitleStr, buf) != 0) {

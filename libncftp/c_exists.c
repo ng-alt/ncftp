@@ -20,7 +20,7 @@ FTPFileExistsStat(const FTPCIPtr cip, const char *const file)
 {
 	int result;
 	ResponsePtr rp;
-	LineList fileList;
+	FTPLineList fileList;
 	char savedCwd[512];
 
 	if (cip == NULL)
@@ -220,7 +220,7 @@ int
 FTPFileExistsNlst(const FTPCIPtr cip, const char *const file)
 {
 	int result;
-	LineList fileList, rootFileList;
+	FTPLineList fileList, rootFileList;
 	char savedCwd[512];
 	int createdTempFile;
 #define kFTPFileExistsNlstTestMessage "This file was created by an FTP client program using the LibNcFTP toolkit.  A temporary file needed to be created to ensure that this directory was not empty, so that the directory could be listed with the guarantee of at least one file in the listing.\r\n\r\nYou may delete this file manually if your FTP client program does not delete it for you.\r\n"

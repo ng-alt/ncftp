@@ -107,19 +107,19 @@ void CBmedApp::SendSelectedBookmarkToNcFTP(void)
          0,              // default attributes 
          NULL);          // no template file 
 
+	// Prepare the bookmark name to send.
+	//
+	strncpy(str, (LPCSTR) m_selectedBookmarkName, sizeof(str));
+	str[sizeof(str) - 1] = '\0';
+
 	if ((hMailSlot == INVALID_HANDLE_VALUE) || (hMailSlot == NULL)) {
 		err = ::GetLastError();
 	} else {
-		// Prepare the bookmark name to send.
-		//
 		// Note that it is okay to send NcFTP an empty string,
 		// since that would mean that no bookmark was selected.
 		// We still have to do that since NcFTP is waiting for
 		// a message!
 		//
-		strncpy(str, (LPCSTR) m_selectedBookmarkName, sizeof(str));
-		str[sizeof(str) - 1] = '\0';
-
 		dwWrote = 0;
 		rc = ::WriteFile(
 			hMailSlot,

@@ -13,7 +13,7 @@ void SaveCurrentAsBookmark(void);
 void SaveUnsavedBookmark(void);
 void BookmarkCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void CatCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
-void PrintResp(LineListPtr);
+void PrintResp(FTPLineListPtr);
 int nFTPChdirAndGetCWD(const FTPCIPtr, const char *, const int);
 int Chdirs(FTPCIPtr cip, const char *const cdCwd);
 void BGStartCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);

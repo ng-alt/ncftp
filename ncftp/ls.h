@@ -9,7 +9,7 @@
 
 typedef struct LsCacheItem {
 	char *itempath;
-	FileInfoList fil;
+	FTPFileInfoList fil;
 	time_t expiration;
 	int hits;
 } LsCacheItem;
@@ -23,7 +23,7 @@ void InitLs(void);
 void FlushLsCache(void);
 int LsCacheLookup(const char *const);
 void LsDate(char *, time_t);
-void LsL(FileInfoListPtr, int, int, FILE *);
-void Ls1(FileInfoListPtr, int, FILE *);
+void LsL(FTPFileInfoListPtr, int, int, FILE *);
+void Ls1(FTPFileInfoListPtr, int, FILE *);
 void Ls(const char *const, int, const char *const, FILE *);
 void LLs(const char *const, int, const char *const, FILE *);

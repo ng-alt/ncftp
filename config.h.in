@@ -270,6 +270,12 @@
 /* Define if you have the gmtime_r function.  */
 #undef HAVE_GMTIME_R
 
+/* Define if you have the gnu_get_libc_release function.  */
+#undef HAVE_GNU_GET_LIBC_RELEASE
+
+/* Define if you have the gnu_get_libc_version function.  */
+#undef HAVE_GNU_GET_LIBC_VERSION
+
 /* Define if you have the inet_aton function.  */
 #undef HAVE_INET_ATON
 
@@ -363,6 +369,15 @@
 /* Define if you have the symlink function.  */
 #undef HAVE_SYMLINK
 
+/* Define if you have the sysconf function.  */
+#undef HAVE_SYSCONF
+
+/* Define if you have the sysctl function.  */
+#undef HAVE_SYSCTL
+
+/* Define if you have the sysinfo function.  */
+#undef HAVE_SYSINFO
+
 /* Define if you have the syslog function.  */
 #undef HAVE_SYSLOG
 
@@ -383,6 +398,9 @@
 
 /* Define if you have the <curses.h> header file.  */
 #undef HAVE_CURSES_H
+
+/* Define if you have the <gnu/libc-version.h> header file.  */
+#undef HAVE_GNU_LIBC_VERSION_H
 
 /* Define if you have the <locale.h> header file.  */
 #undef HAVE_LOCALE_H
@@ -405,6 +423,9 @@
 /* Define if you have the <socks.h> header file.  */
 #undef HAVE_SOCKS_H
 
+/* Define if you have the <socks5p.h> header file.  */
+#undef HAVE_SOCKS5P_H
+
 /* Define if you have the <string.h> header file.  */
 #undef HAVE_STRING_H
 
@@ -416,6 +437,9 @@
 
 /* Define if you have the <sys/socket.h> header file.  */
 #undef HAVE_SYS_SOCKET_H
+
+/* Define if you have the <sys/systeminfo.h> header file.  */
+#undef HAVE_SYS_SYSTEMINFO_H
 
 /* Define if you have the <sys/time.h> header file.  */
 #undef HAVE_SYS_TIME_H

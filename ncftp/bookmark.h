@@ -31,7 +31,7 @@ typedef struct Bookmark {
 
 #define kBookmarkVersion		8
 #define kBookmarkMinVersion		3
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define kBookmarkFileName		"bookmarks.txt"
 #else
 #	define kBookmarkFileName		"bookmarks"

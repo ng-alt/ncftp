@@ -29,13 +29,13 @@ StrDup(const char *buf)
 
 
 
-/* Disposes each node of a LineList.  Does a few extra things
+/* Disposes each node of a FTPLineList.  Does a few extra things
  * so the disposed memory won't be very useful after it is freed.
  */
 void
-DisposeLineListContents(LineListPtr list)
+DisposeLineListContents(FTPLineListPtr list)
 {
-	LinePtr lp, lp2;
+	FTPLinePtr lp, lp2;
 	
 	for (lp = list->first; lp != NULL; ) {
 		lp2 = lp;
@@ -47,25 +47,25 @@ DisposeLineListContents(LineListPtr list)
 		free(lp2);
 	}
 	/* Same as InitLineList. */
-	(void) memset(list, 0, sizeof(LineList));
+	(void) memset(list, 0, sizeof(FTPLineList));
 }	/* DisposeLineListContents */
 
 
 
 
 void
-InitLineList(LineListPtr list)
+InitLineList(FTPLineListPtr list)
 {
-	(void) memset(list, 0, sizeof(LineList));
+	(void) memset(list, 0, sizeof(FTPLineList));
 }	/* InitLineList */
 
 
 
 
-LinePtr
-RemoveLine(LineListPtr list, LinePtr killMe)
+FTPLinePtr
+RemoveLine(FTPLineListPtr list, FTPLinePtr killMe)
 {
-	LinePtr nextLine, prevLine;
+	FTPLinePtr nextLine, prevLine;
 	
 	nextLine = killMe->next;	
 	prevLine = killMe->prev;	
@@ -92,14 +92,14 @@ RemoveLine(LineListPtr list, LinePtr killMe)
 
 
 
-/* Adds a string to the LineList specified. */
-LinePtr
-AddLine(LineListPtr list, const char *buf1)
+/* Adds a string to the FTPLineList specified. */
+FTPLinePtr
+AddLine(FTPLineListPtr list, const char *buf1)
 {
-	LinePtr lp;
+	FTPLinePtr lp;
 	char *buf;
 	
-	lp = (LinePtr) malloc(sizeof(Line));
+	lp = (FTPLinePtr) malloc(sizeof(FTPLine));
 	if (lp != NULL) {
 		buf = StrDup(buf1);
 		if (buf == NULL) {
@@ -127,9 +127,9 @@ AddLine(LineListPtr list, const char *buf1)
 
 
 int
-CopyLineList(LineListPtr dst, LineListPtr src)
+CopyLineList(FTPLineListPtr dst, FTPLineListPtr src)
 {
-	LinePtr lp, lp2;
+	FTPLinePtr lp, lp2;
 	
 	InitLineList(dst);
 	for (lp = src->first; lp != NULL; ) {
@@ -148,13 +148,13 @@ CopyLineList(LineListPtr dst, LineListPtr src)
 
 
 
-/* Disposes each node of a FileInfoList.  Does a few extra things
+/* Disposes each node of a FTPFileInfoList.  Does a few extra things
  * so the disposed memory won't be very useful after it is freed.
  */
 void
-DisposeFileInfoListContents(FileInfoListPtr list)
+DisposeFileInfoListContents(FTPFileInfoListPtr list)
 {
-	FileInfoPtr lp, lp2;
+	FTPFileInfoPtr lp, lp2;
 	
 	for (lp = list->first; lp != NULL; ) {
 		lp2 = lp;
@@ -186,16 +186,16 @@ DisposeFileInfoListContents(FileInfoListPtr list)
 		free(list->vec);
 
 	/* Same as InitFileInfoList. */
-	(void) memset(list, 0, sizeof(FileInfoList));
+	(void) memset(list, 0, sizeof(FTPFileInfoList));
 }	/* DisposeFileInfoListContents */
 
 
 
 
 void
-InitFileInfoList(FileInfoListPtr list)
+InitFileInfoList(FTPFileInfoListPtr list)
 {
-	(void) memset(list, 0, sizeof(FileInfoList));
+	(void) memset(list, 0, sizeof(FTPFileInfoList));
 }	/* InitFileInfoList */
 
 
@@ -204,11 +204,11 @@ InitFileInfoList(FileInfoListPtr list)
 static int
 TimeCmp(const void *const a, const void *const b)
 {
-	const FileInfo *const *fipa;
-	const FileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (const FileInfo *const *) a;
-	fipb = (const FileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipb).mdtm == (**fipa).mdtm)
 		return (0);
 	else if ((**fipb).mdtm < (**fipa).mdtm)
@@ -222,11 +222,11 @@ TimeCmp(const void *const a, const void *const b)
 static int
 ReverseTimeCmp(const void *const a, const void *const b)
 {
-	const FileInfo *const *fipa;
-	const FileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (const FileInfo *const *) a;
-	fipb = (const FileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipa).mdtm == (**fipb).mdtm)
 		return (0);
 	else if ((**fipa).mdtm < (**fipb).mdtm)
@@ -240,11 +240,11 @@ ReverseTimeCmp(const void *const a, const void *const b)
 static int
 SizeCmp(const void *const a, const void *const b)
 {
-	const FileInfo *const *fipa;
-	const FileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (const FileInfo *const *) a;
-	fipb = (const FileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipb).size == (**fipa).size)
 		return (0);
 	else if ((**fipb).size < (**fipa).size)
@@ -258,11 +258,11 @@ SizeCmp(const void *const a, const void *const b)
 static int
 ReverseSizeCmp(const void *const a, const void *const b)
 {
-	const FileInfo *const *fipa;
-	const FileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (const FileInfo *const *) a;
-	fipb = (const FileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipa).size == (**fipb).size)
 		return (0);
 	else if ((**fipa).size < (**fipb).size)
@@ -276,11 +276,11 @@ ReverseSizeCmp(const void *const a, const void *const b)
 static int
 ReverseNameCmp(const void *const a, const void *const b)
 {
-	const FileInfo *const *fipa;
-	const FileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (const FileInfo *const *) a;
-	fipb = (const FileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipb).relname, (**fipa).relname));
 #else
@@ -294,11 +294,11 @@ ReverseNameCmp(const void *const a, const void *const b)
 static int
 NameCmp(const void *const a, const void *const b)
 {
-	const FileInfo *const *fipa;
-	const FileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (const FileInfo *const *) a;
-	fipb = (const FileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipa).relname, (**fipb).relname));
 #else
@@ -312,14 +312,14 @@ NameCmp(const void *const a, const void *const b)
 static int
 BreadthFirstCmp(const void *const a, const void *const b)
 {
-	const FileInfo *const *fipa;
-	const FileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 	char *cp, *cpa, *cpb;
 	int depth, deptha, depthb;
 	int c;
 
-	fipa = (const FileInfo *const *) a;
-	fipb = (const FileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 
 	cpa = (**fipa).relname;
 	cpb = (**fipb).relname;
@@ -360,10 +360,10 @@ BreadthFirstCmp(const void *const a, const void *const b)
 
 
 void
-SortFileInfoList(FileInfoListPtr list, int sortKey, int sortOrder)
+SortFileInfoList(FTPFileInfoListPtr list, int sortKey, int sortOrder)
 {
-	FileInfoVec fiv;
-	FileInfoPtr fip;
+	FTPFileInfoVec fiv;
+	FTPFileInfoPtr fip;
 	int i, j, n, n2;
 
 	fiv = list->vec;
@@ -388,32 +388,32 @@ SortFileInfoList(FileInfoListPtr list, int sortKey, int sortOrder)
 
 		list->sortOrder = sortOrder;
 	} else if ((sortKey == 'n') && (sortOrder == 'a')) {
-		qsort(fiv, (size_t) list->nFileInfos, sizeof(FileInfoPtr),
+		qsort(fiv, (size_t) list->nFileInfos, sizeof(FTPFileInfoPtr),
 			NameCmp);
 		list->sortKey = sortKey;
 		list->sortOrder = sortOrder;
 	} else if ((sortKey == 'n') && (sortOrder == 'd')) {
-		qsort(fiv, (size_t) list->nFileInfos, sizeof(FileInfoPtr),
+		qsort(fiv, (size_t) list->nFileInfos, sizeof(FTPFileInfoPtr),
 			ReverseNameCmp);
 		list->sortKey = sortKey;
 		list->sortOrder = sortOrder;
 	} else if ((sortKey == 't') && (sortOrder == 'a')) {
-		qsort(fiv, (size_t) list->nFileInfos, sizeof(FileInfoPtr),
+		qsort(fiv, (size_t) list->nFileInfos, sizeof(FTPFileInfoPtr),
 			TimeCmp);
 		list->sortKey = sortKey;
 		list->sortOrder = sortOrder;
 	} else if ((sortKey == 't') && (sortOrder == 'd')) {
-		qsort(fiv, (size_t) list->nFileInfos, sizeof(FileInfoPtr),
+		qsort(fiv, (size_t) list->nFileInfos, sizeof(FTPFileInfoPtr),
 			ReverseTimeCmp);
 		list->sortKey = sortKey;
 		list->sortOrder = sortOrder;
 	} else if ((sortKey == 's') && (sortOrder == 'a')) {
-		qsort(fiv, (size_t) list->nFileInfos, sizeof(FileInfoPtr),
+		qsort(fiv, (size_t) list->nFileInfos, sizeof(FTPFileInfoPtr),
 			SizeCmp);
 		list->sortKey = sortKey;
 		list->sortOrder = sortOrder;
 	} else if ((sortKey == 's') && (sortOrder == 'd')) {
-		qsort(fiv, (size_t) list->nFileInfos, sizeof(FileInfoPtr),
+		qsort(fiv, (size_t) list->nFileInfos, sizeof(FTPFileInfoPtr),
 			ReverseSizeCmp);
 		list->sortKey = sortKey;
 		list->sortOrder = sortOrder;
@@ -421,7 +421,7 @@ SortFileInfoList(FileInfoListPtr list, int sortKey, int sortOrder)
 		/* This is different from the rest. */
 		list->sortKey = sortKey;
 		list->sortOrder = sortOrder;
-		qsort(fiv, (size_t) list->nFileInfos, sizeof(FileInfoPtr),
+		qsort(fiv, (size_t) list->nFileInfos, sizeof(FTPFileInfoPtr),
 			BreadthFirstCmp);
 	}
 }	/* SortFileInfoList */
@@ -430,14 +430,14 @@ SortFileInfoList(FileInfoListPtr list, int sortKey, int sortOrder)
 
 
 void
-VectorizeFileInfoList(FileInfoListPtr list)
+VectorizeFileInfoList(FTPFileInfoListPtr list)
 {
-	FileInfoVec fiv;
-	FileInfoPtr fip;
+	FTPFileInfoVec fiv;
+	FTPFileInfoPtr fip;
 	int i;
 
-	fiv = (FileInfoVec) calloc((size_t) (list->nFileInfos + 1), sizeof(FileInfoPtr));
-	if (fiv != (FileInfoVec) 0) {
+	fiv = (FTPFileInfoVec) calloc((size_t) (list->nFileInfos + 1), sizeof(FTPFileInfoPtr));
+	if (fiv != (FTPFileInfoVec) 0) {
 		for (i = 0, fip = list->first; fip != NULL; fip = fip->next, i++)
 			fiv[i] = fip;
 		list->vec = fiv;
@@ -448,14 +448,14 @@ VectorizeFileInfoList(FileInfoListPtr list)
 
 
 void
-UnvectorizeFileInfoList(FileInfoListPtr list)
+UnvectorizeFileInfoList(FTPFileInfoListPtr list)
 {
-	FileInfoVec fiv;
-	FileInfoPtr fip;
+	FTPFileInfoVec fiv;
+	FTPFileInfoPtr fip;
 	int i, n;
 
 	fiv = list->vec;
-	if (fiv != (FileInfoVec) 0) {
+	if (fiv != (FTPFileInfoVec) 0) {
 		list->first = fiv[0];
 		n = list->nFileInfos;
 		if (n > 0) {
@@ -470,7 +470,7 @@ UnvectorizeFileInfoList(FileInfoListPtr list)
 			}
 		}
 		free(fiv);
-		list->vec = (FileInfoVec) 0;
+		list->vec = (FTPFileInfoVec) 0;
 	}
 }	/* UnvectorizeFileInfoList */
 
@@ -478,9 +478,9 @@ UnvectorizeFileInfoList(FileInfoListPtr list)
 
 
 void
-InitFileInfo(FileInfoPtr fip)
+InitFileInfo(FTPFileInfoPtr fip)
 {
-	(void) memset(fip, 0, sizeof(FileInfo));
+	(void) memset(fip, 0, sizeof(FTPFileInfo));
 	fip->type = '-';
 	fip->size = kSizeUnknown;
 	fip->mdtm = kModTimeUnknown;
@@ -489,10 +489,10 @@ InitFileInfo(FileInfoPtr fip)
 
 
 
-FileInfoPtr
-RemoveFileInfo(FileInfoListPtr list, FileInfoPtr killMe)
+FTPFileInfoPtr
+RemoveFileInfo(FTPFileInfoListPtr list, FTPFileInfoPtr killMe)
 {
-	FileInfoPtr nextFileInfo, prevFileInfo;
+	FTPFileInfoPtr nextFileInfo, prevFileInfo;
 	
 	nextFileInfo = killMe->next;	
 	prevFileInfo = killMe->prev;	
@@ -535,15 +535,15 @@ RemoveFileInfo(FileInfoListPtr list, FileInfoPtr killMe)
 
 
 
-/* Adds a string to the FileInfoList specified. */
-FileInfoPtr
-AddFileInfo(FileInfoListPtr list, FileInfoPtr src)
+/* Adds a string to the FTPFileInfoList specified. */
+FTPFileInfoPtr
+AddFileInfo(FTPFileInfoListPtr list, FTPFileInfoPtr src)
 {
-	FileInfoPtr lp;
+	FTPFileInfoPtr lp;
 	
-	lp = (FileInfoPtr) malloc(sizeof(FileInfo));
+	lp = (FTPFileInfoPtr) malloc(sizeof(FTPFileInfo));
 	if (lp != NULL) {
-		(void) memcpy(lp, src, sizeof(FileInfo));
+		(void) memcpy(lp, src, sizeof(FTPFileInfo));
 		lp->next = NULL;
 		if (list->first == NULL) {
 			list->first = list->last = lp;
@@ -563,10 +563,10 @@ AddFileInfo(FileInfoListPtr list, FileInfoPtr src)
 
 
 int
-ConcatFileInfoList(FileInfoListPtr dst, FileInfoListPtr src)
+ConcatFileInfoList(FTPFileInfoListPtr dst, FTPFileInfoListPtr src)
 {
-	FileInfoPtr lp, lp2;
-	FileInfo newfi;
+	FTPFileInfoPtr lp, lp2;
+	FTPFileInfo newfi;
 	
 	for (lp = src->first; lp != NULL; lp = lp2) {
 		lp2 = lp->next;
@@ -586,9 +586,9 @@ ConcatFileInfoList(FileInfoListPtr dst, FileInfoListPtr src)
 
 
 int
-ComputeRNames(FileInfoListPtr dst, const char *dstdir, int pflag, int nochop)
+ComputeRNames(FTPFileInfoListPtr dst, const char *dstdir, int pflag, int nochop)
 {
-	FileInfoPtr lp, lp2;
+	FTPFileInfoPtr lp, lp2;
 	char *buf;
 	char *cp;
 
@@ -670,9 +670,9 @@ memerr:
 
 
 int
-ComputeLNames(FileInfoListPtr dst, const char *srcdir, const char *dstdir, int nochop)
+ComputeLNames(FTPFileInfoListPtr dst, const char *srcdir, const char *dstdir, int nochop)
 {
-	FileInfoPtr lp, lp2;
+	FTPFileInfoPtr lp, lp2;
 	char *buf;
 	char *cp;
 
@@ -747,9 +747,9 @@ memerr:
 
 
 int
-ConcatFileToFileInfoList(FileInfoListPtr dst, char *rfile)
+ConcatFileToFileInfoList(FTPFileInfoListPtr dst, char *rfile)
 {
-	FileInfo newfi;
+	FTPFileInfo newfi;
 
 	InitFileInfo(&newfi);	/* Use defaults. */
 	newfi.relname = StrDup(rfile);
@@ -765,9 +765,9 @@ ConcatFileToFileInfoList(FileInfoListPtr dst, char *rfile)
 
 
 int
-LineListToFileInfoList(LineListPtr src, FileInfoListPtr dst)
+LineListToFileInfoList(FTPLineListPtr src, FTPFileInfoListPtr dst)
 {
-	LinePtr lp, lp2;
+	FTPLinePtr lp, lp2;
 
 	InitFileInfoList(dst);
 	for (lp = src->first; lp != NULL; lp = lp2) {
@@ -782,7 +782,7 @@ LineListToFileInfoList(LineListPtr src, FileInfoListPtr dst)
 
 
 int
-LineToFileInfoList(LinePtr lp, FileInfoListPtr dst)
+LineToFileInfoList(FTPLinePtr lp, FTPFileInfoListPtr dst)
 {
 	InitFileInfoList(dst);
 	if (ConcatFileToFileInfoList(dst, lp->line) < 0)

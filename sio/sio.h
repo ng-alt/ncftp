@@ -102,7 +102,7 @@ typedef struct SReadlineInfo {
 #define SAccept SAcceptS
 
 #ifndef SAccept
-#	if defined(NO_SIGNALS) || defined(WIN32) || defined(_WINDOWS)
+#	if defined(NO_SIGNALS) || ((defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__))
 #		define SAccept SAcceptS
 #	else
 #		define SAccept SAcceptA
@@ -125,15 +125,17 @@ typedef struct SReadlineInfo {
 #	define EINPROGRESS WSAEINPROGRESS
 #endif
 
-#if !defined(WIN32) && !defined(_WINDOWS) && !defined(closesocket)
+#if !( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
+	&& !defined(closesocket)
 #	define closesocket close
 #endif
 
-#if !defined(WIN32) && !defined(_WINDOWS) && !defined(ioctlsocket)
+#if !( (defined(WIN32) && !defined(_WINDOWS)) && !defined(__CYGWIN__) )\
+	&& !defined(ioctlsocket)
 #	define ioctlsocket ioctl
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define SETERRNO errno = WSAGetLastError();
 #	define SETWSATIMEOUTERR WSASetLastError(WSAETIMEDOUT);
 #else
@@ -202,7 +204,7 @@ int GetHostByName(struct hostent *const hp, const char *const name, char *const 
 int GetHostByAddr(struct hostent *const hp, void *addr, int asize, int atype, char *const hpbuf, size_t hpbufsize);
 int GetHostEntry(struct hostent *const hp, const char *const host, struct in_addr *const ip_address, char *const hpbuf, size_t hpbufsize);
 int GetOurHostName(char *const host, const size_t siz);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 int getdomainname(char *const domain, unsigned int dsize);
 #endif
 

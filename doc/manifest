@@ -104,6 +104,7 @@ Strn/Strnpcpy.c
 Strn/Strntok.c
 Strn/Strn.version
 Strn/strtokc.c
+Strn/config.h.in
 sh_util/ncftpget.c
 sh_util/ncftpput.c
 sh_util/gpshare.c
@@ -196,7 +197,6 @@ ncftp/ncftp.ico
 ncftp/rc.rc
 ncftp/resource.h
 ncftp/spoolutil.c
-.DS_Store
 sh/fixfcase.sh
 sh/dos2unix.sh
 sh/unix2dos.sh
@@ -207,6 +207,7 @@ sh/config.guess
 sh/autoconfall.sh
 sh/man2html.sh
 sh/config.sub
+sh/winsetver.pl
 autoconf/acconfig.h
 autoconf/aclocal.m4
 sio/sio.dsw
@@ -254,6 +255,7 @@ sio/DNSUtil.c
 sio/pch.mk.macosx
 sio/pch.mk.none
 sio/sio.version
+sio/config.h.in
 win/bmed/bmed.clw
 win/bmed/util.c
 win/bmed/bmed.dsw

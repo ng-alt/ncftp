@@ -10,14 +10,14 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 extern void GetSpecialDir(char *dst, size_t size, int whichDir);
 #endif
 
 void
 GetHomeDir(char *dst, size_t size)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	const char *homedrive, *homepath;
 
 	homedrive = getenv("HOMEDRIVE");

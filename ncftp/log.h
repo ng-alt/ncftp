@@ -5,7 +5,7 @@
  * 
  */
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define kLogFileName				"log.txt"
 #else
 #	define kLogFileName				"log"

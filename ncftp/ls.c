@@ -138,7 +138,7 @@ LsCacheLookup(const char *const itempath)
 
 /* Saves a directory listing from the given path into the cache. */
 static void
-LsCacheAdd(const char *const itempath, FileInfoListPtr files)
+LsCacheAdd(const char *const itempath, FTPFileInfoListPtr files)
 {
 	char *cp;
 	int j;
@@ -161,7 +161,7 @@ LsCacheAdd(const char *const itempath, FileInfoListPtr files)
 		return;
 
 	j = gOldestLsCacheItem;
-	(void) memcpy(&gLsCache[j].fil, files, sizeof(FileInfoList));
+	(void) memcpy(&gLsCache[j].fil, files, sizeof(FTPFileInfoList));
 	(void) time(&gLsCache[j].expiration);
 	gLsCache[j].expiration += gLsCacheItemLifetime;
 	gLsCache[j].hits = 0;
@@ -181,7 +181,7 @@ LsCacheAdd(const char *const itempath, FileInfoListPtr files)
 
 /* Does "ls -C", or the nice columnized /bin/ls-style format. */
 static void
-LsC(FileInfoListPtr dirp, int endChars, FILE *stream)
+LsC(FTPFileInfoListPtr dirp, int endChars, FILE *stream)
 {
 	char buf[400];
 	char buf2[400];
@@ -189,8 +189,8 @@ LsC(FileInfoListPtr dirp, int endChars, FILE *stream)
 	int i, j, k, l;
 	int colw;
 	int n;
-	FileInfoVec itemv;
-	FileInfoPtr itemp;
+	FTPFileInfoVec itemv;
+	FTPFileInfoPtr itemp;
 	char *cp1, *cp2, *lim;
 	int screenColumns;
 
@@ -284,10 +284,10 @@ LsDate(char *dstr, time_t ts)
 
 /* Does "ls -l", or the detailed /bin/ls-style, one file per line . */
 void
-LsL(FileInfoListPtr dirp, int endChars, int linkedTo, FILE *stream)
+LsL(FTPFileInfoListPtr dirp, int endChars, int linkedTo, FILE *stream)
 {
-	FileInfoPtr diritemp;
-	FileInfoVec diritemv;
+	FTPFileInfoPtr diritemp;
+	FTPFileInfoVec diritemv;
 	int i;
 	char fTail[2];
 	int fType;
@@ -419,13 +419,13 @@ LsL(FileInfoListPtr dirp, int endChars, int linkedTo, FILE *stream)
  * one file per line.
  */
 void
-Ls1(FileInfoListPtr dirp, int endChars, FILE *stream)
+Ls1(FTPFileInfoListPtr dirp, int endChars, FILE *stream)
 {
 	char fTail[2];
 	int i;
 	int fType;
-	FileInfoVec diritemv;
-	FileInfoPtr diritemp;
+	FTPFileInfoVec diritemv;
+	FTPFileInfoPtr diritemp;
 
 	fTail[0] = '\0';
 	fTail[1] = '\0';
@@ -468,10 +468,10 @@ void
 Ls(const char *const item, int listmode, const char *const options, FILE *stream)
 {
 	char itempath[512];
-	FileInfoList fil;
-	FileInfoListPtr filp;
-	LinePtr linePtr, nextLinePtr;
-	LineList dirContents;
+	FTPFileInfoList fil;
+	FTPFileInfoListPtr filp;
+	FTPLinePtr linePtr, nextLinePtr;
+	FTPLineList dirContents;
 	int parsed;
 	int linkedTo;
 	int endChars;
@@ -642,7 +642,7 @@ Ls(const char *const item, int listmode, const char *const options, FILE *stream
 
 	
 	
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 /* Prints a local directory listing in the specified format on the specified
  * output stream.
  */
@@ -658,9 +658,9 @@ LLs(const char *const item, int listmode, const char *const options, FILE *strea
 	int sortOrder;
 	int unknownOpts;
 	char unoptstr[32];
-	LineList ll;
-	FileInfoPtr fip, fip2;
-	FileInfoList fil;
+	FTPLineList ll;
+	FTPFileInfoPtr fip, fip2;
+	FTPFileInfoList fil;
 	struct Stat st;
 	int result;
 	size_t len;

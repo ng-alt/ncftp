@@ -625,7 +625,8 @@ InitPrefs(void)
 	 */
 	gDoNotDisplayAds = 0;
 
-#if (defined(WIN32) || defined(_WINDOWS)) && defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
+	&& defined(_CONSOLE)
 	gMaySetXtermTitle = 1;
 #else
 	gMaySetXtermTitle = 0;

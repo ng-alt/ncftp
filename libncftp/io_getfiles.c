@@ -10,7 +10,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define ASCII_TRANSLATION 0
 #endif
 
@@ -46,10 +46,10 @@ FTPGetFiles3(
 	const FTPConfirmResumeDownloadProc resumeProc,
 	int UNUSED(reserved))
 {
-	LineList globList;
-	LinePtr itemPtr;
-	FileInfoList files;
-	FileInfoPtr filePtr;
+	FTPLineList globList;
+	FTPLinePtr itemPtr;
+	FTPFileInfoList files;
+	FTPFileInfoPtr filePtr;
 	int batchResult;
 	int result;
 	char *ldir;
@@ -160,7 +160,7 @@ FTPGetFiles3(
 				break;
 			}
 			if (filePtr->type == 'd') {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				(void) MkDirs(filePtr->lname, 00777);
 #else
 				(void) mkdir(filePtr->lname, 00777);

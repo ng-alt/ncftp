@@ -43,6 +43,7 @@ mkdir -p -m755 $TMPDIR/TAR/$TARDIR 2>/dev/null
 chmod 755 configure sh/*
 
 find . -depth -follow -type f | sed '
+/\/\./d
 /\/samples/d
 /libncftp\/configure$/d
 /sio\/configure$/d

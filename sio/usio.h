@@ -16,7 +16,7 @@ extern "C"
 #define UAccept UAcceptS
 
 #ifndef UAccept
-#	if defined(NO_SIGNALS) || defined(WIN32) || defined(_WINDOWS)
+#	if defined(NO_SIGNALS) || ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )
 #		define UAccept UAcceptS
 #	else
 #		define UAccept UAcceptA

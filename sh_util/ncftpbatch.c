@@ -10,7 +10,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	INITCOMMONCONTROLSEX gComCtls;
 	HINSTANCE ghInstance = 0;
 	HWND gMainWnd = 0;
@@ -31,7 +31,7 @@
 #ifdef HAVE_LONG_FILE_NAMES
 
 #define kSpoolDir "spool"
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define kSpoolLog "log.txt"
 #else
 #	define kSpoolLog "log"
@@ -99,7 +99,7 @@ int gUnused;
 int gMayCancelJmp = 0;
 int gMaySigExit = 1;
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 char gStatusText[512];
 #else
 #ifdef HAVE_SIGSETJMP
@@ -122,7 +122,7 @@ __attribute__ ((format (printf, 1, 2)))
 
 static void
 Log(
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		int uiShow,
 #else
 		int UNUSED(uiShow),
@@ -147,7 +147,7 @@ __attribute__ ((format (printf, 2, 3)))
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 static void YieldUI(int redraw)
 {
 	MSG msg;
@@ -166,7 +166,7 @@ static void YieldUI(int redraw)
 
 static void ErrBox(const char *const fmt, ...)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	char buf[512];
 	va_list ap;
 
@@ -191,7 +191,7 @@ static void ErrBox(const char *const fmt, ...)
 
 static void PerrorBox(const char *const whatFailed)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	char errMsg[256];
 
 	(void) FormatMessage(
@@ -215,7 +215,7 @@ static void PerrorBox(const char *const whatFailed)
 /*VARARGS*/
 static void
 Log(
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		int uiShow,
 #else
 		int UNUSED(uiShow),
@@ -229,7 +229,7 @@ Log(
 		ltp = Localtime(time(&gLogTime), &lt);
 		if (ltp != NULL) {
 			(void) fprintf(gLogFile,
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				"%04d-%02d-%02d %02d:%02d:%02d [$%08x] | ",
 #else
 				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
@@ -252,7 +252,7 @@ Log(
 		(void) vfprintf(stdout, fmt, ap);
 		va_end(ap);
 	}
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (uiShow) {
 		char *cp;
 
@@ -285,7 +285,7 @@ LogPerror(const char *const fmt, ...)
 		ltp = Localtime(time(&gLogTime), &lt);
 		if (ltp != NULL) {
 			(void) fprintf(gLogFile,
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				"%04d-%02d-%02d %02d:%02d:%02d [$%08x] | ",
 #else
 				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
@@ -322,7 +322,7 @@ LogPerror(const char *const fmt, ...)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 void
 PrWinStatBar(const FTPCIPtr cip, int mode)
 {
@@ -387,7 +387,7 @@ OpenLog(void)
 		openMode = FOPEN_WRITE_TEXT;
 	}
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	fp = _fsopen(gLogFileName, openMode, _SH_DENYNO);
 #else
 	fp = fopen(gLogFileName, openMode);
@@ -420,7 +420,7 @@ ExitStuff(void)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #elif 0
 static void
 SigAlrm(int sigNum)
@@ -491,7 +491,7 @@ PreInit(const char *const prog)
 {
 	const char *cp;
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	gIsTTY = 0;
 	ZeroMemory(gStatusText, sizeof(gStatusText));
 #else
@@ -520,7 +520,7 @@ PreInit(const char *const prog)
 
 	(void) signal(SIGINT, SigExit);
 	(void) signal(SIGTERM, SigExit);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	(void) signal(SIGSEGV, SigExit);
 	(void) signal(SIGBUS, SigExit);
@@ -549,7 +549,7 @@ PostInit(void)
 	/* These things are done after parsing the command-line options. */
 
 	if (gGlobalSpooler != 0) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		if (gSpoolDir[0] == '\0')
 			STRNCPY(gSpoolDir, "/var/spool/ncftp");
@@ -590,12 +590,12 @@ LoadCurrentSpoolFileContents(int logErrors)
 	char line[256];
 	char *tok1, *tok2;
 	char *cp, *lim;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	struct stat st;
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* gItemContents is not used on Win32 */
 	if ((fp = _fsopen(gMyItemPath, FOPEN_READ_BINARY, _SH_DENYNO)) == NULL) {
 		/* Could have been renamed already. */
@@ -848,7 +848,7 @@ LoadCurrentSpoolFileContents(int logErrors)
 static int
 RunShellCommandWithSpoolItemData(const char *const cmd, const char *const addstr)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	return (-1);
 #else	/* UNIX */
 	int pfd[2];
@@ -970,7 +970,7 @@ DoItem(void)
 		} else if (chdir(gLDir) < 0) {
 			LogEndItemResult(1, "Could not cd to local-dir=%s: %s\n", gLDir, strerror(errno));
 			return (0);	/* remove spool file */
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		} else if ((gOperation == 'G') && (access(gLDir, W_OK) < 0)) {
 			LogEndItemResult(1, "Could not write to local-dir=%s: %s\n", gLDir, strerror(errno));
@@ -1029,7 +1029,7 @@ DoItem(void)
 		(void) STRNCPY(gConn.acct, gRAcct);
 		gConn.maxDials = 1;
 		gConn.dataPortMode = gPassive;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		gConn.progress = PrWinStatBar;
 #endif
 
@@ -1094,12 +1094,12 @@ DoItem(void)
 
 	if (gOperation == 'G') {
 		if (gRecursive != 0) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			sprintf(gStatusText, "Downloading %.200s", gRFile);
 #endif
 			result = FTPGetFiles3(&gConn, gRFile, gLDir, gRecursive, kGlobNo, gXtype, kResumeYes, kAppendNo, gDelete, kTarNo, kNoFTPConfirmResumeDownloadProc, 0);
 		} else {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			sprintf(gStatusText, "[0%%] - Downloading %.200s", gRFile);
 #endif
 			result = FTPGetOneFile3(&gConn, gRFile, gLFile, gXtype, (-1), kResumeYes, kAppendNo, gDelete, kNoFTPConfirmResumeDownloadProc, 0);
@@ -1118,12 +1118,12 @@ DoItem(void)
 		}
 	} else /* if (gOperation == 'P') */ {
 		if (gRecursive != 0) {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			sprintf(gStatusText, "Uploading %.200s", gLFile);
 #endif
 			result = FTPPutFiles3(&gConn, gLFile, gRDir, gRecursive, kGlobNo, gXtype, kAppendNo, NULL, NULL, kResumeYes, gDelete, kNoFTPConfirmResumeUploadProc, 0);
 		} else {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			sprintf(gStatusText, "[0%%] - Uploading %.200s", gLFile);
 #endif
 			result = FTPPutOneFile3(&gConn, gLFile, gRFile, gXtype, (-1), kAppendNo, NULL, NULL, kResumeYes, gDelete, kNoFTPConfirmResumeUploadProc, 0);
@@ -1241,7 +1241,7 @@ EventShell(volatile unsigned int sleepval)
 	int iType;
 	int iyyyymmdd, ihhmmss, nyyyymmdd, nhhmmss;
 	DIR *volatile DIRp;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	int passes;
 #else
 	int sj;
@@ -1252,7 +1252,7 @@ EventShell(volatile unsigned int sleepval)
 	(void) OpenLog();
 	Log(0, "-----started-----\n");
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 #ifdef HAVE_SIGSETJMP
 	sj = sigsetjmp(gCancelJmp, 1);
@@ -1456,14 +1456,14 @@ EventShell(volatile unsigned int sleepval)
 					}
 				}
 				(void) chdir(LOCAL_PATH_DELIM_STR);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				/* Allow time for message to be seen */
 				sleep(1);
 #endif
 			}
 			if (gQuitRequested != 0) {
 				(void) closedir(DIRp);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				Log(0, "User requested close.\n");
 #else
 				if (gQuitRequested == 1)
@@ -1499,7 +1499,7 @@ EventShell(volatile unsigned int sleepval)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 
 static void
@@ -1599,7 +1599,7 @@ ListQueue(void)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 
 static void OnDraw(HWND hwnd, HDC hdc)
 {
@@ -1933,7 +1933,7 @@ ReadCore(int fd)
 static void
 Daemon(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Change to root directory so filesystems
 	 * can be unmounted, if they could in fact
 	 * be unmounted.

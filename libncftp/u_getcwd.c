@@ -59,7 +59,7 @@ FTPGetLocalCWD(char *buf, size_t size)
 	}
 	return (Strncpy(buf, dp, size));
 
-#elif defined(WIN32) || defined(_WINDOWS)
+#elif (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	memset(buf, 0, size);
 	if ((GetCurrentDirectory((DWORD) size - 1, buf) < 1) || (buf[size - 1] != '\0') || (buf[size - 2] != '\0')) {
 		memset(buf, 0, size);

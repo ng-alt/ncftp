@@ -1090,7 +1090,7 @@ SendTelnetInterrupt(const FTPCIPtr cip)
 	
 	msg[0] = (unsigned char) IAC;
 	msg[1] = (unsigned char) IP;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	(void) send(cip->ctrlSocketW, (const char *) msg, 2, 0);
 #else
 	(void) send(cip->ctrlSocketW, msg, 2, 0);
@@ -1098,7 +1098,7 @@ SendTelnetInterrupt(const FTPCIPtr cip)
 	/* 2. User system sends the Telnet "Sync" signal. */
 	msg[0] = (unsigned char) IAC;
 	msg[1] = (unsigned char) DM;
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (send(cip->ctrlSocketW, (const char *) msg, 2, MSG_OOB) != 2)
 #else
 	if (send(cip->ctrlSocketW, msg, 2, MSG_OOB) != 2)

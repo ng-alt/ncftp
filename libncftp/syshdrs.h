@@ -5,7 +5,7 @@
  *
  */
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
@@ -111,6 +111,15 @@
 #	if !defined(HAVE_GETCWD) && defined(HAVE_GETWD)
 #		include <sys/param.h>
 #	endif
+#	if defined(HAVE_UNAME) && defined(HAVE_SYS_UTSNAME_H)
+#		include <sys/utsname.h>
+#	endif
+#	ifdef HAVE_SYS_SYSTEMINFO_H
+#		include <sys/systeminfo.h>
+#	endif
+#	ifdef HAVE_GNU_LIBC_VERSION_H
+#		include <gnu/libc-version.h>
+#	endif
 
 #	include <netinet/in_systm.h>
 #	include <netinet/in.h>
@@ -186,16 +195,31 @@
 			extern char *getwd(char *);
 #		endif
 #	endif
-#	ifndef FOPEN_READ_TEXT
-#		define FOPEN_READ_TEXT "r"
-#		define FOPEN_WRITE_TEXT "w"
-#		define FOPEN_APPEND_TEXT "a"
+
+#	ifdef __CYGWIN__
+#		ifndef FOPEN_READ_TEXT
+#			define FOPEN_READ_TEXT "rt"
+#			define FOPEN_WRITE_TEXT "wt"
+#			define FOPEN_APPEND_TEXT "at"
+#		endif
+#		ifndef FOPEN_READ_BINARY
+#			define FOPEN_READ_BINARY "rb"
+#			define FOPEN_WRITE_BINARY "wb"
+#			define FOPEN_APPEND_BINARY "ab"
+#		endif
+#	else
+#		ifndef FOPEN_READ_TEXT
+#			define FOPEN_READ_TEXT "r"
+#			define FOPEN_WRITE_TEXT "w"
+#			define FOPEN_APPEND_TEXT "a"
+#		endif
+#		ifndef FOPEN_READ_BINARY
+#			define FOPEN_READ_BINARY "r"
+#			define FOPEN_WRITE_BINARY "w"
+#			define FOPEN_APPEND_BINARY "a"
+#		endif
 #	endif
-#	ifndef FOPEN_READ_BINARY
-#		define FOPEN_READ_BINARY "r"
-#		define FOPEN_WRITE_BINARY "w"
-#		define FOPEN_APPEND_BINARY "a"
-#	endif
+
 #	if defined(MACOSX) || defined(BSDOS)
 #		undef SIG_DFL
 #		undef SIG_IGN
@@ -213,7 +237,7 @@
 #	define Open open
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define Stat WinStat64
 #	define Lstat WinStat64
 #	define Fstat WinFStat64
@@ -251,7 +275,7 @@
 #	define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #endif
 
-#if defined(AIX) || defined(_AIX)
+#if (defined(AIX) && (AIX >= 430))
 /* AIX 4.3's sys/socket.h doesn't properly prototype these for C */
 extern int naccept(int, struct sockaddr *, socklen_t *);
 extern int ngetpeername(int, struct sockaddr *, socklen_t *);

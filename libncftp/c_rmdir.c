@@ -13,8 +13,8 @@
 int
 FTPRmdir(const FTPCIPtr cip, const char *const pattern, const int recurse, const int doGlob)
 {
-	LineList fileList;
-	LinePtr filePtr;
+	FTPLineList fileList;
+	FTPLinePtr filePtr;
 	char *file;
 	int onceResult, batchResult;
 

@@ -25,7 +25,8 @@ GetPass(const char *const prompt, char *const pwbuf, const size_t pwbufsize)
 		(void) memset(pwbuf, 0, pwbufsize);
 	}
 	return (cp);
-#elif defined(_CONSOLE) && (defined(WIN32) || defined(_WINDOWS))
+#elif defined(_CONSOLE) && ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )
+
 	char *dst, *dlim;
 	int c;
 
@@ -53,7 +54,7 @@ GetPass(const char *const prompt, char *const pwbuf, const size_t pwbufsize)
 	return (pwbuf);
 #else
 	(void) memset(pwbuf, 0, pwbufsize);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (! _isatty(_fileno(stdout)))
 #else
 	if (! isatty(1))

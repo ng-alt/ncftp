@@ -24,7 +24,7 @@ int gHaveSpool = -1;
 
 extern char gOurDirectoryPath[];
 extern void CloseControlConnection(const FTPCIPtr);
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 extern char gOurInstallationPath[];
 #endif
 
@@ -58,7 +58,7 @@ TruncBatchLog(void)
 int
 HaveSpool(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	char ncftpbatch[260];
 
 	if (gHaveSpool < 0) {
@@ -112,7 +112,7 @@ CanSpool(void)
 void
 Jobs(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	assert(0); // Not supported
 #else
 	char *argv[8];
@@ -158,7 +158,7 @@ Jobs(void)
 void
 RunBatchWithCore(const FTPCIPtr cip)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	RunBatch();
 #else	/* UNIX */
 	int pfd[2];

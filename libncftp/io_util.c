@@ -10,14 +10,6 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
-#	define ASCII_TRANSLATION 0
-#endif
-
-#ifndef ASCII_TRANSLATION
-#	define ASCII_TRANSLATION 1
-#endif
-
 #ifndef NO_SIGNALS
 #	define NO_SIGNALS 1
 #endif

@@ -35,7 +35,7 @@ FTPRebuildConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip)
 	cip->startingWorkingDirectory = NULL;
 	cip->asciiFilenameExtensions = NULL;
 
-	(void) memset(&cip->lastFTPCmdResultLL, 0, sizeof(LineList));
+	(void) memset(&cip->lastFTPCmdResultLL, 0, sizeof(FTPLineList));
 
 	/* Allocate a new buffer. */
 	buf = (char *) calloc((size_t) 1, cip->bufSize);

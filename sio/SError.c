@@ -3,7 +3,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 
 const char *wsaerrlist[128] = {
 	/*   0 */	"Unknown error #0",
@@ -143,7 +143,7 @@ const char *wsaerrlist[128] = {
 const char *
 SError(int e)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	const char *cp;
 	static char estr[32];
 

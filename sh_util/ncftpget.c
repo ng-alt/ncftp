@@ -12,7 +12,7 @@
 #	pragma hdrstop
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
@@ -171,8 +171,8 @@ main(int argc, char **argv)
 	char urlfile[256];
 	char urldir[512];
 	int urlxtype;
-	LineList cdlist;
-	LinePtr lp;
+	FTPLineList cdlist;
+	FTPLinePtr lp;
 	int rc;
 	int nD = 0;
 	int batchmode = 0;
@@ -565,8 +565,14 @@ main(int argc, char **argv)
 			}
 		} else {
 			if ((rc = FTPGetFiles3(&fi, urlfile, ".", rflag, kGlobYes, xtype, resumeflag, appendflag, deleteflag, tarflag, kNoFTPConfirmResumeDownloadProc, 0)) < 0) {
-				FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
-				es = kExitXferFailed;
+				if (rc == kErrLocalSameAsRemote) {
+					/* Show the message, but do not err-out. */
+					FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
+					es = kExitSuccess;
+				} else {
+					FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
+					es = kExitXferFailed;
+				}
 			} else {
 				es = kExitSuccess;
 

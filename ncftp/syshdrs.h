@@ -181,16 +181,31 @@
 			extern char *getwd(char *);
 #		endif
 #	endif
-#	ifndef FOPEN_READ_TEXT
-#		define FOPEN_READ_TEXT "r"
-#		define FOPEN_WRITE_TEXT "w"
-#		define FOPEN_APPEND_TEXT "a"
+
+#	ifdef __CYGWIN__
+#		ifndef FOPEN_READ_TEXT
+#			define FOPEN_READ_TEXT "rt"
+#			define FOPEN_WRITE_TEXT "wt"
+#			define FOPEN_APPEND_TEXT "at"
+#		endif
+#		ifndef FOPEN_READ_BINARY
+#			define FOPEN_READ_BINARY "rb"
+#			define FOPEN_WRITE_BINARY "wb"
+#			define FOPEN_APPEND_BINARY "ab"
+#		endif
+#	else
+#		ifndef FOPEN_READ_TEXT
+#			define FOPEN_READ_TEXT "r"
+#			define FOPEN_WRITE_TEXT "w"
+#			define FOPEN_APPEND_TEXT "a"
+#		endif
+#		ifndef FOPEN_READ_BINARY
+#			define FOPEN_READ_BINARY "r"
+#			define FOPEN_WRITE_BINARY "w"
+#			define FOPEN_APPEND_BINARY "a"
+#		endif
 #	endif
-#	ifndef FOPEN_READ_BINARY
-#		define FOPEN_READ_BINARY "r"
-#		define FOPEN_WRITE_BINARY "w"
-#		define FOPEN_APPEND_BINARY "a"
-#	endif
+
 #	if defined(MACOSX) || defined(BSDOS)
 #		undef SIG_DFL
 #		undef SIG_IGN
@@ -215,7 +230,7 @@
 #	define Open open
 #endif
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define Stat WinStat64
 #	define Lstat WinStat64
 #	define Fstat WinFStat64

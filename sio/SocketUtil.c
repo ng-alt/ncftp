@@ -350,7 +350,7 @@ struct	linger {
 					/* non-0 = wait to send data    */
 };
 #endif
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	opt.l_onoff = (unsigned short) l_onoff;
 	opt.l_linger = (unsigned short)  l_linger;
 #else

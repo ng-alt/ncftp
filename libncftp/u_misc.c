@@ -20,7 +20,7 @@ WSADATA wsaData;
 void
 InitWinsock(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (WSAStartup(MAKEWORD(2, 0), &wsaData) != 0) {
 #	ifdef _CONSOLE
 		fprintf(stderr, "could not initialize winsock\n");
@@ -36,7 +36,7 @@ InitWinsock(void)
 void
 DisposeWinsock(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	if (wsaInit > 0) { WSACleanup(); wsaInit--; }
 #else
 	wsaInit--;
@@ -46,7 +46,7 @@ DisposeWinsock(void)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 
 
 int gettimeofday(struct timeval *const tp, void *junk)
@@ -106,10 +106,11 @@ void WinSleep(unsigned int seconds)
 		}
 	}
 }	/* WinSleep */
+#endif
 
 
 
-
+#if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 char *
 StrFindLocalPathDelim(const char *src) /* TODO: optimize */
 {
@@ -205,11 +206,13 @@ LocalPathToTVFSPath(char *dst)
 		}
 	}
 }	/* LocalPathToTVFSPath */
+#endif
 
 
 
 
 
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 int
 WinFStat64(const int h0, struct WinStat64 *const stp)
 {
