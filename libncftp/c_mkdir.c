@@ -60,7 +60,7 @@ FTPMkdir2(const FTPCIPtr cip, const char *const newDir, const int recurse, const
 		result = FTPCmd(cip, "MKD %s", newDir);
 		if (result > 0) {
 			if (result != 2) {
-				Error(cip, kDontPerror, "MKD %s failed; [%s]\n", newDir, cip->lastFTPCmdResultStr);
+				FTPLogError(cip, kDontPerror, "MKD %s failed; [%s]\n", newDir, cip->lastFTPCmdResultStr);
 				result = kErrMKDFailed;
 				cip->errNo = kErrMKDFailed;
 				return (result);
@@ -96,7 +96,7 @@ FTPMkdir2(const FTPCIPtr cip, const char *const newDir, const int recurse, const
 				return (result);
 			}
 			if (result != 2) {
-				Error(cip, kDontPerror, "MKD %s failed; [%s]\n", dir, cip->lastFTPCmdResultStr);
+				FTPLogError(cip, kDontPerror, "MKD %s failed; [%s]\n", dir, cip->lastFTPCmdResultStr);
 				result = kErrMKDFailed;
 				cip->errNo = kErrMKDFailed;
 				return (result);
@@ -157,7 +157,7 @@ FTPMkdir2(const FTPCIPtr cip, const char *const newDir, const int recurse, const
 				return (result);
 			}
 			if (result != 2) {
-				Error(cip, kDontPerror, "Cwd=%s; MKD %s failed; [%s]\n", cip->buf, newTreeStart, cip->lastFTPCmdResultStr);
+				FTPLogError(cip, kDontPerror, "Cwd=%s; MKD %s failed; [%s]\n", cip->buf, newTreeStart, cip->lastFTPCmdResultStr);
 				result = kErrMKDFailed;
 				cip->errNo = kErrMKDFailed;
 				goto goback;

@@ -1,0 +1,29 @@
+#!/bin/sh
+
+SCRIPT_NAME=`basename "$0"`
+ID="`/usr/bin/id`"
+
+echo "Running the script $SCRIPT_NAME from the Installer as: $ID"
+
+##echo "Running the script $SCRIPT_NAME from the Installer as: $ID" > /private/var/tmp/$SCRIPT_NAME.out
+
+##/usr/bin/osascript -l AppleScript <<EOF
+##tell application "Finder"
+##	display dialog "Running the script $SCRIPT_NAME from the Installer as: $ID"
+##end tell
+##EOF
+
+v=`/usr/bin/ncftp -H 2>&1 | sed -n '/^Version:\ *2\./{s/^Version:\ *\(2\..\..\).*$/\1/;p;q;}'`
+case "$v" in
+	2.*)
+		if [ -f /usr/bin/ncftp ] ; then
+			/bin/mv /usr/bin/ncftp "/usr/bin/ncftp-$v"
+		fi
+		if [ -f /usr/share/man/man1/ncftp.1 ] ; then
+			/bin/mv /usr/share/man/man1/ncftp.1 "/usr/share/man/man1/ncftp-$v.1"
+		fi
+		;;
+esac
+exit 0
+
+exit 0

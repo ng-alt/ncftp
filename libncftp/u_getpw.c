@@ -22,6 +22,12 @@ int getpwnam_r(const char *name, struct passwd *pwd, char *buffer, size_t bufsiz
 int getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize, struct passwd **result);
 #endif
 
+#if (defined(AIX) && (AIX < 433))
+extern int _posix_getpwuid_r(uid_t, struct passwd *, char *, int
+, struct passwd **);
+extern int _posix_getpwnam_r(const char *, struct passwd *, char *, int, struct passwd **);
+#endif
+
 int
 GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsize)
 {

@@ -41,7 +41,7 @@ FTPFileSize(const FTPCIPtr cip, const char *const file, longest_int *const size,
 		if (rp == NULL) {
 			result = kErrMallocFailed;
 			cip->errNo = kErrMallocFailed;
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		} else {
 			result = RCmd(cip, rp, "SIZE %s", file);
 			if (result < 0) {

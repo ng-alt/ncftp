@@ -44,22 +44,24 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 		} else if (result < 0) {
 			if (errno != EINTR) {
 				/* error */
-				return (0);
+				break;
 			}
 			/* try again */
 			time(&now);
 			if (now > done) {
 				/* timed-out */
 				errno = ETIMEDOUT;
-				return (0);
+				break;
 			}
 			tleft = (int) (done - now);
 		} else {
 			/* timed-out */
 			errno = ETIMEDOUT;
-			return (0);
+			break;
 		}
 	}
+
+	return (0);
 }	/* SWaitUntilReadyForReading */
 
 
@@ -106,20 +108,22 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 		} else if (result < 0) {
 			if (errno != EINTR) {
 				/* error */
-				return (0);
+				break;
 			}
 			/* try again */
 			time(&now);
 			if (now > done) {
 				/* timed-out */
 				errno = ETIMEDOUT;
-				return (0);
+				break;
 			}
 			tleft = (int) (done - now);
 		} else {
 			/* timed-out */
 			errno = ETIMEDOUT;
-			return (0);
+			break;
 		}
 	}
+
+	return (0);
 }	/* SWaitUntilReadyForWriting */

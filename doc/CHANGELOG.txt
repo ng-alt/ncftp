@@ -1,5 +1,37 @@
-Change Log:
-===========
+NcFTP Change Log:
+================
+
+3.1.4, 2002-07-02
+
+ + Bug fixed in Win32 port which could cause NcFTP to mis-parse output
+   from Roxen FTP servers.
+
+ + We now try to have ncftpbatch leave a core file for debugging if it
+   exits with SIGSEGV, SIGBUS, or SIGILL.
+
+ + Fixed(?) an elusive bug which had been present for the past few versions
+   which could cause ncftpbatch to infinite loop or sleep too long.
+
+ + New configure flag, --disable-ccdv.
+
+ + Compatibility fixes for C++ and Linux.
+
+ + Fixed a socket leak and a crash on Win32.
+
+ + A few minor fixes for firewall logins (Thanks, Jochen Schnapka).
+
+ + By default, proxy connections for PORT are no longer allowed.  This is
+   mostly an extra security precaution, to eliminate cases where someone
+   could hijack a data connection by connecting to us after we issue PORT
+   but before the server could connect to us.
+
+ + ncftpls now accepts a "-R" flag which is equivalent to "-x -lR".
+ 
+ + Bugs fixed in configure script for our "--with-*" arguments
+   (Thanks, David Kaelbling).
+
+ + A few new firewalls (permutations of type 1).  (Thanks, Felix Buenemann)
+
 
 3.1.3, 2002-03-27
 

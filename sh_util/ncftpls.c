@@ -50,6 +50,7 @@ Usage(void)
 	(void) fprintf(fp, "\nls Flags:\n\
   -1     Most basic format, one item per line.\n\
   -l     Long list format.\n\
+  -R     Long list format, recurse subdirectories if server allows it.\n\
   -x XX  Other flags to pass on to the remote server.\n");
 	(void) fprintf(fp, "\nFTP Flags:\n\
   -u XX  Use username XX instead of anonymous.\n\
@@ -204,7 +205,7 @@ main(int argc, char **argv)
 	es = kExitSuccess;
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "1lx:P:u:j:p:e:d:t:r:f:EFKW:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "1lRx:P:u:j:p:e:d:t:r:f:EFKW:X:Y:")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
 			break;
@@ -260,6 +261,9 @@ main(int argc, char **argv)
 			break;
 		case '1':
 			SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-1");
+			break;
+		case 'R':
+			SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-lR");
 			break;
 		case 'x':
 			SetLsFlags(lsflag, sizeof(lsflag), &longMode, opt.arg);

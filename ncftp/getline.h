@@ -20,6 +20,7 @@ typedef size_t (*gl_strlen_proc)(const char *);
 typedef char * (*gl_tab_completion_proc)(const char *, int);
 
 char *getline(char *);			/* read a line of input */
+void gl_dispose(void);
 void gl_setwidth(int);			/* specify width of screen */
 void gl_setheight(int);			/* specify height of screen */
 void gl_histadd(const char *const);	/* adds entries to hist */

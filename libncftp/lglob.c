@@ -119,6 +119,7 @@ WinLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *const srcpat)
 		}
 	}
 
+	FindClose(searchHandle);
 	return (result);
 }	// WinLocalGlob
 
@@ -146,7 +147,7 @@ LazyUnixLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *const patte
 	
 	fp = (FILE *) popen(cmd, "r");
 	if (fp == NULL) {
-		Error(cip, kDoPerror, "Could not Lglob: [%s]\n", cmd);
+		FTPLogError(cip, kDoPerror, "Could not Lglob: [%s]\n", cmd);
 		cip->errNo = kErrGlobFailed;
 		return (kErrGlobFailed);
 	}

@@ -95,6 +95,11 @@ void closedir(DIR *dir)
 
 
 
+/*
+ * Warning: be sure to use a custom-sized struct dirent, since the
+ * real struct dirent on some platforms is just a stub structure
+ * with room for only one byte in the filename.
+ */
 struct dirent *
 Readdir(DIR *const dir, struct dirent *const dp)
 {
@@ -105,6 +110,7 @@ Readdir(DIR *const dir, struct dirent *const dp)
 	if (p != NULL)
 		return (dp);
 #elif defined(HAVE_READDIR_R)
+	p = NULL;
 	if ((readdir_r(dir, dp, &p) == 0) && (p != NULL))
 		return (dp);
 #else

@@ -50,7 +50,7 @@ OpenTar(const FTPCIPtr cip, const char *const dstdir, int *const pid)
 	}
 
 	if (pipe(pipe1) < 0) {
-		Error(cip, kDoPerror, "pipe to Tar failed");
+		FTPLogError(cip, kDoPerror, "pipe to Tar failed");
 		return (-1);
 	}
 
@@ -62,7 +62,7 @@ OpenTar(const FTPCIPtr cip, const char *const dstdir, int *const pid)
 	} else if (pid1 == 0) {
 		/* Child */
 		if ((dstdir != NULL) && (dstdir[0] != '\0') && (chdir(dstdir) < 0)) {
-			Error(cip, kDoPerror, "tar chdir to %s failed", dstdir);
+			FTPLogError(cip, kDoPerror, "tar chdir to %s failed", dstdir);
 			exit(1);
 		}
 		(void) close(pipe1[1]);		/* close write end */
@@ -255,7 +255,7 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 	for (;;) {
 		if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
 			cip->errNo = result = kErrDataTimedOut;
-			Error(cip, kDontPerror, "Remote read timed out.\n");
+			FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
 			break;
 		}
 		if (cip->cancelXfer > 0) {
@@ -272,12 +272,12 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 		nread = (read_return_t) SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 		if (nread == kTimeoutErr) {
 			cip->errNo = result = kErrDataTimedOut;
-			Error(cip, kDontPerror, "Remote read timed out.\n");
+			FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
 			break;
 		} else if (nread < 0) {
 			if (errno == EINTR)
 				continue;
-			Error(cip, kDoPerror, "Remote read failed.\n");
+			FTPLogError(cip, kDoPerror, "Remote read failed.\n");
 			result = kErrSocketReadFailed;
 			cip->errNo = kErrSocketReadFailed;
 			break;
@@ -289,7 +289,7 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 		if (nread < 0) {
 			if (errno == EINTR)
 				continue;
-			Error(cip, kDoPerror, "Remote read failed.\n");
+			FTPLogError(cip, kDoPerror, "Remote read failed.\n");
 			result = kErrSocketReadFailed;
 			cip->errNo = kErrSocketReadFailed;
 			break;
@@ -306,7 +306,7 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 				cip->errNo = kErrWriteFailed;
 				errno = EPIPE;
 			} else {
-				Error(cip, kDoPerror, "Local write failed.\n");
+				FTPLogError(cip, kDoPerror, "Local write failed.\n");
 				result = kErrWriteFailed;
 				cip->errNo = kErrWriteFailed;
 			}

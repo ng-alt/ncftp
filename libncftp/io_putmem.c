@@ -54,7 +54,7 @@ FTPPutFileFromMemory(
 #endif	/* NO_SIGNALS */
 
 	if (cip->buf == NULL) {
-		Error(cip, kDoPerror, "Transfer buffer not allocated.\n");
+		FTPLogError(cip, kDoPerror, "Transfer buffer not allocated.\n");
 		cip->errNo = kErrNoBuf;
 		return (cip->errNo);
 	}
@@ -146,7 +146,7 @@ FTPPutFileFromMemory(
 			do {
 				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
 					cip->errNo = result = kErrDataTimedOut;
-					Error(cip, kDontPerror, "Remote write timed out.\n");
+					FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
 					goto brk;
 				}
 				if (cip->cancelXfer > 0) {
@@ -160,16 +160,16 @@ FTPPutFileFromMemory(
 				if (nwrote < 0) {
 					if (nwrote == kTimeoutErr) {
 						cip->errNo = result = kErrDataTimedOut;
-						Error(cip, kDontPerror, "Remote write timed out.\n");
+						FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
 					} else if (errno == EPIPE) {
 						cip->errNo = result = kErrSocketWriteFailed;
 						errno = EPIPE;
-						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 					} else if (errno == EINTR) {
 						continue;
 					} else {
 						cip->errNo = result = kErrSocketWriteFailed;
-						Error(cip, kDoPerror, "Remote write failed.\n");
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
 					cip->dataSocket = -1;
@@ -181,12 +181,12 @@ FTPPutFileFromMemory(
 					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
 						cip->errNo = result = kErrSocketWriteFailed;
 						errno = EPIPE;
-						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 					} else if (errno == EINTR) {
 						continue;
 					} else {
 						cip->errNo = result = kErrSocketWriteFailed;
-						Error(cip, kDoPerror, "Remote write failed.\n");
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
 					cip->dataSocket = -1;

@@ -50,6 +50,7 @@ int gIsTTY;
 int gSpooled = 0;
 char gSpoolDir[256];
 char gLogFileName[256];
+struct dirent *gDirentBuf = NULL;
 extern int gFirewallType;
 extern char gFirewallHost[64];
 extern char gFirewallUser[32];
@@ -437,7 +438,7 @@ SigAlrm(int sigNum)
 		longjmp(gCancelJmp, 1);
 #endif	/* HAVE_SIGSETJMP */
 	}
-}	/* SigExit */
+}	/* SigAlrm */
 #endif
 
 
@@ -448,10 +449,28 @@ SigExit(int sigNum)
 {
 	gQuitRequested = sigNum;
 	if (gMaySigExit != 0) {
-		ExitStuff();
-		Log(0, "-----caught signal %d, exiting-----\n", sigNum);
-		DisposeWinsock();
-		exit(0);
+#ifdef SIGBUS
+		if ((sigNum == SIGSEGV) || (sigNum == SIGBUS) || (sigNum == SIGILL)) {
+#else
+		if ((sigNum == SIGSEGV) || (sigNum == SIGILL)) {
+#endif
+			ExitStuff();
+			Log(0, "-----caught signal %d, aborting-----\n", sigNum);
+			DisposeWinsock();
+
+			/* Need to do this, because we may have been
+			 * in the root directory which we probably
+			 * can't write the core file to.
+			 */
+			(void) chdir("/tmp");
+			abort();
+		} else {
+
+			ExitStuff();
+			Log(0, "-----caught signal %d, exiting-----\n", sigNum);
+			DisposeWinsock();
+			exit(0);
+		}
 	}
 }	/* SigExit */
 
@@ -546,6 +565,11 @@ PreInit(const char *const prog)
 static void
 PostInit(void)
 {
+	struct dirent *direntbuf;
+	size_t debufsize;
+#ifdef HAVE_PATHCONF
+	long nmx;
+#endif
 	/* These things are done after parsing the command-line options. */
 
 	if (gGlobalSpooler != 0) {
@@ -568,6 +592,19 @@ PostInit(void)
 
 	if (gLogFileName[0] == '\0')
 		(void) Path(gLogFileName, sizeof(gLogFileName), gSpoolDir, kSpoolLog);
+	debufsize = 512;
+#ifdef HAVE_PATHCONF
+	nmx = pathconf(gLogFileName, _PC_NAME_MAX);
+	if (nmx >= 512)
+		debufsize = nmx;
+#endif
+	debufsize += sizeof(struct dirent) + 8;
+	direntbuf = (struct dirent *) calloc(debufsize, (size_t) 1);
+	if (direntbuf == NULL) {
+		PerrorBox("malloc failed for dirent buffer");
+		exit(1);
+	}
+	gDirentBuf = direntbuf;
 }	/* PostInit */
 
 
@@ -751,7 +788,7 @@ LoadCurrentSpoolFileContents(int logErrors)
 			cp += strlen(cp) - 1;
 			while ((*cp == '\\') && (cp < lim)) {
 				*cp++ = '\n';
-				(void) fgets(cp, lim - cp, fp);
+				(void) fgets(cp, (int) (lim - cp), fp);
 				cp += strlen(cp) - 1;
 				if (*cp == '\n')
 					*cp-- = '\0';
@@ -1232,7 +1269,7 @@ EventShell(volatile unsigned int sleepval)
 	volatile int nItems;
 	int nProcessed, nFinished;
 	unsigned int minDSLF;
-	struct dirent dent;
+	struct dirent *dent;
 	struct Stat st;
 	char *cp;
 	char tstr[32];
@@ -1249,6 +1286,7 @@ EventShell(volatile unsigned int sleepval)
 #endif
 
 	DIRp = NULL;
+	dent = gDirentBuf;
 	(void) OpenLog();
 	Log(0, "-----started-----\n");
 
@@ -1330,15 +1368,24 @@ EventShell(volatile unsigned int sleepval)
 		}
 
 		Log(0, "Starting pass %d.\n", passes);
+		if (passes >= 1000000) {
+			/* This "panic" and the one a few lines above
+			 * are here temporarily; I think the bug this
+			 * was checking for has been fixed finally.
+			 */
+			Log(0, "Panic: invalid pass number %d.\n", passes);
+			exit(1);
+		}
+
 		for (nItems = 0, nProcessed = 0, nFinished = 0; ; ) {
-			if (Readdir(DIRp, &dent) == NULL)
+			if (Readdir(DIRp, dent) == NULL)
 				break;
 
 			YieldUI(0);
 
 			(void) STRNCPY(gItemPath, gSpoolDir);
 			(void) STRNCAT(gItemPath, LOCAL_PATH_DELIM_STR);
-			(void) STRNCAT(gItemPath, dent.d_name);
+			(void) STRNCAT(gItemPath, dent->d_name);
 			if ((Stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
 				/* Item may have been
 				 * deleted by another
@@ -1347,7 +1394,7 @@ EventShell(volatile unsigned int sleepval)
 				continue;
 			}
 
-			if (DecodeName(dent.d_name, &iyyyymmdd, &ihhmmss) < 0) {
+			if (DecodeName(dent->d_name, &iyyyymmdd, &ihhmmss) < 0) {
 				/* Junk file in the spool directory. */
 				continue;
 			}
@@ -1462,7 +1509,10 @@ EventShell(volatile unsigned int sleepval)
 #endif
 			}
 			if (gQuitRequested != 0) {
-				(void) closedir(DIRp);
+				if (DIRp != NULL) {
+					(void) closedir(DIRp);
+					DIRp = NULL;
+				}
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				Log(0, "User requested close.\n");
 #else
@@ -1478,7 +1528,10 @@ EventShell(volatile unsigned int sleepval)
 				return;
 			}
 		}
-		(void) closedir(DIRp);
+		if (DIRp != NULL) {
+			(void) closedir(DIRp);
+			DIRp = NULL;
+		}
 		if ((nItems == nFinished) && (nFinished > 0)) {
 			Log(0, "The spool directory %s is now empty.\n", gSpoolDir);
 		} else if (nItems == 0) {
@@ -1506,8 +1559,8 @@ static void
 ListQueue(void)
 {
 	int nItems;
-	struct dirent dent;
 	struct Stat st;
+	struct dirent *dent;
 	DIR *DIRp;
 	char *cp;
 	int iyyyymmdd, ihhmmss;
@@ -1521,13 +1574,15 @@ ListQueue(void)
 		DisposeWinsock();
 		exit(1);
 	}
-	for (nItems = 0; ; ) {
-		if (Readdir(DIRp, &dent) == NULL)
-			break;
 
+	dent = gDirentBuf;
+	for (nItems = 0; ; ) {
+		if (Readdir(DIRp, dent) == NULL)
+			break;
+		
 		(void) STRNCPY(gItemPath, gSpoolDir);
 		(void) STRNCAT(gItemPath, LOCAL_PATH_DELIM_STR);
-		(void) STRNCAT(gItemPath, dent.d_name);
+		(void) STRNCAT(gItemPath, dent->d_name);
 		if ((Stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
 			/* Item may have been
 			 * deleted by another
@@ -1536,7 +1591,7 @@ ListQueue(void)
 			continue;
 		}
 
-		if (DecodeName(dent.d_name, &iyyyymmdd, &ihhmmss) < 0) {
+		if (DecodeName(dent->d_name, &iyyyymmdd, &ihhmmss) < 0) {
 			/* Junk file in the spool directory. */
 			continue;
 		}

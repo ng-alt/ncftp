@@ -152,6 +152,12 @@ Makefile.in
 configure
 config.h.in
 README.txt
+mac/setup/ncftp_dist/NcFTP.pmsp
+mac/setup/ncftp_dist/Resources/NcFTP.pre_install
+mac/setup/ncftp_dist/Resources/ReadMe.rtf
+mac/setup/ncftp_dist/Resources/VolumeCheck
+mac/setup/ncftp_dist/Resources/VolumeCheck.strings
+mac/setup/ncftp_dist/Resources/Welcome.rtf
 vis/Makefile.in
 vis/syshdrs.h
 vis/bmed.c

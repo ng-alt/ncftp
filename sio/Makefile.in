@@ -113,8 +113,8 @@ SHELL=/bin/sh
 clean:
 	-/bin/rm -f *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch
 
-distclean:	clean
-	-/bin/rm -f config.h Makefile config.status config.cache config.log
+distclean: clean
+	-/bin/rm -f config.h Makefile config.status config.cache config.log sio.version
 
 ### Archiving #################################################################
 
@@ -155,7 +155,7 @@ tar: $(PACKAGE)
 	-@mkdir $(TMPDIR)/TAR/$(TARDIR)
 	-@chmod ga+r $(PACKAGE)
 	find . -follow -depth -type f -print | cut -c3- | egrep -i -v '((\.(o|so|log|a|lib|ncb|obj|exe|idb|cache|opt|zip|gz|swp|tar|plg))|(config\.h))$$' | cpio -Lpdm $(TMPDIR)/TAR/$(TARDIR)
-	( cd $(TMPDIR)/TAR ; tar cf $(TARFILE) $(TARDIR) )
+	( cd $(TMPDIR)/TAR ; @TAR@ @TARFLAGS@ $(TARFILE) $(TARDIR) )
 	cp $(TMPDIR)/TAR/$(TARFILE) .
 	-@chmod 644 $(TARFILE)
 	-@rm -rf $(TMPDIR)/TAR

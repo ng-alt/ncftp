@@ -78,6 +78,9 @@ tester: $(LIB) tester.c
 clean:
 	/bin/rm -f "$(LIB)" "$(LIBSO)" *.@OBJEXT@ *.so tester core *.pch
 
+distclean: clean
+	-/bin/rm -f config.h Makefile config.status config.cache config.log Strn.version
+
 install_min:
 	if test ! -d $(prefix)/include ; then mkdir -p "$(prefix)/include" ; fi
 	if test ! -d $(prefix)/lib ; then mkdir -p "$(prefix)/lib" ; fi

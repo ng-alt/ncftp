@@ -3,6 +3,7 @@ dnl
 AC_INIT(SWrite.c)
 AC_PREREQ(2.13)
 AC_CONFIG_HEADER(config.h)
+wi_ARG_ENABLE_DEBUG
 wi_ARG_ENABLE_SOCKS5
 want_unix_domain_sockets=yes
 AC_ARG_ENABLE([unix-sockets],[  --enable-unix-sockets   enable support for UNIX domain sockets],[want_unix_domain_sockets=no])
@@ -13,6 +14,7 @@ dnl ---------------------------------------------------------------------------
 dnl Environment and compiler settings.
 dnl ---------------------------------------------------------------------------
 dnl
+wi_ENV_VAR_MESSAGES
 wi_OS_VAR
 AC_PROG_CC
 wi_CC_PRECOMP

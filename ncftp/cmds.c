@@ -248,7 +248,7 @@ FillBookmarkInfo(BookmarkPtr bmp)
 	bmp->hasSIZE = gConn.hasSIZE;
 	bmp->hasMDTM = gConn.hasMDTM;
 	bmp->hasPASV = gConn.hasPASV;
-	bmp->hasUTIME = gConn.hasUTIME;
+	bmp->hasUTIME = gConn.hasSITE_UTIME;
 	if (gFirewallType == kFirewallNotInUse)
 		(void) STRNCPY(bmp->lastIP, gConn.ip);
 }	/* FillBookmarkInfo */
@@ -775,6 +775,7 @@ EchoCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 
 static int
 NcFTPConfirmResumeDownloadProc(
+	const FTPCIPtr cipUNUSED,
 	const char **localpath,
 	longest_int localsize,
 	time_t localmtime,
@@ -788,6 +789,7 @@ NcFTPConfirmResumeDownloadProc(
 	static char newname[128];	/* arrggh... static. */
 	struct tm t;
 
+	gUnusedArg = (cipUNUSED != NULL);
 	if (gResumeAnswerAll != kConfirmResumeProcNotUsed)
 		return (gResumeAnswerAll);
 
@@ -1174,6 +1176,7 @@ commands.  'help <command>' gives a brief description of <command>.\n\n");
 			}
 		}
 	}
+	printf("\nFor details, please see the manual (\"man ncftp\" at your regular shell prompt\nor online at http://www.ncftp.com/ncftp/doc/ncftp.html).\n");
 }	/* HelpCmd */
 
 
@@ -2275,6 +2278,8 @@ DoOpen(void)
 			case kFirewallNotInUse:
 				break;
 			case kFirewallUserAtSite:
+			case kFirewallUserAtSitePort:
+			case kFirewallUserAtSitePort2:
 				break;
 			case kFirewallLoginThenUserAtSite:
 			case kFirewallSiteSite:
@@ -2443,7 +2448,7 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 		(void) STRNCPY(gConn.acct, gBm.acct);
 		gConn.hasSIZE = gBm.hasSIZE;
 		gConn.hasMDTM = gBm.hasMDTM;
-		gConn.hasUTIME = gBm.hasUTIME;
+		gConn.hasSITE_UTIME = gBm.hasUTIME;
 		gConn.port = gBm.port;
 
 		/* Note:  Version 3 only goes off of the
@@ -2638,8 +2643,23 @@ PageCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 
 
 
+/* Toggles passive mode.  For compatibility only; they should be doing
+ * "set passive on" instead.
+ */
+void
+PassiveCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+{
+	ARGSUSED(gUnusedArg);
+	Set("passive", (gConn.dataPortMode == kPassiveMode) ? "off" : "on");
+	Set("passive", NULL);	/* Show the new setting */
+}	/* PassiveCmd */
+
+
+
+
 static int
 NcFTPConfirmResumeUploadProc(
+	const FTPCIPtr cipUNUSED,
 	const char *localpath,
 	longest_int localsize,
 	time_t localmtime,
@@ -2653,6 +2673,7 @@ NcFTPConfirmResumeUploadProc(
 	static char newname[128];	/* arrggh... static. */
 	struct tm t;
 
+	gUnusedArg = (cipUNUSED != NULL);
 	if (gResumeAnswerAll != kConfirmResumeProcNotUsed)
 		return (gResumeAnswerAll);
 

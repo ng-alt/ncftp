@@ -20,6 +20,11 @@ typedef char pathname[512];
 #define STREQ(a,b) (strcmp(a,b) == 0)
 #define STRNEQ(a,b,s) (strncmp(a,b,(size_t)(s)) == 0)
 
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#	define ISTRCMP stricmp
+#	define ISTRNCMP strnicmp
+#endif
+
 #ifndef ISTRCMP
 #	ifdef HAVE_STRCASECMP
 #		define ISTRCMP strcasecmp
@@ -40,7 +45,7 @@ typedef int (*cmp_t)(const void *, const void *);
 #define BSEARCH(key,base,n,s,cmp) \
 	bsearch(key, base, (size_t)(n), (size_t)(s), (cmp_t)(cmp))
 
-/* For Error(): */
+/* For FTPLogError(): */
 #define kDoPerror		1
 #define kDontPerror		0
 
@@ -84,7 +89,7 @@ void PrintF(const FTPCIPtr cip, const char *const fmt, ...)
 __attribute__ ((format (printf, 2, 3)))
 #endif
 ;
-void Error(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
+void FTPLogError(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
 #if (defined(__GNUC__)) && (__GNUC__ >= 2)
 __attribute__ ((format (printf, 3, 4)))
 #endif

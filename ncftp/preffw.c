@@ -111,6 +111,14 @@ WriteDefaultFirewallPrefs(FILE *fp)
 #             \"PASS pass\" followed by\n\
 #             \"ACCT fwpass\" to complete the login.\n\
 #\n\
+");
+	(void) fprintf(fp, "%s", "\
+#    type 8:  Connect to firewall host, but send \"USER user@real.host.name:port\"\n\
+#\n\
+#    type 9:  Connect to firewall host, but send \"USER user@real.host.name port\"\n\
+#\n\
+");
+	(void) fprintf(fp, "%s", "\
 #    type 0:  Do NOT use a firewall (most users will choose this).\n\
 #\n\
 firewall-type=0\n\

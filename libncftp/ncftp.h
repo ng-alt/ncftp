@@ -13,9 +13,10 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.1.3 (March 4, 2002)"
+#define kLibraryVersion "@(#) LibNcFTP 3.1.4 (July 2, 2002)"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+	/* Includes for Windows */
 #	pragma once
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
@@ -157,6 +158,15 @@ extern "C"
 #		define snprintf _snprintf
 #	endif
 #else
+	/* Includes for UNIX */
+#	if (defined(__linux__)) && (! defined(_LARGEFILE64_SOURCE)) && (! defined(NO_LARGEFILE64_SOURCE))
+		/* Define _LARGEFILE64_SOURCE or NO_LARGEFILE64_SOURCE to
+		 * quiet this warning.  Be sure to define this for ALL
+		 * code that uses LibNcFTP.
+		 */
+#		warning "<ncftp.h> is #defining _LARGEFILE64_SOURCE for you"
+#		define _LARGEFILE64_SOURCE 1
+#	endif
 #	include <unistd.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
@@ -195,7 +205,7 @@ extern "C"
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.1.3"
+#define kLibraryMagic "LibNcFTP 3.1.4"
 
 #ifndef longest_int
 #define longest_int long long
@@ -347,19 +357,20 @@ typedef struct FTPConnectionInfo {
 	int hasMDTM;				/* Do not modify this field. */
 	int hasREST;				/* Do not modify this field. */
 	int hasNLST_d;				/* Do not modify this field. */
-	int hasUTIME;				/* Do not modify this field. */
 	int hasFEAT;				/* Do not modify this field. */
 	int hasMLSD;				/* Do not modify this field. */
 	int hasMLST;				/* Do not modify this field. */
 	int usedMLS;				/* Do not modify this field. */
 	int hasCLNT;				/* Do not modify this field. */
-	int hasRETRBUFSIZE;			/* Do not modify this field. */
-	int hasRBUFSIZ;				/* Do not modify this field. */
-	int hasRBUFSZ;				/* Do not modify this field. */
-	int hasSTORBUFSIZE;			/* Do not modify this field. */
-	int hasSBUFSIZ;				/* Do not modify this field. */
-	int hasSBUFSZ;				/* Do not modify this field. */
-	int hasBUFSIZE;				/* Do not modify this field. */
+	int hasHELP_SITE;			/* Do not modify this field. */
+	int hasSITE_UTIME;			/* Do not modify this field. */
+	int hasSITE_RETRBUFSIZE;		/* Do not modify this field. */
+	int hasSITE_RBUFSIZ;			/* Do not modify this field. */
+	int hasSITE_RBUFSZ;			/* Do not modify this field. */
+	int hasSITE_STORBUFSIZE;		/* Do not modify this field. */
+	int hasSITE_SBUFSIZ;			/* Do not modify this field. */
+	int hasSITE_SBUFSZ;			/* Do not modify this field. */
+	int hasSITE_BUFSIZE;			/* Do not modify this field. */
 	int mlsFeatures;			/* Do not modify this field. */
 	int STATfileParamWorks;			/* Do not modify this field. */
 	int NLSTfileParamWorks;			/* Do not modify this field. */
@@ -380,6 +391,7 @@ typedef struct FTPConnectionInfo {
 	int leavePass;				/* You may modify this. */
 	int eofOkay;				/* Do not use or modify. */
 	int require20;				/* You may modify this. */
+	int allowProxyForPORT;			/* You may modify this. */
 	int usingTAR;				/* Use, but do not modify. */
 	int serverType;				/* Do not use or modify. */
 	int ietfCompatLevel;			/* Do not use or modify. */
@@ -556,7 +568,9 @@ typedef struct MLstItem{
 #define kFirewallUserAtUserPassAtPass		5
 #define kFirewallFwuAtSiteFwpUserPass		6
 #define kFirewallUserAtSiteFwuPassFwp		7
-#define kFirewallLastType			kFirewallUserAtSiteFwuPassFwp
+#define kFirewallUserAtSitePort			8
+#define kFirewallUserAtSitePort2		9
+#define kFirewallLastType			kFirewallUserAtSitePort2
 
 /* For MLSD, MLST, and STAT. */
 #define kPreferredMlsOpts	(kMlsOptType | kMlsOptSize | kMlsOptModify | kMlsOptUNIXmode | kMlsOptUNIXowner | kMlsOptUNIXgroup | kMlsOptUNIXuid | kMlsOptUNIXgid | kMlsOptPerm)
@@ -589,6 +603,7 @@ typedef struct MLstItem{
 #define kConfirmResumeProcSaidCancel 6
 
 typedef int (*FTPConfirmResumeDownloadProc)(
+	const FTPCIPtr cip,
 	const char **localpath,
 	longest_int localsize,
 	time_t localmtime,
@@ -599,6 +614,7 @@ typedef int (*FTPConfirmResumeDownloadProc)(
 );
 
 typedef int (*FTPConfirmResumeUploadProc)(
+	const FTPCIPtr cip,
 	const char *localpath,
 	longest_int localsize,
 	time_t localmtime,
@@ -791,12 +807,12 @@ extern int gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 #	ifndef UNUSED
 #		define UNUSED(a) a
 #	endif
-#elif (defined(__GNUC__)) && (__GNUC__ >= 3)
+#elif (defined(__GNUC__)) && (__GNUC__ >= 3) && (! defined(__cplusplus))
 #	ifndef UNUSED
 #		define UNUSED(a) a __attribute__ ((__unused__))
 #	endif
 #	define LIBNCFTP_USE_VAR(a)
-#elif (defined(__GNUC__)) && (__GNUC__ == 2)
+#elif (defined(__GNUC__)) && (__GNUC__ == 2) && (! defined(__cplusplus))
 #	ifndef UNUSED
 #		define UNUSED(a) a __attribute__ ((unused))
 #	endif

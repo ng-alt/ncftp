@@ -41,7 +41,7 @@ FTPFileExistsStat(const FTPCIPtr cip, const char *const file)
 		if (rp == NULL) {
 			result = kErrMallocFailed;
 			cip->errNo = kErrMallocFailed;
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			return (result);
 
 		}
@@ -127,7 +127,7 @@ FTPFileExistsStat(const FTPCIPtr cip, const char *const file)
 		if (rp == NULL) {
 			result = kErrMallocFailed;
 			cip->errNo = kErrMallocFailed;
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			DisposeLineListContents(&fileList);
 			(void) FTPChdir(cip, savedCwd);
 			return (result);
@@ -173,7 +173,7 @@ FTPFileExistsStat(const FTPCIPtr cip, const char *const file)
 	if (rp == NULL) {
 		result = kErrMallocFailed;
 		cip->errNo = kErrMallocFailed;
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		return (result);
 	}
 

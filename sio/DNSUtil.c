@@ -16,7 +16,9 @@
 	}
 #endif
 
-
+#if ((defined(MACOSX)) || (defined(AIX) && (AIX < 430)) || (defined(DIGITAL_UNIX)) || (defined(SOLARIS)) || (defined(SCO)) || (defined(HPUX)))
+extern int getdomainname(char *name, gethostname_size_t namelen);
+#endif
 
 
 int

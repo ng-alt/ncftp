@@ -126,7 +126,7 @@ FTPLocalRecursiveFileList2(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInfoLis
 
 		/* Use Stat rather than Lstat so top level path can be a link. */
 		if (Stat(filePtr->line[0] == '\0' ? "." : filePtr->line, &st) < 0) {
-			Error(cip, kDoPerror, "could not stat %s.\n", filePtr->line[0] == '\0' ? "." : filePtr->line);
+			FTPLogError(cip, kDoPerror, "could not stat %s.\n", filePtr->line[0] == '\0' ? "." : filePtr->line);
 			continue;
 		}
 

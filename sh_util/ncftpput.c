@@ -396,7 +396,7 @@ main(int argc, char **argv)
 	if (progmeters != 0)
 		fi.progress = PrStatBar;
 	if (tryUtime == 0)
-		fi.hasUTIME = 0;
+		fi.hasSITE_UTIME = 0;
 	if (nD >= 2)
 		deleteflag = kDeleteYes;
 

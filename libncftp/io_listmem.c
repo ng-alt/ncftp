@@ -117,7 +117,7 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 			/* Not really fdopen, but close in what we're trying to do. */
 			result = kErrFdopenR;
 			cip->errNo = kErrFdopenR;
-			Error(cip, kDoPerror, "Could not fdopen.\n");
+			FTPLogError(cip, kDoPerror, "Could not fdopen.\n");
 			return (result);
 		}
 		
@@ -125,7 +125,7 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 			result = SReadline(&lsSrl, line, sizeof(line) - 1);
 			if (result == kTimeoutErr) {
 				/* timeout */
-				Error(cip, kDontPerror, "Could not directory listing data -- timed out.\n");
+				FTPLogError(cip, kDontPerror, "Could not directory listing data -- timed out.\n");
 				cip->errNo = kErrDataTimedOut;
 				return (cip->errNo);
 			} else if (result == 0) {
@@ -134,7 +134,7 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 				break;
 			} else if (result < 0) {
 				/* error */
-				Error(cip, kDoPerror, "Could not read directory listing data");
+				FTPLogError(cip, kDoPerror, "Could not read directory listing data");
 				result = kErrLISTFailed;
 				cip->errNo = kErrLISTFailed;
 				break;

@@ -111,6 +111,28 @@ clean:
 	@( cd ../sio ; $(MAKE) clean )
 	@( cd ../Strn ; $(MAKE) clean )
 
+distclean: clean
+	-/bin/rm -f ccdv
+	-find . \
+	           -name config.status -exec rm {} \; \
+		-o -name config.cache -exec rm {} \; \
+		-o -name config.log -exec rm {} \; \
+		-o -name config.h -exec rm {} \; \
+		-o -name Makefile -exec rm {} \;
+	-find ./../libncftp/../sio \
+	           -name config.status -exec rm {} \; \
+		-o -name config.cache -exec rm {} \; \
+		-o -name config.log -exec rm {} \; \
+		-o -name config.h -exec rm {} \; \
+		-o -name Makefile -exec rm {} \;
+	-find ./../libncftp/../Strn \
+	           -name config.status -exec rm {} \; \
+		-o -name config.cache -exec rm {} \; \
+		-o -name config.log -exec rm {} \; \
+		-o -name config.h -exec rm {} \; \
+		-o -name Makefile -exec rm {} \;
+	@echo "Warning: configure may have automatically patched ncftp.h"
+
 ### Dependencies #############################################################
 
 dep:

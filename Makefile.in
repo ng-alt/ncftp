@@ -77,8 +77,8 @@ clean:
 	@( cd vis ; $(MAKE) clean )
 
 distclean: clean
-	/bin/rm -f config.cache config.h config.log config.status libncftp/Makefile libncftp/config.h ncftp/Makefile sh_util/Makefile vis/Makefile Makefile.bin Strn/Makefile Strn/config.h sio/Makefile sio/config.h Makefile
-	/bin/rmdir bin
+	/bin/rm -f config.cache config.h config.log config.status libncftp/Makefile libncftp/config.h ncftp/Makefile sh_util/Makefile vis/Makefile Makefile.bin Strn/Makefile Strn/config.h Strn/Strn.version sio/Makefile sio/config.h sio/sio.version Makefile ccdv
+	/bin/rm -rf bin
 	@echo "Warning: configure may have automatically patched libncftp/ncftp.h"
 
 TMPDIR=/tmp

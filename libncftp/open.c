@@ -57,7 +57,7 @@ FTPAllocateHost(const FTPCIPtr cip)
 		} else {
 			buf = (char *) calloc((size_t) 1, cip->bufSize);
 			if (buf == NULL) {
-				Error(cip, kDontPerror, "Malloc failed.\n");
+				FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 				cip->errNo = kErrMallocFailed;
 				return (kErrMallocFailed);
 			}
@@ -93,7 +93,7 @@ FTPLoginHost(const FTPCIPtr cip)
 	ResponsePtr rp;
 	int result = kErrLoginFailed;
 	int anonLogin;
-	int sentpass = 0;
+	int sentpass = 0, fwsentpass = 0;
 	int fwloggedin;
 	int firstTime;
 	char cwd[512];
@@ -145,12 +145,18 @@ FTPLoginHost(const FTPCIPtr cip)
 
 		switch (rp->code) {
 			case 220:	/* Welcome, ready for new user. */
-				if ((cip->firewallType == kFirewallNotInUse) || (fwloggedin != 0)) {
+				if ((cip->firewallType == kFirewallNotInUse) || (fwloggedin != 0) || (fwsentpass != 0)) {
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "USER %s", cip->user);
 				} else if (cip->firewallType == kFirewallUserAtSite) {
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "USER %s@%s", cip->user, cip->host);
+				} else if (cip->firewallType == kFirewallUserAtSitePort) {
+					ReInitResponse(cip, rp);
+					result = RCmd(cip, rp, "USER %s@%s:%u", cip->user, cip->host, cip->port);
+				} else if (cip->firewallType == kFirewallUserAtSitePort2) {
+					ReInitResponse(cip, rp);
+					result = RCmd(cip, rp, "USER %s@%s %u", cip->user, cip->host, cip->port);
 				} else if (cip->firewallType == kFirewallUserAtUserPassAtPass) {
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "USER %s@%s@%s", cip->user, cip->firewallUser, cip->host);
@@ -193,7 +199,7 @@ FTPLoginHost(const FTPCIPtr cip)
 					/* only reached when !fwloggedin */
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "USER %s", cip->user);
-				} else /* kFirewallUserAtSite */ {
+				} else /* kFirewallUserAtSite[Port[2]] */ {
 					goto okay;
 				}
 				break;
@@ -203,31 +209,36 @@ FTPLoginHost(const FTPCIPtr cip)
 				goto done;
 				
 			case 331:	/* 331 User name okay, need password. */
-				if ((cip->firewallType == kFirewallNotInUse) || (fwloggedin != 0)) {
+				if ((cip->firewallType == kFirewallNotInUse) || (fwloggedin != 0) || (fwsentpass != 0)) {
 					if ((cip->pass[0] == '\0') && (cip->passphraseProc != kNoFTPGetPassphraseProc))
 						(*cip->passphraseProc)(cip, &rp->msg, cip->pass, sizeof(cip->pass));
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s", cip->pass);
-				} else if (cip->firewallType == kFirewallUserAtSite) {
+					sentpass++;
+				} else if ((cip->firewallType == kFirewallUserAtSite) || (cip->firewallType == kFirewallUserAtSitePort) || (cip->firewallType == kFirewallUserAtSitePort2)) {
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s", cip->pass);
+					sentpass++;
 				} else if (cip->firewallType == kFirewallUserAtUserPassAtPass) {
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s@%s", cip->pass, cip->firewallPass);
+					fwsentpass++;
 				} else if (cip->firewallType == kFirewallUserAtSiteFwuPassFwp) {
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s", cip->pass);
+					sentpass++;
 				} else if (cip->firewallType == kFirewallFwuAtSiteFwpUserPass) {
 					/* only reached when !fwloggedin */
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s", cip->firewallPass);
+					fwsentpass++;
 				} else if (cip->firewallType > kFirewallNotInUse) {
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s", cip->firewallPass);
+					fwsentpass++;
 				} else {
 					goto unknown;
 				}
-				sentpass++;
 				break;
 
 			case 332:	/* 332 Need account for login. */
@@ -248,9 +259,9 @@ FTPLoginHost(const FTPCIPtr cip)
 			default:
 			unknown:
 				if (rp->msg.first == NULL) {
-					Error(cip, kDontPerror, "Lost connection during login.\n");
+					FTPLogError(cip, kDontPerror, "Lost connection during login.\n");
 				} else {
-					Error(cip, kDontPerror, "Unexpected response: %s\n",
+					FTPLogError(cip, kDontPerror, "Unexpected response: %s\n",
 						rp->msg.first->line
 					);
 				}
@@ -391,10 +402,11 @@ FTPQueryFeatures(const FTPCIPtr cip)
 		cip->hasMDTM = kCommandNotAvailable;
 		cip->hasREST = kCommandNotAvailable;
 		cip->NLSTfileParamWorks = kCommandAvailable;
-		cip->hasUTIME = kCommandNotAvailable;
 		cip->hasCLNT = kCommandNotAvailable;
 		cip->hasMLST = kCommandNotAvailable;
 		cip->hasMLSD = kCommandNotAvailable;
+		cip->hasSITE_UTIME = kCommandNotAvailable;
+		cip->hasHELP_SITE = kCommandNotAvailable;
 		return (kNoErr);
 	}
 
@@ -457,7 +469,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 				} else if (ISTRNCMP(cp, "REST", 4) == 0) {
 					cip->hasREST = kCommandAvailable;
 				} else if (ISTRNCMP(cp, "UTIME", 5) == 0) {
-					cip->hasUTIME = kCommandAvailable;
+					cip->hasSITE_UTIME = kCommandAvailable;
 				} else if (ISTRNCMP(cp, "MLST", 4) == 0) {
 					cip->hasMLST = kCommandAvailable;
 					cip->hasMLSD = kCommandAvailable;
@@ -475,15 +487,20 @@ FTPQueryFeatures(const FTPCIPtr cip)
 			}
 		}
 
+		/* You can set cip->hasHELP_SITE to kCommandNotAvailable
+		 * if your host chokes (i.e. IBM Mainframes) when you
+		 * do "HELP SITE".
+		 */
 		ReInitResponse(cip, rp);
-		result = RCmd(cip, rp, "HELP SITE");
+		result = (cip->hasHELP_SITE == kCommandNotAvailable) ? (-1) : RCmd(cip, rp, "HELP SITE");
 		if (result == 2) {
+			cip->hasHELP_SITE = kCommandAvailable;
 			for (lp = rp->msg.first; lp != NULL; lp = lp->next) {
 				cp = lp->line;
 				if (strstr(cp, "RETRBUFSIZE") != NULL)
-					cip->hasRETRBUFSIZE = kCommandAvailable;
+					cip->hasSITE_RETRBUFSIZE = kCommandAvailable;
 				if (strstr(cp, "RBUFSZ") != NULL)
-					cip->hasRBUFSZ = kCommandAvailable;
+					cip->hasSITE_RBUFSZ = kCommandAvailable;
 				/* See if RBUFSIZ matches (but not STORBUFSIZE) */
 				if (
 					((p = strstr(cp, "RBUFSIZ")) != NULL) &&
@@ -492,15 +509,15 @@ FTPQueryFeatures(const FTPCIPtr cip)
 						((p > cp) && (!isupper((int) p[-1])))
 					)
 				)
-					cip->hasRBUFSIZ = kCommandAvailable;
+					cip->hasSITE_RBUFSIZ = kCommandAvailable;
 				if (strstr(cp, "STORBUFSIZE") != NULL)
-					cip->hasSTORBUFSIZE = kCommandAvailable;
+					cip->hasSITE_STORBUFSIZE = kCommandAvailable;
 				if (strstr(cp, "SBUFSIZ") != NULL)
-					cip->hasSBUFSIZ = kCommandAvailable;
+					cip->hasSITE_SBUFSIZ = kCommandAvailable;
 				if (strstr(cp, "SBUFSZ") != NULL)
-					cip->hasSBUFSZ = kCommandAvailable;
+					cip->hasSITE_SBUFSZ = kCommandAvailable;
 				if (strstr(cp, "BUFSIZE") != NULL)
-					cip->hasBUFSIZE = kCommandAvailable;
+					cip->hasSITE_BUFSIZE = kCommandAvailable;
 			}
 		}
 		DoneWithResponse(cip, rp);
@@ -612,13 +629,13 @@ FTPInitialLogEntry(const FTPCIPtr cip)
 				(void) fgets(line, sizeof(line) - 1, fp);
 				cp = line + strlen(line) - 1;
 				while (cp > line) {
-					if (! isspace(*cp))
+					if (! isspace((int) *cp))
 						break;
 					--cp;
 				}
 				cp[1] = '\0';
 				cp = line;
-				while ((*cp != '\0') && (isspace(*cp)))
+				while ((*cp != '\0') && (isspace((int) *cp)))
 					cp++;
 				fclose(fp);
 				PrintF(cip, "Release: %s\n", cp);
@@ -806,22 +823,24 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->hasMDTM = kCommandAvailabilityUnknown;
 	cip->hasREST = kCommandAvailabilityUnknown;
 	cip->hasNLST_d = kCommandAvailabilityUnknown;
-	cip->hasUTIME = kCommandAvailabilityUnknown;
 	cip->hasFEAT = kCommandAvailabilityUnknown;
 	cip->hasMLSD = kCommandAvailabilityUnknown;
 	cip->hasMLST = kCommandAvailabilityUnknown;
 	cip->hasCLNT = kCommandAvailabilityUnknown;
-	cip->hasRETRBUFSIZE = kCommandAvailabilityUnknown;
-	cip->hasRBUFSIZ = kCommandAvailabilityUnknown;
-	cip->hasRBUFSZ = kCommandAvailabilityUnknown;
-	cip->hasSTORBUFSIZE = kCommandAvailabilityUnknown;
-	cip->hasSBUFSIZ = kCommandAvailabilityUnknown;
-	cip->hasSBUFSZ = kCommandAvailabilityUnknown;
+	cip->hasHELP_SITE = kCommandAvailabilityUnknown;
+	cip->hasSITE_UTIME = kCommandAvailabilityUnknown;
+	cip->hasSITE_RETRBUFSIZE = kCommandAvailabilityUnknown;
+	cip->hasSITE_RBUFSIZ = kCommandAvailabilityUnknown;
+	cip->hasSITE_RBUFSZ = kCommandAvailabilityUnknown;
+	cip->hasSITE_STORBUFSIZE = kCommandAvailabilityUnknown;
+	cip->hasSITE_SBUFSIZ = kCommandAvailabilityUnknown;
+	cip->hasSITE_SBUFSZ = kCommandAvailabilityUnknown;
 	cip->STATfileParamWorks = kCommandAvailabilityUnknown;
 	cip->NLSTfileParamWorks = kCommandAvailabilityUnknown;
 	cip->firewallType = kFirewallNotInUse;
 	cip->startingWorkingDirectory = NULL;
 	cip->shutdownUnusedSideOfSockets = 0;
+	InitLineList(&cip->lastFTPCmdResultLL);
 	(void) STRNCPY(cip->magic, kLibraryMagic);
 	(void) STRNCPY(cip->user, "anonymous");
 	(void) gettimeofday(&cip->initTime, NULL);

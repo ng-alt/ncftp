@@ -217,6 +217,7 @@ static void     gl_word(int direction);	/* move a word */
 static void     gl_killword(int direction);
 
 static void     hist_init(void);	/* initializes hist pointers */
+static void     hist_dispose(void);	/* deallocates history */
 static char    *hist_next(void);	/* return ptr to next item */
 static char    *hist_prev(void);	/* return ptr to prev item */
 static char    *hist_save(const char *const p);	/* makes copy of a string, without NL */
@@ -564,6 +565,18 @@ gl_cleanup(void)
 #endif
 }
 
+void
+gl_dispose(void)
+{
+	gl_cleanup();
+	hist_dispose();
+#ifdef __windows__
+	if (gl_home_dir != NULL) {
+		free(gl_home_dir);
+		gl_home_dir = NULL;
+	}
+#endif
+}	/* gl_dispose */
 
 static void
 gl_check_inputrc_for_vi(void)
@@ -1418,7 +1431,25 @@ hist_init(void)
     hist_buf[0] = hist_empty_elem;
     for (i=1; i < HIST_SIZE; i++)
 	hist_buf[i] = (char *)0;
+    hist_pos = hist_last = 0;
 }
+
+static void
+hist_dispose(void)
+{
+    int i;
+
+    for (i=0; i < HIST_SIZE; i++) {
+    	if ((hist_buf[i] != hist_empty_elem) && (hist_buf[i] != (char *)0)) {
+		free(hist_buf[i]);
+		hist_buf[i] = (char *)0;
+    	}
+    }
+
+    /* history is disposed, but also now re-initialized. */
+    hist_buf[0] = hist_empty_elem;
+    hist_pos = hist_last = 0;
+}	/* hist_dispose */
 
 void
 gl_histadd(const char *const buf)

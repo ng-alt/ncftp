@@ -859,7 +859,6 @@ strncoll(const char *a, const char *b, size_t n)
 		(void) strncpy(sa, a, n);
 		(void) strncpy(sb, b, n);
 		rc = (strcoll(sa, sb));
-		return (rc);
 	} else {
 		char *ma, *mb;
 
@@ -877,8 +876,8 @@ strncoll(const char *a, const char *b, size_t n)
 		rc = (strcoll(ma, mb));
 		free(ma);
 		free(mb);
-		return (rc);
 	}
+	return (rc);
 }	/* strncoll */
 #endif
 

@@ -30,7 +30,7 @@ FTPGetCWD(const FTPCIPtr cip, char *const newCwd, const size_t newCwdSize)
 		if (rp == NULL) {
 			result = kErrMallocFailed;
 			cip->errNo = kErrMallocFailed;
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		} else {
 			result = RCmd(cip, rp, "PWD");
 			if (result == 2) {
@@ -93,7 +93,7 @@ FTPChdirAndGetCWD(const FTPCIPtr cip, const char *const cdCwd, char *const newCw
 		if (rp == NULL) {
 			result = kErrMallocFailed;
 			cip->errNo = kErrMallocFailed;
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		} else {
 			if (strcmp(cdCwd, "..") == 0)
 				result = RCmd(cip, rp, "CDUP"); 	

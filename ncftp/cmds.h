@@ -44,6 +44,7 @@ void MlsCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 int DoOpen(void);
 void OpenCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void PageCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
+void PassiveCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void PutCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void PwdCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void QuitCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);

@@ -33,7 +33,7 @@ FTPFileModificationTime(const FTPCIPtr cip, const char *const file, time_t *cons
 		if (rp == NULL) {
 			result = kErrMallocFailed;
 			cip->errNo = kErrMallocFailed;
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		} else {
 			result = RCmd(cip, rp, "MDTM %s", file);
 			if (result < 0) {
@@ -45,7 +45,7 @@ FTPFileModificationTime(const FTPCIPtr cip, const char *const file, time_t *cons
 					/* Year was printed as "19100" rather than
 					 * "2000" ...
 					 */
-					Error(cip, kDontPerror, "Warning: Server has Y2K Bug in \"MDTM\" command.\n");
+					FTPLogError(cip, kDontPerror, "Warning: Server has Y2K Bug in \"MDTM\" command.\n");
 				}
 				*mdtm = UnMDTMDate(rp->msg.first->line);
 				cip->hasMDTM = kCommandAvailable;

@@ -195,7 +195,7 @@ FTPGetFiles3(
 						c = *cp;
 						*cp = '\0';
 						if (MkDirs(ldir, 00777) < 0) {
-							Error(cip, kDoPerror, "Could not create local directory \"%s\"\n", ldir);
+							FTPLogError(cip, kDoPerror, "Could not create local directory \"%s\"\n", ldir);
 							batchResult = kErrGeneric;
 							*cp = c;
 							continue;
@@ -228,7 +228,7 @@ FTPGetFiles3(
 			if (filePtr->type == 'l') {
 				(void) unlink(filePtr->lname);
 				if (symlink(filePtr->rlinkto, filePtr->lname) < 0) {
-					Error(cip, kDoPerror, "Could not symlink %s to %s\n", filePtr->rlinkto, filePtr->lname);
+					FTPLogError(cip, kDoPerror, "Could not symlink %s to %s\n", filePtr->rlinkto, filePtr->lname);
 					/* Note: not worth setting batchResult */
 				}
 			}

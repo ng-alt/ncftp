@@ -26,7 +26,7 @@ FTPRemoteHelp(const FTPCIPtr cip, const char *const pattern, const FTPLineListPt
 	if (rp == NULL) {
 		result = kErrMallocFailed;
 		cip->errNo = kErrMallocFailed;
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 	} else {
 		if ((pattern == NULL) || (*pattern == '\0'))
 			result = RCmd(cip, rp, "HELP");
@@ -39,7 +39,7 @@ FTPRemoteHelp(const FTPCIPtr cip, const char *const pattern, const FTPLineListPt
 			if (CopyLineList(llp, &rp->msg) < 0) {
 				result = kErrMallocFailed;
 				cip->errNo = kErrMallocFailed;
-				Error(cip, kDontPerror, "Malloc failed.\n");
+				FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			} else {
 				result = kNoErr;
 			}

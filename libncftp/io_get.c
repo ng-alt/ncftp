@@ -74,7 +74,7 @@ FTPGetOneF(
 	time_t now;
 
 	if (cip->buf == NULL) {
-		Error(cip, kDoPerror, "Transfer buffer not allocated.\n");
+		FTPLogError(cip, kDoPerror, "Transfer buffer not allocated.\n");
 		cip->errNo = kErrNoBuf;
 		return (cip->errNo);
 	}
@@ -98,10 +98,13 @@ FTPGetOneF(
 		 */
 
 		AutomaticallyUseASCIIModeDependingOnExtension(cip, file, &xtype);
-		if (expectedSize == kSizeUnknown) {
-			(void) FTPFileSizeAndModificationTime(cip, file, &expectedSize, xtype, &mdtm);
-		} else {
-			(void) FTPFileModificationTime(cip, file, &mdtm);
+
+		if ((cip->progress != (FTPProgressMeterProc) 0) || (resumeflag == kResumeYes) || (resumeProc != kNoFTPConfirmResumeDownloadProc)) {
+			if (expectedSize == kSizeUnknown) {
+				(void) FTPFileSizeAndModificationTime(cip, file, &expectedSize, xtype, &mdtm);
+			} else {
+				(void) FTPFileModificationTime(cip, file, &mdtm);
+			}
 		}
 
 		/* For Get, we can't recover very well if it turns out restart
@@ -126,6 +129,7 @@ FTPGetOneF(
 			if (resumeProc != NULL) {
 				tstartPoint = startPoint;
 				zaction = (*resumeProc)(
+						cip,
 						&dstfile,
 						(longest_int) st.st_size,
 						st.st_mtime,
@@ -263,7 +267,7 @@ FTPGetOneF(
 		}
 
 		if (fd < 0) {
-			Error(cip, kDoPerror, "Cannot open local file %s for writing.\n", dstfile);
+			FTPLogError(cip, kDoPerror, "Cannot open local file %s for writing.\n", dstfile);
 			result = kErrOpenFailed;
 			cip->errNo = kErrOpenFailed;
 			return (result);
@@ -304,13 +308,13 @@ FTPGetOneF(
 		 * negotiate "TCP Large Windows" which may yield
 		 * significant performance gains.
 		 */
-		if (cip->hasRETRBUFSIZE == kCommandAvailable)
+		if (cip->hasSITE_RETRBUFSIZE == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE RETRBUFSIZE %lu", (unsigned long) cip->dataSocketRBufSize);
-		else if (cip->hasRBUFSIZ == kCommandAvailable)
+		else if (cip->hasSITE_RBUFSIZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE RBUFSIZ %lu", (unsigned long) cip->dataSocketRBufSize);
-		else if (cip->hasRBUFSZ == kCommandAvailable)
+		else if (cip->hasSITE_RBUFSZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE RBUFSZ %lu", (unsigned long) cip->dataSocketRBufSize);
-		else if (cip->hasBUFSIZE == kCommandAvailable)
+		else if (cip->hasSITE_BUFSIZE == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE BUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
 	}
 
@@ -399,7 +403,7 @@ FTPGetOneF(
 		for (;;) {
 			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
 				cip->errNo = result = kErrDataTimedOut;
-				Error(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
 				break;
 			}
 			if (cip->cancelXfer > 0) {
@@ -419,17 +423,17 @@ FTPGetOneF(
 			nread = (read_return_t) SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 			if (nread == kTimeoutErr) {
 				cip->errNo = result = kErrDataTimedOut;
-				Error(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
 				break;
 			} else if (nread < 0) {
 				if (errno == EPIPE) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 				} else if (errno == EINTR) {
 					continue;
 				} else {
-					Error(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
 					result = kErrSocketReadFailed;
 					cip->errNo = kErrSocketReadFailed;
 				}
@@ -446,13 +450,13 @@ FTPGetOneF(
 				if ((gGotBrokenData != 0) || (errno == EPIPE)) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 					(void) shutdown(cip->dataSocket, 2);
 				} else if (errno == EINTR) {
 					continue;
 				} else {
 					result = cip->errNo = kErrSocketReadFailed;
-					Error(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
 					(void) shutdown(cip->dataSocket, 2);
 				}
 				break;
@@ -484,7 +488,7 @@ FTPGetOneF(
 						(void) shutdown(cip->dataSocket, 2);
 						goto brk;
 					} else {
-						Error(cip, kDoPerror, "Local write failed.\n");
+						FTPLogError(cip, kDoPerror, "Local write failed.\n");
 						result = kErrWriteFailed;
 						cip->errNo = kErrWriteFailed;
 						(void) shutdown(cip->dataSocket, 2);
@@ -503,7 +507,7 @@ FTPGetOneF(
 						(void) shutdown(cip->dataSocket, 2);
 						goto brk;
 					} else {
-						Error(cip, kDoPerror, "Local write failed.\n");
+						FTPLogError(cip, kDoPerror, "Local write failed.\n");
 						result = kErrWriteFailed;
 						cip->errNo = kErrWriteFailed;
 						(void) shutdown(cip->dataSocket, 2);
@@ -525,7 +529,7 @@ FTPGetOneF(
 		for (;;) {
 			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
 				cip->errNo = result = kErrDataTimedOut;
-				Error(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
 				break;
 			}
 			if (cip->cancelXfer > 0) {
@@ -545,17 +549,17 @@ FTPGetOneF(
 			nread = (read_return_t) SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 			if (nread == kTimeoutErr) {
 				cip->errNo = result = kErrDataTimedOut;
-				Error(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
 				break;
 			} else if (nread < 0) {
 				if (errno == EPIPE) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 				} else if (errno == EINTR) {
 					continue;
 				} else {
-					Error(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
 					result = kErrSocketReadFailed;
 					cip->errNo = kErrSocketReadFailed;
 				}
@@ -572,12 +576,12 @@ FTPGetOneF(
 				if ((gGotBrokenData != 0) || (errno == EPIPE)) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 				} else if (errno == EINTR) {
 					continue;
 				} else {
 					result = cip->errNo = kErrSocketReadFailed;
-					Error(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
 				}
 				(void) shutdown(cip->dataSocket, 2);
 				break;
@@ -594,7 +598,7 @@ FTPGetOneF(
 					cip->errNo = kErrWriteFailed;
 					errno = EPIPE;
 				} else {
-					Error(cip, kDoPerror, "Local write failed.\n");
+					FTPLogError(cip, kDoPerror, "Local write failed.\n");
 					result = kErrWriteFailed;
 					cip->errNo = kErrWriteFailed;
 				}

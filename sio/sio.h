@@ -171,10 +171,6 @@ typedef struct SReadlineInfo {
 typedef void (*sio_sigproc_t)(int);
 typedef volatile sio_sigproc_t vsio_sigproc_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 
 #if (defined(__APPLE_CC__)) && (__APPLE_CC__ < 10000)

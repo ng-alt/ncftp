@@ -52,9 +52,12 @@ void StrFree(char **dst);
 
 #ifndef _DStrInternal_h_
 typedef struct DStr {
-	const char *s;
-	const size_t len;
-	const size_t allocSize;
+	/* All of these structure fields are read-only; do not modify
+	 * them directly.
+	 */
+	char *s;
+	size_t len;
+	size_t allocSize;
 } DStr, *DStrPtr;
 #endif
 

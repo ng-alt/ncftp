@@ -77,7 +77,7 @@ FTPPutOneF(
 	int zaction = kConfirmResumeProcSaidBestGuess;
 
 	if (cip->buf == NULL) {
-		Error(cip, kDoPerror, "Transfer buffer not allocated.\n");
+		FTPLogError(cip, kDoPerror, "Transfer buffer not allocated.\n");
 		cip->errNo = kErrNoBuf;
 		return (cip->errNo);
 	}
@@ -86,7 +86,7 @@ FTPPutOneF(
 	if (fdtouse < 0) {
 		fd = Open(file, O_RDONLY|O_BINARY, 0);
 		if (fd < 0) {
-			Error(cip, kDoPerror, "Cannot open local file %s for reading.\n", file);
+			FTPLogError(cip, kDoPerror, "Cannot open local file %s for reading.\n", file);
 			cip->errNo = kErrOpenFailed;
 			return (cip->errNo);
 		}
@@ -99,7 +99,7 @@ FTPPutOneF(
 		if (fdtouse < 0) {
 			(void) close(fd);
 		}
-		Error(cip, kDontPerror, "%s is a directory.\n", (file != NULL) ? file : "that");
+		FTPLogError(cip, kDontPerror, "%s is a directory.\n", (file != NULL) ? file : "that");
 		cip->errNo = kErrOpenFailed;
 		return (cip->errNo);
 	}
@@ -113,7 +113,10 @@ FTPPutOneF(
 
 	if (fdtouse < 0) {
 		AutomaticallyUseASCIIModeDependingOnExtension(cip, dstfile, &xtype);
-		(void) FTPFileSizeAndModificationTime(cip, dstfile, &startPoint, xtype, &mdtm);
+		mdtm = kModTimeUnknown;
+		if ((cip->progress != (FTPProgressMeterProc) 0) || (resumeflag == kResumeYes) || (resumeProc != kNoFTPConfirmResumeUploadProc)) {
+			(void) FTPFileSizeAndModificationTime(cip, dstfile, &startPoint, xtype, &mdtm);
+		}
 
 		if (appendflag == kAppendYes) {
 			zaction = kConfirmResumeProcSaidAppend;
@@ -150,7 +153,7 @@ FTPPutOneF(
 			(statrc == 0)
 		) {
 			tdstfile = dstfile;
-			zaction = (*resumeProc)(file, (longest_int) st.st_size, st.st_mtime, &tdstfile, startPoint, mdtm, &startPoint);
+			zaction = (*resumeProc)(cip, file, (longest_int) st.st_size, st.st_mtime, &tdstfile, startPoint, mdtm, &startPoint);
 			dstfile = tdstfile;
 		}
 
@@ -361,7 +364,7 @@ FTPPutOneF(
 				} else {
 					result = kErrReadFailed;
 					cip->errNo = kErrReadFailed;
-					Error(cip, kDoPerror, "Local read failed.\n");
+					FTPLogError(cip, kDoPerror, "Local read failed.\n");
 				}
 				break;
 			} else if (nread == 0) {
@@ -390,7 +393,7 @@ FTPPutOneF(
 			do {
 				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
 					cip->errNo = result = kErrDataTimedOut;
-					Error(cip, kDontPerror, "Remote write timed out.\n");
+					FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
 					goto brk;
 				}
 				if (cip->cancelXfer > 0) {
@@ -404,16 +407,16 @@ FTPPutOneF(
 				if (nwrote < 0) {
 					if (nwrote == kTimeoutErr) {
 						cip->errNo = result = kErrDataTimedOut;
-						Error(cip, kDontPerror, "Remote write timed out.\n");
+						FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
 					} else if (errno == EPIPE) {
 						cip->errNo = result = kErrSocketWriteFailed;
 						errno = EPIPE;
-						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 					} else if (errno == EINTR) {
 						continue;
 					} else {
 						cip->errNo = result = kErrSocketWriteFailed;
-						Error(cip, kDoPerror, "Remote write failed.\n");
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
 					goto brk;
@@ -424,12 +427,12 @@ FTPPutOneF(
 					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
 						cip->errNo = result = kErrSocketWriteFailed;
 						errno = EPIPE;
-						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 					} else if (errno == EINTR) {
 						continue;
 					} else {
 						cip->errNo = result = kErrSocketWriteFailed;
-						Error(cip, kDoPerror, "Remote write failed.\n");
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
 					goto brk;
@@ -456,7 +459,7 @@ FTPPutOneF(
 				} else {
 					result = kErrReadFailed;
 					cip->errNo = kErrReadFailed;
-					Error(cip, kDoPerror, "Local read failed.\n");
+					FTPLogError(cip, kDoPerror, "Local read failed.\n");
 				}
 				break;
 			} else if (nread == 0) {
@@ -472,7 +475,7 @@ FTPPutOneF(
 			do {
 				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
 					cip->errNo = result = kErrDataTimedOut;
-					Error(cip, kDontPerror, "Remote write timed out.\n");
+					FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
 					goto brk;
 				}
 				if (cip->cancelXfer > 0) {
@@ -486,16 +489,16 @@ FTPPutOneF(
 				if (nwrote < 0) {
 					if (nwrote == kTimeoutErr) {
 						cip->errNo = result = kErrDataTimedOut;
-						Error(cip, kDontPerror, "Remote write timed out.\n");
+						FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
 					} else if (errno == EPIPE) {
 						cip->errNo = result = kErrSocketWriteFailed;
 						errno = EPIPE;
-						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 					} else if (errno == EINTR) {
 						continue;
 					} else {
 						cip->errNo = result = kErrSocketWriteFailed;
-						Error(cip, kDoPerror, "Remote write failed.\n");
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
 					cip->dataSocket = -1;
@@ -507,12 +510,12 @@ FTPPutOneF(
 					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
 						cip->errNo = result = kErrSocketWriteFailed;
 						errno = EPIPE;
-						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
 					} else if (errno == EINTR) {
 						continue;
 					} else {
 						cip->errNo = result = kErrSocketWriteFailed;
-						Error(cip, kDoPerror, "Remote write failed.\n");
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
 					cip->dataSocket = -1;
@@ -583,17 +586,17 @@ brk:
 				if (FTPDelete(cip, odstfile, kRecursiveNo, kGlobNo) == kNoErr) {
 					result = FTPRename(cip, dstfile, odstfile);
 					if (result < 0) {
-						Error(cip, kDontPerror, "Could not rename %s to %s: %s.\n", dstfile, odstfile, FTPStrError(cip->errNo));
+						FTPLogError(cip, kDontPerror, "Could not rename %s to %s: %s.\n", dstfile, odstfile, FTPStrError(cip->errNo));
 					}
 				} else {
-					Error(cip, kDontPerror, "Could not delete old %s, so could not rename %s to that: %s\n", odstfile, dstfile, FTPStrError(cip->errNo));
+					FTPLogError(cip, kDontPerror, "Could not delete old %s, so could not rename %s to that: %s\n", odstfile, dstfile, FTPStrError(cip->errNo));
 				}
 			}
 		}
 
 		if (FTPUtime(cip, odstfile, st.st_atime, st.st_mtime, st.st_ctime) != kNoErr) {
 			if (cip->errNo != kErrUTIMENotAvailable)
-				Error(cip, kDontPerror, "Could not preserve times for %s: %s.\n", odstfile, FTPStrError(cip->errNo));
+				FTPLogError(cip, kDontPerror, "Could not preserve times for %s: %s.\n", odstfile, FTPStrError(cip->errNo));
 		}
 
 		if ((result == kNoErr) && (deleteflag == kDeleteYes)) {

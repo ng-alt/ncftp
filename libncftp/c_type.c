@@ -39,7 +39,7 @@ FTPSetTransferType(const FTPCIPtr cip, int type)
 				break;
 			default:
 				/* Yeah, we don't support Tenex.  Who cares? */
-				Error(cip, kDontPerror, "Bad transfer type [%c].\n", type);
+				FTPLogError(cip, kDontPerror, "Bad transfer type [%c].\n", type);
 				cip->errNo = kErrBadTransferType;
 				return (kErrBadTransferType);
 		}

@@ -46,8 +46,7 @@ DisposeLineListContents(FTPLineListPtr list)
 		}
 		free(lp2);
 	}
-	/* Same as InitLineList. */
-	(void) memset(list, 0, sizeof(FTPLineList));
+	InitLineList(list);
 }	/* DisposeLineListContents */
 
 
@@ -56,7 +55,8 @@ DisposeLineListContents(FTPLineListPtr list)
 void
 InitLineList(FTPLineListPtr list)
 {
-	(void) memset(list, 0, sizeof(FTPLineList));
+	list->nLines = 0;
+	list->first = list->last = NULL;
 }	/* InitLineList */
 
 
@@ -185,8 +185,7 @@ DisposeFileInfoListContents(FTPFileInfoListPtr list)
 	if (list->vec != NULL)
 		free(list->vec);
 
-	/* Same as InitFileInfoList. */
-	(void) memset(list, 0, sizeof(FTPFileInfoList));
+	InitFileInfoList(list);
 }	/* DisposeFileInfoListContents */
 
 
@@ -196,19 +195,23 @@ void
 InitFileInfoList(FTPFileInfoListPtr list)
 {
 	(void) memset(list, 0, sizeof(FTPFileInfoList));
+
+	/* Redundant, but needed to shush BoundsChecker. */
+	list->first = list->last = NULL;
+	list->vec = (FTPFileInfoVec) 0;
 }	/* InitFileInfoList */
 
 
 
 
 static int
-TimeCmp(const void *const a, const void *const b)
+TimeCmp(const void *a, const void *b)
 {
-	const FTPFileInfo *const *fipa;
-	const FTPFileInfo *const *fipb;
+	FTPFileInfo *const *fipa;
+	FTPFileInfo *const *fipb;
 
-	fipa = (const FTPFileInfo *const *) a;
-	fipb = (const FTPFileInfo *const *) b;
+	fipa = (FTPFileInfo *const *) a;
+	fipb = (FTPFileInfo *const *) b;
 	if ((**fipb).mdtm == (**fipa).mdtm)
 		return (0);
 	else if ((**fipb).mdtm < (**fipa).mdtm)
@@ -220,13 +223,13 @@ TimeCmp(const void *const a, const void *const b)
 
 
 static int
-ReverseTimeCmp(const void *const a, const void *const b)
+ReverseTimeCmp(const void *a, const void *b)
 {
-	const FTPFileInfo *const *fipa;
-	const FTPFileInfo *const *fipb;
+	FTPFileInfo *const *fipa;
+	FTPFileInfo *const *fipb;
 
-	fipa = (const FTPFileInfo *const *) a;
-	fipb = (const FTPFileInfo *const *) b;
+	fipa = (FTPFileInfo *const *) a;
+	fipb = (FTPFileInfo *const *) b;
 	if ((**fipa).mdtm == (**fipb).mdtm)
 		return (0);
 	else if ((**fipa).mdtm < (**fipb).mdtm)
@@ -238,13 +241,13 @@ ReverseTimeCmp(const void *const a, const void *const b)
 
 
 static int
-SizeCmp(const void *const a, const void *const b)
+SizeCmp(const void *a, const void *b)
 {
-	const FTPFileInfo *const *fipa;
-	const FTPFileInfo *const *fipb;
+	FTPFileInfo *const *fipa;
+	FTPFileInfo *const *fipb;
 
-	fipa = (const FTPFileInfo *const *) a;
-	fipb = (const FTPFileInfo *const *) b;
+	fipa = (FTPFileInfo *const *) a;
+	fipb = (FTPFileInfo *const *) b;
 	if ((**fipb).size == (**fipa).size)
 		return (0);
 	else if ((**fipb).size < (**fipa).size)
@@ -256,13 +259,13 @@ SizeCmp(const void *const a, const void *const b)
 
 
 static int
-ReverseSizeCmp(const void *const a, const void *const b)
+ReverseSizeCmp(const void *a, const void *b)
 {
-	const FTPFileInfo *const *fipa;
-	const FTPFileInfo *const *fipb;
+	FTPFileInfo *const *fipa;
+	FTPFileInfo *const *fipb;
 
-	fipa = (const FTPFileInfo *const *) a;
-	fipb = (const FTPFileInfo *const *) b;
+	fipa = (FTPFileInfo *const *) a;
+	fipb = (FTPFileInfo *const *) b;
 	if ((**fipa).size == (**fipb).size)
 		return (0);
 	else if ((**fipa).size < (**fipb).size)
@@ -274,13 +277,13 @@ ReverseSizeCmp(const void *const a, const void *const b)
 
 
 static int
-ReverseNameCmp(const void *const a, const void *const b)
+ReverseNameCmp(const void *a, const void *b)
 {
-	const FTPFileInfo *const *fipa;
-	const FTPFileInfo *const *fipb;
+	FTPFileInfo *const *fipa;
+	FTPFileInfo *const *fipb;
 
-	fipa = (const FTPFileInfo *const *) a;
-	fipb = (const FTPFileInfo *const *) b;
+	fipa = (FTPFileInfo *const *) a;
+	fipb = (FTPFileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipb).relname, (**fipa).relname));
 #else
@@ -292,13 +295,13 @@ ReverseNameCmp(const void *const a, const void *const b)
 
 
 static int
-NameCmp(const void *const a, const void *const b)
+NameCmp(const void *a, const void *b)
 {
-	const FTPFileInfo *const *fipa;
-	const FTPFileInfo *const *fipb;
+	FTPFileInfo *const *fipa;
+	FTPFileInfo *const *fipb;
 
-	fipa = (const FTPFileInfo *const *) a;
-	fipb = (const FTPFileInfo *const *) b;
+	fipa = (FTPFileInfo *const *) a;
+	fipb = (FTPFileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipa).relname, (**fipb).relname));
 #else
@@ -310,16 +313,16 @@ NameCmp(const void *const a, const void *const b)
 
 
 static int
-BreadthFirstCmp(const void *const a, const void *const b)
+BreadthFirstCmp(const void *a, const void *b)
 {
-	const FTPFileInfo *const *fipa;
-	const FTPFileInfo *const *fipb;
 	char *cp, *cpa, *cpb;
 	int depth, deptha, depthb;
 	int c;
+	FTPFileInfo *const *fipa;
+	FTPFileInfo *const *fipb;
 
-	fipa = (const FTPFileInfo *const *) a;
-	fipb = (const FTPFileInfo *const *) b;
+	fipa = (FTPFileInfo *const *) a;
+	fipb = (FTPFileInfo *const *) b;
 
 	cpa = (**fipa).relname;
 	cpb = (**fipb).relname;
@@ -481,10 +484,15 @@ void
 InitFileInfo(FTPFileInfoPtr fip)
 {
 	(void) memset(fip, 0, sizeof(FTPFileInfo));
+
 	fip->type = '-';
 	fip->size = kSizeUnknown;
 	fip->mdtm = kModTimeUnknown;
-}	/* InitFileInfoList */
+
+	/* Redundant, but needed to shush BoundsChecker. */
+	fip->relname = fip->rname = fip->rlinkto = fip->lname = fip->plug = NULL;
+	fip->prev = fip->next = NULL;
+}	/* InitFileInfo */
 
 
 

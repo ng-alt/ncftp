@@ -22,7 +22,7 @@ ServiceNameToPortNumber(const char *const s, const int proto)
 {
 	char str[64];
 	char *cp;
-#if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX))
+#if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX) || defined(DIGITAL_UNIX))
 	struct servent *sp;
 #elif defined(HAVE_GETSERVBYNAME_R)
 	struct servent se, *sp;
@@ -103,7 +103,7 @@ ServiceNameToPortNumber(const char *const s, const int proto)
 int
 ServicePortNumberToName(unsigned short port, char *const dst, const size_t dsize, const int proto)
 {
-#if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX))
+#if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX) || defined(DIGITAL_UNIX))
 	struct servent *sp;
 #elif defined(HAVE_GETSERVBYNAME_R)
 	struct servent se, *sp;

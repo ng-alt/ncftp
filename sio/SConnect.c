@@ -21,6 +21,42 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 
 
 
+#ifdef FIONBIO
+/*
+ * All this crud just to get various compilers to shut up about non-problems.
+ * Just ioctl() already!
+ */
+static int
+SSetFIONBIO(
+	int sfd,
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+	unsigned long onoff
+#else
+	int onoff
+#endif
+)
+{
+	int rc;
+#if (defined(HPUX))
+#	undef FIONBIO 
+#	define FIONBIO 0x8004667e
+#endif
+#if ((defined(TRU64UNIX)) || (defined(DIGITAL_UNIX)) || (defined(HPUX)))
+	unsigned int ui_fionbio = FIONBIO;
+#endif
+
+#if ((defined(TRU64UNIX)) || (defined(DIGITAL_UNIX)) || (defined(HPUX)))
+	rc = ioctlsocket(sfd, ui_fionbio, &onoff);
+#else
+	rc = ioctlsocket(sfd, FIONBIO, &onoff);
+#endif
+
+	return (rc);
+}	/* SSetFIONBIO */
+#endif	/* FIONBIO */
+
+
+
 
 int
 _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t saddrsiz, const int tlen)
@@ -49,7 +85,6 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	return (result);
 #else	/* NO_SIGNALS */
-	int opt;
 	fd_set ss, xx;
 	struct timeval tv;
 	int result;
@@ -59,6 +94,9 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	int soerr;
 	sockopt_size_t soerrsize;
 #else
+#ifndef FIONBIO
+	int fcntl_opt;
+#endif
 	int optval;
 	sockopt_size_t optlen;
 #endif
@@ -74,23 +112,15 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 	}
 
 #ifdef FIONBIO
-	opt = 1;
-#	if defined(__DECC) || defined(__DECCXX)
-#		pragma message save
-#		pragma message disable intconcastsgn
-#	endif
-	if (ioctlsocket(sfd, (int) FIONBIO, &opt) != 0) {
+	if (SSetFIONBIO(sfd, 1) < 0) {
 		SETERRNO
 		return (-1);
 	}
-#	if defined(__DECC) || defined(__DECCXX)
-#		pragma message restore
-#	endif
 #else
-	if ((opt = fcntl(sfd, F_GETFL, 0)) < 0) {
+	if ((fcntl_opt = fcntl(sfd, F_GETFL, 0)) < 0) {
 		SETERRNO
 		return (-1);
-	} else if (fcntl(sfd, F_SETFL, opt | O_NONBLOCK) < 0) {
+	} else if (fcntl(sfd, F_SETFL, fcntl_opt | O_NONBLOCK) < 0) {
 		SETERRNO
 		return (-1);
 	}
@@ -221,21 +251,13 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 connected:
 
 #ifdef FIONBIO
-#	if defined(__DECC) || defined(__DECCXX)
-#		pragma message save
-#		pragma message disable intconcastsgn
-#	endif
-	opt = 0;
-	if (ioctlsocket(sfd, (int) FIONBIO, &opt) != 0) {
+	if (SSetFIONBIO(sfd, 0) < 0) {
 		SETERRNO
 		shutdown(sfd, 2);
 		return (-1);
 	}
-#	if defined(__DECC) || defined(__DECCXX)
-#		pragma message restore
-#	endif
 #else
-	if (fcntl(sfd, F_SETFL, opt) < 0) {
+	if (fcntl(sfd, F_SETFL, fcntl_opt) < 0) {
 		SETERRNO
 		shutdown(sfd, 2);
 		return (-1);

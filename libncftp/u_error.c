@@ -12,7 +12,7 @@
 
 /*VARARGS*/
 void
-Error(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
+FTPLogError(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
 {
 	va_list ap;
 	int errnum;
@@ -85,4 +85,4 @@ Error(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
 	if ((cip->debugLogProc != NULL) && (cip->debugLogProc != cip->errLogProc)) {
 		(*cip->debugLogProc)(cip, buf);
 	}
-}	/* Error */
+}	/* FTPLogError */

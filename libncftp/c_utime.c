@@ -58,7 +58,7 @@ FTPUtime(const FTPCIPtr cip, const char *const file, time_t actime, time_t modti
 	(void) GmTimeStr(mstr, sizeof(mstr), modtime);
 
 	result = kErrUTIMENotAvailable;
-	if (cip->hasUTIME != kCommandNotAvailable) {
+	if (cip->hasSITE_UTIME != kCommandNotAvailable) {
 		if ((actime == (time_t) 0) || (actime == (time_t) -1)) {
 			if (now != (time_t) 0) {
 				actime = now;
@@ -80,17 +80,17 @@ FTPUtime(const FTPCIPtr cip, const char *const file, time_t actime, time_t modti
 		if (rp == NULL) {
 			result = kErrMallocFailed;
 			cip->errNo = kErrMallocFailed;
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		} else {
 			result = RCmd(cip, rp, "SITE UTIME %s %s %s %s UTC", file, astr, mstr, cstr); 	
 			if (result < 0) {
 				DoneWithResponse(cip, rp);
 				return (result);
 			} else if (result == 2) {
-				cip->hasUTIME = kCommandAvailable;
+				cip->hasSITE_UTIME = kCommandAvailable;
 				result = kNoErr;
 			} else if (UNIMPLEMENTED_CMD(rp->code)) {
-				cip->hasUTIME = kCommandNotAvailable;
+				cip->hasSITE_UTIME = kCommandNotAvailable;
 				cip->errNo = kErrUTIMENotAvailable;
 				result = kErrUTIMENotAvailable;
 			} else {

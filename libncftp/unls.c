@@ -287,6 +287,13 @@ UnLslRLine(	char *const line,
 	char *pe;
 	struct tm ftm;
 
+	*plugend = 0;
+	*ftype = 0;
+	if (ftime != NULL)
+		*ftime = (time_t) -1;
+	if (fsize != NULL)
+		*fsize = (longest_int) -1;
+
 	/*
 	 * Look for the digit just before the space
 	 * before the month name.
@@ -568,12 +575,12 @@ UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 						maxPlugLen = (size_t) plugend;
 				}
 			} else {
-				fi.plug = (char *) malloc(32);
+				fi.plug = (char *) malloc(32 + 1);
 				if (fi.plug != NULL) {
 					strcpy(fi.plug, "----------   1 ftpuser  ftpusers");
 					fi.plug[0] = (char) ftype;
-					if (30 > maxPlugLen)
-						maxPlugLen = (size_t) 30;
+					if (32 > maxPlugLen)
+						maxPlugLen = (size_t) 32;
 				}
 			}
 			(void) AddFileInfo(filp, &fi);

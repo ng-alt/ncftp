@@ -10,6 +10,30 @@
 #	pragma hdrstop
 #endif
 
+
+static void
+StripUnneccesaryGlobEntries(FTPLineListPtr fileList)
+{
+	FTPLinePtr lp, nextLine;
+	const char *cp;
+
+	for (lp=fileList->first; lp != NULL; lp = nextLine) {
+		nextLine = lp->next;
+		cp = strrchr(lp->line, '/');
+		if (cp == NULL)
+			cp = strrchr(lp->line, '\\');
+		if (cp == NULL)
+			cp = lp->line;
+		else
+			cp++;
+		if ((strcmp(cp, ".") == 0) || (strcmp(cp, "..") == 0))
+			nextLine = RemoveLine(fileList, lp);
+	}
+}	/* StripUnneccesaryGlobEntries */
+
+
+
+
 /* We need to use this because using NLST gives us more stuff than
  * we want back sometimes.  For example, say we have:
  *
@@ -53,7 +77,7 @@ RemoteGlobCollapse(const char *pattern, FTPLineListPtr fileList)
 	dp = patPrefix;
 	endp = dp + sizeof(patPrefix) - 1;
 	wasGlobChar = 0;
-	for (cp2 = pattern; dp < endp; ) {
+	for (cp2 = pattern; (*cp2 != '\0') && (dp < endp); ) {
 		for (pp=kGlobChars; *pp != '\0'; pp++) {
 			if (*pp == *cp2) {
 				wasGlobChar = 1;
@@ -169,6 +193,7 @@ FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int do
 				}
 			}
 		}
+		StripUnneccesaryGlobEntries(fileList);
 		RemoteGlobCollapse(pattern, fileList);
 		for (lp=fileList->first; lp != NULL; lp = lp->next)
 			PrintF(cip, "  Rglob [%s]\n", lp->line);

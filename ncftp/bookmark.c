@@ -848,3 +848,15 @@ DefaultBookmarkName(char *dst, size_t siz, char *src)
 	}
 	(void) Strncpy(dst, token, siz);
 }	/* DefaultBookmarkName */
+
+
+
+
+void
+DisposeBookmarkTable(void)
+{
+	if (gBookmarkTable != NULL) {
+		free(gBookmarkTable);
+		gBookmarkTable = NULL;
+	}
+}	/* DisposeBookmarkTable */

@@ -355,7 +355,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 			 */
 			if (SWaitUntilReadyForReading(cip->ctrlSocketR, 0) == 0) {
 				/* timeout */
-				Error(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
+				FTPLogError(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
 				FTPShutdownHost(vcip);
 				cip->errNo = kErrControlTimedOut;
 				return (cip->errNo);
@@ -364,7 +364,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 		result = SReadline(&cip->ctrlSrl, str, sizeof(str) - 1);
 		if (result == kTimeoutErr) {
 			/* timeout */
-			Error(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
+			FTPLogError(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrControlTimedOut;
 			return (cip->errNo);
@@ -373,13 +373,13 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 			eofError = 1;
 			rp->hadEof = 1;
 			if (rp->eofOkay == 0)
-				Error(cip, kDontPerror, "Remote host has closed the connection.\n");
+				FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrRemoteHostClosedConnection;
 			return (cip->errNo);
 		} else if (result < 0) {
 			/* error */
-			Error(cip, kDoPerror, "Could not read reply from control connection");
+			FTPLogError(cip, kDoPerror, "Could not read reply from control connection");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrInvalidReplyFromServer;
 			return (cip->errNo);
@@ -389,7 +389,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 			/* Blank lines are violation of protocol, but try to be
 			 * lenient with broken servers.
 			 */
-			Error(cip, kDontPerror, "Protocol violation by server: blank line on control.\n");
+			FTPLogError(cip, kDontPerror, "Protocol violation by server: blank line on control.\n");
 			continue;
 		}
 		if (str[result - 1] == '\n')
@@ -407,7 +407,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 			/* No bytes read for reply, and EOF detected. */
 			rp->hadEof = 1;
 			if (rp->eofOkay == 0)
-				Error(cip, kDontPerror, "Remote host has closed the connection.\n");
+				FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrRemoteHostClosedConnection;
 			(void) signal(SIGPIPE, osigpipe);
@@ -417,7 +417,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 #endif	/* NO_SIGNALS */
 
 	if (!isdigit((int) *cp)) {
-		Error(cip, kDontPerror, "Invalid reply: \"%s\"\n", cp);
+		FTPLogError(cip, kDontPerror, "Invalid reply: \"%s\"\n", cp);
 		cip->errNo = kErrInvalidReplyFromServer;
 #ifndef NO_SIGNALS
 		(void) signal(SIGPIPE, osigpipe);
@@ -443,7 +443,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 		result = SReadline(&cip->ctrlSrl, str, sizeof(str) - 1);
 		if (result == kTimeoutErr) {
 			/* timeout */
-			Error(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
+			FTPLogError(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrControlTimedOut;
 			return (cip->errNo);
@@ -452,13 +452,13 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 			eofError = 1;
 			rp->hadEof = 1;
 			if (rp->eofOkay == 0)
-				Error(cip, kDontPerror, "Remote host has closed the connection.\n");
+				FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrRemoteHostClosedConnection;
 			return (cip->errNo);
 		} else if (result < 0) {
 			/* error */
-			Error(cip, kDoPerror, "Could not read reply from control connection");
+			FTPLogError(cip, kDoPerror, "Could not read reply from control connection");
 			FTPShutdownHost(vcip);
 			cip->errNo = kErrInvalidReplyFromServer;
 			return (cip->errNo);
@@ -491,7 +491,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 		 *       must shut down.
 		 */
 		if (rp->eofOkay == 0)
-			Error(cip, kDontPerror, "Remote host has closed the connection.\n");
+			FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
 		FTPShutdownHost(vcip);
 		cip->errNo = kErrRemoteHostClosedConnection;
 #ifndef NO_SIGNALS
@@ -540,7 +540,7 @@ SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 
 		if (result < 0) {
 			cip->errNo = kErrSocketWriteFailed;
-			Error(cip, kDoPerror, "Could not write to control stream.\n");
+			FTPLogError(cip, kDoPerror, "Could not write to control stream.\n");
 			return (cip->errNo);
 		}
 		return (kNoErr);
@@ -587,7 +587,7 @@ SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 			(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
 			FTPShutdownHost(vcip);
 			if (vcip->eofOkay == 0) {
-				Error(cip, kDontPerror, "Remote host has closed the connection.\n");
+				FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
 				vcip->errNo = kErrRemoteHostClosedConnection;
 				return(vcip->errNo);
 			}
@@ -598,14 +598,14 @@ SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 		if (result < 0) {
 			(void) signal(SIGPIPE, osigpipe);
 			cip->errNo = kErrSocketWriteFailed;
-			Error(cip, kDoPerror, "Could not write to control stream.\n");
+			FTPLogError(cip, kDoPerror, "Could not write to control stream.\n");
 			return (cip->errNo);
 		}
 		result = fflush(cip->cout);
 		if (result < 0) {
 			(void) signal(SIGPIPE, osigpipe);
 			cip->errNo = kErrSocketWriteFailed;
-			Error(cip, kDoPerror, "Could not write to control stream.\n");
+			FTPLogError(cip, kDoPerror, "Could not write to control stream.\n");
 			return (cip->errNo);
 		}
 		(void) signal(SIGPIPE, osigpipe);
@@ -638,7 +638,7 @@ FTPCmd(const FTPCIPtr cip, const char *const cmdspec, ...)
 	if (rp == NULL) {
 		result = kErrMallocFailed;
 		cip->errNo = kErrMallocFailed;
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		return (cip->errNo);
 	}
 
@@ -858,7 +858,7 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 	 */
 	rp = InitResponse();
 	if (rp == NULL) {
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		cip->errNo = kErrMallocFailed;
 		result = cip->errNo;
 		goto done;
@@ -933,7 +933,7 @@ FTPAbortDataTransfer(const FTPCIPtr cip)
 
 		rp = InitResponse();
 		if (rp == NULL) {
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			cip->errNo = kErrMallocFailed;
 			result = cip->errNo;
 			return;
@@ -986,7 +986,7 @@ FTPEndDataCmd(const FTPCIPtr cip, int didXfer)
 		 */
 		rp = InitResponse();
 		if (rp == NULL) {
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			cip->errNo = kErrMallocFailed;
 			result = cip->errNo;
 			return (result);

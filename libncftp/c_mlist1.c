@@ -113,7 +113,7 @@ FTPMListOneFile(const FTPCIPtr cip, const char *const file, const MLstItemPtr ml
 	rp = InitResponse();
 	if (rp == NULL) {
 		result = cip->errNo = kErrMallocFailed;
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 	} else {
 		FTPRequestMlsOptions(cip);
 		result = RCmd(cip, rp, "MLST %s", file);

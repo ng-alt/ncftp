@@ -322,18 +322,18 @@ FTPSetUploadSocketBufferSize(const FTPCIPtr cip)
 	 * significant performance gains.
 	 */
 	if ((cip->numUploads == 0) && (cip->dataSocketSBufSize != 0)) {
-		if (cip->hasSTORBUFSIZE == kCommandAvailable)
+		if (cip->hasSITE_STORBUFSIZE == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE STORBUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
-		else if (cip->hasSBUFSIZ == kCommandAvailable)
+		else if (cip->hasSITE_SBUFSIZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE SBUFSIZ %lu", (unsigned long) cip->dataSocketSBufSize);
-		else if (cip->hasSBUFSZ == kCommandAvailable)
+		else if (cip->hasSITE_SBUFSZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE SBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
 		/* At least one server implemenation has RBUFSZ but not
 		 * SBUFSZ and instead uses RBUFSZ for both.
 		 */
-		else if ((cip->hasSBUFSZ != kCommandAvailable) && (cip->hasRBUFSZ == kCommandAvailable))
+		else if ((cip->hasSITE_SBUFSZ != kCommandAvailable) && (cip->hasSITE_RBUFSZ == kCommandAvailable))
 			(void) FTPCmd(cip, "SITE RBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
-		else if (cip->hasBUFSIZE == kCommandAvailable)
+		else if (cip->hasSITE_BUFSIZE == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE BUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
 	}
 }	/* FTPSetUploadSocketBufferSize */

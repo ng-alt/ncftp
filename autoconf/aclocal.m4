@@ -1,5 +1,5 @@
 AC_DEFUN(wi_ARG_WITH_SOCKS5, [
-	AC_ARG_WITH(socks5,[  --with-socks5           try to find and use the SOCKS5 library],wi_want_socks5=$enableval,wi_want_socks5=no)
+	AC_ARG_WITH(socks5,[  --with-socks5           try to find and use the SOCKS5 library],wi_want_socks5=$withval,wi_want_socks5=no)
 ])
 dnl
 dnl
@@ -78,8 +78,15 @@ dnl
 dnl
 dnl
 dnl
+AC_DEFUN(wi_ARG_DISABLE_CCDV, [
+AC_ARG_ENABLE(ccdv,[  --disable-ccdv          disable use of ccdv program in Makefiles],use_ccdv="$enableval",use_ccdv=yes)
+])
+dnl
+dnl
+dnl
+dnl
 AC_DEFUN(wi_CC_PRECOMP, [
-AC_CACHE_CHECK([if C compiler can use precompiled headers], [wi_cv_cc_precomp], [
+AC_CACHE_CHECK([if the C compiler can use precompiled headers], [wi_cv_cc_precomp], [
 	result="no"
 	wi_cv_cc_precomp_type="unknown"
 	/bin/rm -f pchtest.h pchtest.p pchtest.o
@@ -518,10 +525,10 @@ if test "$wi_os_default_cflags" = yes ; then
 				wi_os_default_cflags="-g -xansi -fullwarn -use_readonly_const -G0 -rdata_shared -woff 1174"
 				;;
 			no_digitalunix*)
-				wi_os_default_cflags="-O4 -std1 -portable -readonly_strings -msg_disable longlongtype,hexoctunsign"
+				wi_os_default_cflags="-O4 -std1 -portable -readonly_strings"
 				;;
 			yes_digitalunix*)
-				wi_os_default_cflags="-g -std1 -portable -readonly_strings -msg_disable longlongtype,hexoctunsign"
+				wi_os_default_cflags="-g -std1 -portable -readonly_strings"
 				;;
 			no_hpux*)
 				wi_os_default_cflags="-Ae +O2 +Ovolatile +Olibcalls +ESlit +w1 +DAportable"
@@ -530,10 +537,18 @@ if test "$wi_os_default_cflags" = yes ; then
 				wi_os_default_cflags="-Ae -g +w1 +DAportable"
 				;;
 			no_solaris*)
-				wi_os_default_cflags="-xO4 -xstrconst -dalign -Qn"
+				if test "$wi_cv_sunwspro_cc_version2" -ge 530 ; then
+					wi_os_default_cflags="-xipo -xO5 -xc99 -xbuiltin -xstrconst -dalign -Qn -errtags=yes -erroff=E_END_OF_LOOP_CODE_NOT_REACHED -mc"
+				else
+					wi_os_default_cflags="-xO4 -xstrconst -dalign -Qn"
+				fi
 				;;
 			yes_solaris*)
-				wi_os_default_cflags="-g -xstrconst -dalign -Qn"
+				if test "$wi_cv_sunwspro_cc_version2" -ge 530 ; then
+					wi_os_default_cflags="-g -xc99 -xstrconst -dalign -Qn -errtags=yes -erroff=E_END_OF_LOOP_CODE_NOT_REACHED"
+				else
+					wi_os_default_cflags="-g -xstrconst -dalign -Qn"
+				fi
 				;;
 			no_tru64*)
 				wi_os_default_cflags="-O4 -tune host -std1 -readonly_strings -portable -warnprotos -msg_enable level6 -msg_disable longlongtype,hexoctunsign,unusedincl,unnecincl,nestincl,unusedtop,unknownmacro,ignorecallval,strctpadding,truncintasn,truncintcast,trunclongcast,ansialiascast,conststocls,unrefsdecl,subscrbounds2"
@@ -586,6 +601,49 @@ case "$CFLAGS" in
 		;;
 esac
 STRIPFLAG="$SFLAG"
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_PROG_SUN_WORKSHOP_CC_VERSION, [
+AC_REQUIRE([AC_PROG_CC])
+if test "${SYS}_${ac_cv_prog_gcc}" != solaris_no ; then
+	wi_cv_cc_is_sunwspro_cc="no"
+	wi_cv_sunwspro_cc_version="0"
+	wi_cv_sunwspro_cc_version2="0"
+else
+	AC_CACHE_CHECK([if the C compiler is Sun WorkShop C],[wi_cv_cc_is_sunwspro_cc], [
+changequote(<<, >>)dnl
+#
+# cc: Sun WorkShop 6 update 2 C 5.3 2001/05/15
+# usage: cc [ options] files.  Use 'cc -flags' for details
+#
+# cc: WorkShop Compilers 4.2 30 Oct 1996 C 4.2
+# usage: cc [ options] files.  Use 'cc -flags' for details
+#
+		wi_cv_sunwspro_cc_version=`$CC -V 2>&1 | sed -n '/WorkShop.*C\ [1-9]/{s/^.*C/C/;s/^C\ \([^\ ]*\).*/\1/;p;q;}'`
+		case "$wi_cv_sunwspro_cc_version" in
+			[1-9]*)
+				wi_cv_cc_is_sunwspro_cc="yes"
+				ver1=`echo "$wi_cv_sunwspro_cc_version" | cut -d. -f1`
+				ver2=`echo "$wi_cv_sunwspro_cc_version" | cut -d. -f2`
+				ver3=0
+				wi_cv_sunwspro_cc_version2=`expr "$ver1" '*' 100 + "$ver2" "*" 10 + "$ver3"`
+				unset ver1 ver2 ver3
+				;;
+			*)
+				wi_cv_cc_is_sunwspro_cc="no"
+				wi_cv_sunwspro_cc_version="0"
+				wi_cv_sunwspro_cc_version2="0"
+				;;
+		esac
+changequote([, ])dnl
+	])
+	if test "$wi_cv_cc_is_sunwspro_cc" = yes ; then
+		AC_MSG_CHECKING([output of "cc -V" to determine version of Sun WorkShop C])
+		AC_MSG_RESULT("version $wi_cv_sunwspro_cc_version")
+	fi
+fi
 ])
 dnl
 dnl
@@ -644,11 +702,12 @@ dnl
 AC_DEFUN(wi_CFLAGS, [AC_REQUIRE([AC_PROG_CC])
 	wi_PROG_GCC_VERSION
 	AC_REQUIRE_CPP()
+	wi_PROG_SUN_WORKSHOP_CC_VERSION
 	wi_OS_DEFAULT_CFLAGS
 	wi_CFLAGS_NO_Y2K_WARNINGS
 	if test "$NOOPTCFLAGS" = "" ; then
 changequote(<<, >>)dnl
-		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[0-9A-Za-z]*//g;s/-xO[0-9]//g;s/-Wc,-O3//g;s/-IPA//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
+		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[0-9A-Za-z]*//g;s/-xO[0-9]//g;s/-Wc,-O3//g;s/-IPA//g;s/-xipo//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
 changequote([, ])dnl
 	fi
 	if test "$DEBUGCFLAGS" = "" ; then
@@ -708,6 +767,29 @@ main()
 	CFLAGS="-D__STDC_EXT__ $CFLAGS"
 	AC_MSG_RESULT(yes)
 ])
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_ENV_VAR_MESSAGES, [
+AC_MSG_CHECKING([if you set and exported the environment variable CC])
+if test "x$CC" = x ; then
+	AC_MSG_RESULT([no (you may want to do that since configure scripts look for gcc first)])
+else
+	AC_MSG_RESULT($CC)
+fi
+AC_MSG_CHECKING([for environment variable CFLAGS])
+if test "x$CFLAGS" = x ; then
+	AC_MSG_RESULT([no (we will choose a default set for you)])
+else
+	AC_MSG_RESULT($CFLAGS)
+fi
+AC_MSG_CHECKING([for environment variable CPPFLAGS])
+AC_MSG_RESULT(${CPPFLAGS-no})
+AC_MSG_CHECKING([for environment variable LDFLAGS])
+AC_MSG_RESULT(${LDFLAGS-no})
+AC_MSG_CHECKING([for environment variable LIBS])
+AC_MSG_RESULT(${LIBS-no})
 ])
 dnl
 dnl
@@ -2398,6 +2480,48 @@ AC_MSG_RESULT($wi_cv_use_long_long_msg_result)
 dnl
 dnl
 dnl
+AC_DEFUN(wi_REMOVE_UNKNOWN_PREPROCESSING_DIRECTIVES_FROM_FILE, [
+AC_REQUIRE([wi_TEST_DASH_L])
+h_file="$1"
+if test -f "$h_file" && $test_not_L "$h_file" ; then
+	h_tmp=`echo "$h_file" | sed 's/\.h/.tmp/;'`
+
+changequote(<<, >>)dnl
+	remove_cpp_warning=yes
+	if [ "$SYS" = linux ] ; then
+		#
+		# We need to retain #warning on Linux
+		#
+		remove_cpp_warning=no
+	fi
+	if [ "$ac_cv_prog_gcc" = yes ] ; then
+		#
+		# GCC accepts #warning
+		#
+		remove_cpp_warning=no
+	fi
+
+	if [ "$remove_cpp_warning" = yes ] ; then
+		#
+		# Remove "#warning", since compiler will complain about it
+		# not being recognized.
+		#
+		sed 's/^\([\ \	]*#[\ \	]*warning.*\)/\/* \1 *\//;' "$h_file" > "$h_tmp"
+		cmp -s "$h_file" "$h_tmp"
+		if test $? -ne 0 ; then 
+			mv "$h_tmp" "$h_file"
+			chmod a+r "$h_file"
+		fi
+		/bin/rm -f "$h_tmp"
+		unset h_tmp longest_int_subst
+	fi
+changequote([, ])dnl
+fi
+unset h_file remove_cpp_warning
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_SUBST_LONGEST_INT_HEADER, [
 AC_REQUIRE([wi_TEST_DASH_L])
 h_file="$1"
@@ -3068,18 +3192,27 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_PROG_CCDV_NO_CREATE, [
-AC_PATH_PROG(CCDV, "CCDV", "")
-CCDV="$wi_cv_path_ccdv"
-if test "x$CCDV" != x ; then
-	CCDV="@$CCDV "	# trailing space needed
-fi
+if test "x$use_ccdv" = "xno" ; then
+	AC_MSG_CHECKING([for ccdv])
+	AC_MSG_RESULT([(disabled)])
+else
+	AC_PATH_PROG(CCDV, "CCDV", "")
+	CCDV="$wi_cv_path_ccdv"
+	if test "x$CCDV" != x ; then
+		CCDV="@$CCDV "	# trailing space needed
+	fi
 AC_SUBST(CCDV)
+fi
 ])
 dnl
 dnl
 dnl
 dnl
 AC_DEFUN(wi_PROG_CCDV, [
+if test "x$use_ccdv" = "xno" ; then
+	AC_MSG_CHECKING([for ccdv])
+	AC_MSG_RESULT([(disabled)])
+else
 unset wi_cv_path_ccdv	# can't use cache if it was a temp prog last time
 wi_used_cache_path_ccdv="yes"
 AC_CACHE_CHECK([for ccdv], [wi_cv_path_ccdv], [
@@ -3479,9 +3612,9 @@ EOF
 	changequote([, ])dnl
 	${CC-cc} $DEFS $CPPFLAGS $CFLAGS "ccdv.c" -o "ccdv" >/dev/null 2>&1
 	/bin/rm -f ccdv.c ccdv.o ccdv.c.gz.uu ccdv.c.gz
+	strip ./ccdv >/dev/null 2>&1
 	./ccdv >/dev/null 2>&1
 	if test $? -eq 96 ; then
-		strip ccdv >/dev/null 2>&1
 		CCDV="./ccdv"
 	else
 		/bin/rm -f ccdv
@@ -3502,6 +3635,7 @@ if test "$wi_used_cache_path_ccdv" = yes ; then
 	fi
 fi
 AC_SUBST(CCDV)
+fi
 ])
 dnl
 dnl
@@ -4160,7 +4294,7 @@ case "$os" in
 			*)
 				OS="tru64unix${os_r}-$arch"
 				SYS=tru64unix
-				NDEFS="$NDEFS -DTRU64UNIX=$os_r1 -DDIGITAL_UNIX=$os_r1"
+				NDEFS="$NDEFS -DTRU64UNIX=$os_r1"
 				;;
 		esac
 		;;

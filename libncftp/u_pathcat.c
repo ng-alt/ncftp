@@ -26,7 +26,7 @@ IsValidUNCPath(const char *const src)
 	int n;
 
 	/* We may have a DOS path.  */
-	if ((src[0] == '\\') && (src[1] == '\\') && (isalpha(src[2]))) {
+	if ((src[0] == '\\') && (src[1] == '\\') && (isalpha((int) src[2]))) {
 		for (a = src + 3; ; ) {
 			c = *a++;
 			if (c == '\\')
@@ -61,7 +61,6 @@ CompressPath(char *const dst, const char *const src, const size_t dsize, int dos
 	char *d, *lim, *dstart;
 	char *a, *b;
 	char slash = (char) '/';
-	int unc = 0;
 	size_t n;
 
 #define isslash(c) ((c == '/') || (c == '\\'))
@@ -90,9 +89,9 @@ CompressPath(char *const dst, const char *const src, const size_t dsize, int dos
 				dstart = d;
 				s += n;
 				start = s;
-				unc = 1;
+				/* unc = 1; */
 			}
-		} else if ((isalpha(src[0])) && (src[1] == ':')) {
+		} else if ((isalpha((int) src[0])) && (src[1] == ':')) {
 			/* We may have a DOS driveletter+path.  */
 			*d++ = src[0];
 			*d++ = ':';
@@ -214,7 +213,7 @@ CompressPath(char *const dst, const char *const src, const size_t dsize, int dos
 			} else if (a[2] == '\0') {
 				/* Remove a trailing .. like:  /aaa/bbb/.. */
 				if (b == dstart) {
-					dstart[0] = (isslash(start[0])) ? slash : '.';
+					dstart[0] = (char) ((isslash(start[0])) ? slash : '.');
 					dstart[1] = '\0';
 				} else if ((b <= dstart + 1) && isslash(*dstart)) {
 					dstart[1] = '\0';

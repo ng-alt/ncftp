@@ -728,6 +728,7 @@ void
 DisposeReadline(void)
 {
 	SaveHistory();
+	gl_dispose();
 }	/* DisposeReadline */
 
 

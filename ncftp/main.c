@@ -190,7 +190,7 @@ SetStartupURL(const char *const urlgiven)
 			gConn.hasSIZE = gBm.hasSIZE;
 			gConn.hasMDTM = gBm.hasMDTM;
 			gConn.hasPASV = gBm.hasPASV;
-			gConn.hasUTIME = gBm.hasUTIME;
+			gConn.hasSITE_UTIME = gBm.hasUTIME;
 			gConn.port = gBm.port;
 		} else {
 			SetBookmarkDefaults(&gBm);
@@ -373,11 +373,15 @@ PostShell(void)
 {
 	SetXtermTitle("RESTORE");
 	CloseHost();
+	FlushLsCache();
 	DisposeReadline();
 	CloseTrace();
 	SavePrefs();
+	DisposeBookmarkTable();
 	EndLog();
 	Plug();
+	if (gXBuf != NULL)
+		free(gXBuf);
 	DisposeWinsock();
 }	/* PostShell */
 

@@ -42,6 +42,12 @@ static const char gCopyright[] = "@(#) LibNcFTP Copyright 1995-2001, by Mike Gle
 #	endif
 #endif
 
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#	define DisposeSocket(a) shutdown(a, 2); closesocket(a)
+#else
+#	define DisposeSocket(a) close(a)
+#endif
+
 
 void
 CloseControlConnection(const FTPCIPtr cip)
@@ -75,7 +81,7 @@ GetSocketAddress(const FTPCIPtr cip, int sockfd, struct sockaddr_in *saddr)
 	int result = 0;
 
 	if (getsockname(sockfd, (struct sockaddr *)saddr, &len) < 0) {
-		Error(cip, kDoPerror, "Could not get socket name.\n");
+		FTPLogError(cip, kDoPerror, "Could not get socket name.\n");
 		cip->errNo = kErrGetSockName;
 		result = kErrGetSockName;
 	}
@@ -159,7 +165,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		 * in ip_address we can try.
 		 */
 		if (ip_address.s_addr == INADDR_NONE) {
-			Error(cip, kDontPerror, "%s: unknown host.\n", fhost);
+			FTPLogError(cip, kDontPerror, "%s: unknown host.\n", fhost);
 			cip->errNo = kErrHostUnknown;
 			return (kErrHostUnknown);
 		}
@@ -184,7 +190,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		 */
 
 		if ((sockfd = socket(cip->servCtlAddr.sin_family, SOCK_STREAM, 0)) < 0) {
-			Error(cip, kDoPerror, "Could not get a socket.\n");
+			FTPLogError(cip, kDoPerror, "Could not get a socket.\n");
 			cip->errNo = kErrNewStreamSocket;
 			return (kErrNewStreamSocket);
 		}
@@ -222,7 +228,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 
 		if (sj != 0) {
 			/* Interrupted by a signal. */
-			(void) closesocket(sockfd);
+			(void) DisposeSocket(sockfd);
 			(void) signal(SIGINT, (FTPSigProc) osigint);
 			if (vcip->connTimeout > 0) {
 				(void) alarm(0);
@@ -253,7 +259,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 
 		if (err < 0) {
 			oerrno = errno;
-			(void) closesocket(sockfd);
+			(void) DisposeSocket(sockfd);
 			errno = oerrno;
 			sockfd = -1;
 		}
@@ -264,7 +270,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		 */
 		for (curaddr = hp.h_addr_list; *curaddr != NULL; curaddr++) {
 			if ((sockfd = socket(cip->servCtlAddr.sin_family, SOCK_STREAM, 0)) < 0) {
-				Error(cip, kDoPerror, "Could not get a socket.\n");
+				FTPLogError(cip, kDoPerror, "Could not get a socket.\n");
 				cip->errNo = kErrNewStreamSocket;
 				return (kErrNewStreamSocket);
 			}
@@ -307,7 +313,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 
 			if (sj != 0) {
 				/* Interrupted by a signal. */
-				(void) closesocket(sockfd);
+				(void) DisposeSocket(sockfd);
 				(void) signal(SIGINT, (FTPSigProc) osigint);
 				if (vcip->connTimeout > 0) {
 					(void) alarm(0);
@@ -339,7 +345,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 			if (err == 0)
 				break;
 			oerrno = errno;
-			(void) closesocket(sockfd);
+			(void) DisposeSocket(sockfd);
 			errno = oerrno;
 			sockfd = -1;
 #endif /* NO_SIGNALS */
@@ -383,7 +389,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 #elif defined(WSAECONNRESET)
 			case WSAECONNRESET:
 #endif
-				Error(cip, kDoPerror, "Could not connect to %s -- try again later.\n", fhost);
+				FTPLogError(cip, kDoPerror, "Could not connect to %s -- try again later.\n", fhost);
 				result = cip->errNo = kErrConnectRetryableErr;
 				break;
 #ifdef ECONNREFUSED
@@ -391,11 +397,11 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 #elif defined(WSAECONNREFUSED)
 			case WSAECONNREFUSED:
 #endif
-				Error(cip, kDoPerror, "Could not connect to %s.\n", fhost);
+				FTPLogError(cip, kDoPerror, "Could not connect to %s.\n", fhost);
 				result = cip->errNo = kErrConnectRefused;
 				break;
 			default:
-				Error(cip, kDoPerror, "Could not connect to %s.\n", fhost);
+				FTPLogError(cip, kDoPerror, "Could not connect to %s.\n", fhost);
 				result = cip->errNo = kErrConnectMiscErr;
 		}
 		goto fatal;
@@ -427,14 +433,14 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	if (InitSReadlineInfo(&cip->ctrlSrl, sockfd, cip->srlBuf, sizeof(cip->srlBuf), (int) cip->ctrlTimeout, 1) < 0) {
 		result = kErrFdopenW;
 		cip->errNo = kErrFdopenW;
-		Error(cip, kDoPerror, "Could not fdopen.\n");
+		FTPLogError(cip, kDoPerror, "Could not fdopen.\n");
 		goto fatal;
 	}
 #else	/* NO_SIGNALS */
 	if ((sock2fd = dup(sockfd)) < 0) {
 		result = kErrDupSocket;
 		cip->errNo = kErrDupSocket;
-		Error(cip, kDoPerror, "Could not duplicate a file descriptor.\n");
+		FTPLogError(cip, kDoPerror, "Could not duplicate a file descriptor.\n");
 		goto fatal;
 	}
 
@@ -444,14 +450,14 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	if ((cip->cin = fdopen(sockfd, "r")) == NULL) {
 		result = kErrFdopenR;
 		cip->errNo = kErrFdopenR;
-		Error(cip, kDoPerror, "Could not fdopen.\n");
+		FTPLogError(cip, kDoPerror, "Could not fdopen.\n");
 		goto fatal;
 	}
 
 	if ((cip->cout = fdopen(sock2fd, "w")) == NULL) {
 		result = kErrFdopenW;
 		cip->errNo = kErrFdopenW;
-		Error(cip, kDoPerror, "Could not fdopen.\n");
+		FTPLogError(cip, kDoPerror, "Could not fdopen.\n");
 		CloseFile(&cip->cin);
 		sockfd = kClosedFileDescriptor;
 		goto fatal;
@@ -482,7 +488,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	/* Read the startup message from the server. */	
 	rp = InitResponse();
 	if (rp == NULL) {
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		cip->errNo = kErrMallocFailed;
 		result = cip->errNo;
 		goto fatal;
@@ -553,7 +559,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		 */
 		DoneWithResponse(cip, rp);
 		result = kErrConnectRetryableErr;
-		Error(cip, kDontPerror, "Server hungup immediately after connect.\n");
+		FTPLogError(cip, kDontPerror, "Server hungup immediately after connect.\n");
 		cip->errNo = kErrConnectRetryableErr;
 		goto fatal;
 	}
@@ -565,9 +571,9 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	
 fatal:
 	if (sockfd > 0)
-		(void) closesocket(sockfd);
+		(void) DisposeSocket(sockfd);
 	if (sock2fd > 0)
-		(void) closesocket(sock2fd);		
+		(void) DisposeSocket(sock2fd);		
 	CloseFile(&cip->cin);
 	CloseFile(&cip->cout);
 	cip->ctrlSocketR = kClosedFileDescriptor;
@@ -583,14 +589,21 @@ CloseDataConnection(const FTPCIPtr cip)
 {
 	if (cip->dataSocket != kClosedFileDescriptor) {
 #ifdef NO_SIGNALS
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+		/* This could block if we were uploading, but only if
+		 * linger mode was set.
+		 */
+		SClose(cip->dataSocket, cip->xferTimeout);
+#else
 		/* This could block, but only if
 		 * linger mode was set.
 		 */
-		(void) closesocket(cip->dataSocket);
+		DisposeSocket(cip->dataSocket);
+#endif
 #else	/* NO_SIGNALS */
 		if (cip->xferTimeout > 0)
 			(void) alarm(cip->xferTimeout);
-		(void) closesocket(cip->dataSocket);
+		(void) DisposeSocket(cip->dataSocket);
 		if (cip->xferTimeout > 0)
 			(void) alarm(0);
 #endif	/* NO_SIGNALS */
@@ -613,7 +626,7 @@ SetStartOffset(const FTPCIPtr cip, longest_int restartPt)
 	if (restartPt != (longest_int) 0) {
 		rp = InitResponse();
 		if (rp == NULL) {
-			Error(cip, kDontPerror, "Malloc failed.\n");
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			cip->errNo = kErrMallocFailed;
 			return (cip->errNo);
 		}
@@ -659,7 +672,7 @@ SendPort(const FTPCIPtr cip, struct sockaddr_in *saddr)
 
 	rp = InitResponse();
 	if (rp == NULL) {
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		cip->errNo = kErrMallocFailed;
 		return (cip->errNo);
 	}
@@ -701,7 +714,7 @@ Passive(const FTPCIPtr cip, struct sockaddr_in *saddr, int *weird)
 
 	rp = InitResponse();
 	if (rp == NULL) {
-		Error(cip, kDontPerror, "Malloc failed.\n");
+		FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 		cip->errNo = kErrMallocFailed;
 		return (cip->errNo);
 	}
@@ -727,7 +740,7 @@ Passive(const FTPCIPtr cip, struct sockaddr_in *saddr, int *weird)
 	 */
 	for (cp = rp->msg.first->line; ; cp++) {
 		if (*cp == '\0') {
-			Error(cip, kDontPerror, "Cannot parse PASV response: %s\n", rp->msg.first->line);
+			FTPLogError(cip, kDontPerror, "Cannot parse PASV response: %s\n", rp->msg.first->line);
 			goto done;
 		}
 		if (isdigit((int) *cp))
@@ -736,7 +749,7 @@ Passive(const FTPCIPtr cip, struct sockaddr_in *saddr, int *weird)
 
 	if (sscanf(cp, "%d,%d,%d,%d,%d,%d",
 			&i[0], &i[1], &i[2], &i[3], &i[4], &i[5]) != 6) {
-		Error(cip, kDontPerror, "Cannot parse PASV response: %s\n", rp->msg.first->line);
+		FTPLogError(cip, kDontPerror, "Cannot parse PASV response: %s\n", rp->msg.first->line);
 		goto done;
 	}
 
@@ -823,7 +836,7 @@ tryPort2:
 
 	dataSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (dataSocket < 0) {
-		Error(cip, kDoPerror, "Could not get a data socket.\n");
+		FTPLogError(cip, kDoPerror, "Could not get a data socket.\n");
 		result = kErrNewStreamSocket;
 		cip->errNo = kErrNewStreamSocket;
 		return result;
@@ -850,7 +863,7 @@ tryPort:
 		if (BindToEphemeralPortNumber(dataSocket, &cip->ourDataAddr, (int) cip->ephemLo, (int) cip->ephemHi) < 0)
 #endif
 		{
-			Error(cip, kDoPerror, "Could not bind the data socket");
+			FTPLogError(cip, kDoPerror, "Could not bind the data socket");
 			result = kErrBindDataSocket;
 			cip->errNo = kErrBindDataSocket;
 			goto bad;
@@ -863,7 +876,7 @@ tryPort:
 			goto bad;
 	
 		if (listen(dataSocket, 1) < 0) {
-			Error(cip, kDoPerror, "listen failed");
+			FTPLogError(cip, kDoPerror, "listen failed");
 			result = kErrListenDataSocket;
 			cip->errNo = kErrListenDataSocket;
 			goto bad;
@@ -882,7 +895,7 @@ tryPort:
 		cip->ourDataAddr.sin_family = AF_INET;
 
 		if (Passive(cip, &cip->servDataAddr, &weirdPort) < 0) {
-			Error(cip, kDontPerror, "Passive mode refused.\n");
+			FTPLogError(cip, kDontPerror, "Passive mode refused.\n");
 			cip->hasPASV = kCommandNotAvailable;
 			
 			/* We can try using regular PORT commands, which are required
@@ -908,7 +921,7 @@ tryPort:
 		if (BindToEphemeralPortNumber(dataSocket, &cip->ourDataAddr, (int) cip->ephemLo, (int) cip->ephemHi) < 0)
 #endif
 		{
-			Error(cip, kDoPerror, "Could not bind the data socket");
+			FTPLogError(cip, kDoPerror, "Could not bind the data socket");
 			result = kErrBindDataSocket;
 			cip->errNo = kErrBindDataSocket;
 			goto bad;
@@ -928,13 +941,13 @@ tryPort:
 #ifdef NO_SIGNALS
 		if (result == kTimeoutErr) {
 			if (mode == kFallBackToSendPortMode) {
-				Error(cip, kDontPerror, "Data connection timed out.\n");
-				Error(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
-				(void) closesocket(dataSocket);
+				FTPLogError(cip, kDontPerror, "Data connection timed out.\n");
+				FTPLogError(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
+				(void) DisposeSocket(dataSocket);
 				cip->hasPASV = kCommandNotAvailable;
 				goto tryPort2;
 			}
-			Error(cip, kDontPerror, "Data connection timed out.\n");
+			FTPLogError(cip, kDontPerror, "Data connection timed out.\n");
 			result = kErrConnectDataSocket;
 			cip->errNo = kErrConnectDataSocket;
 		} else
@@ -946,9 +959,9 @@ tryPort:
 #elif defined(WSAECONNREFUSED)
 			if ((weirdPort > 0) && (errno == WSAECONNREFUSED)) {
 #endif
-				Error(cip, kDontPerror, "Server sent back a bogus port number.\nI will fall back to PORT instead of PASV mode.\n");
+				FTPLogError(cip, kDontPerror, "Server sent back a bogus port number.\nI will fall back to PORT instead of PASV mode.\n");
 				if (mode == kFallBackToSendPortMode) {
-					(void) closesocket(dataSocket);
+					(void) DisposeSocket(dataSocket);
 					cip->hasPASV = kCommandNotAvailable;
 					goto tryPort2;
 				}
@@ -957,13 +970,13 @@ tryPort:
 				goto bad;
 			}
 			if (mode == kFallBackToSendPortMode) {
-				Error(cip, kDoPerror, "connect failed.\n");
-				Error(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
-				(void) closesocket(dataSocket);
+				FTPLogError(cip, kDoPerror, "connect failed.\n");
+				FTPLogError(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
+				(void) DisposeSocket(dataSocket);
 				cip->hasPASV = kCommandNotAvailable;
 				goto tryPort2;
 			}
-			Error(cip, kDoPerror, "connect failed.\n");
+			FTPLogError(cip, kDoPerror, "connect failed.\n");
 			result = kErrConnectDataSocket;
 			cip->errNo = kErrConnectDataSocket;
 			goto bad;
@@ -990,7 +1003,7 @@ tryPort:
 	cip->dataSocket = dataSocket;
 	return (0);
 bad:
-	(void) closesocket(dataSocket);
+	(void) DisposeSocket(dataSocket);
 	return (result);
 }	/* OpenDataConnection */
 
@@ -1006,6 +1019,7 @@ AcceptDataConnection(const FTPCIPtr cip)
 #endif
 	unsigned short remoteDataPort;
 	unsigned short remoteCtrlPort;
+	char ctrlAddrStr[64], dataAddrStr[64];
 
 	/* If we did a PORT, we have some things to finish up.
 	 * If we did a PASV, we're ready to go.
@@ -1027,32 +1041,37 @@ AcceptDataConnection(const FTPCIPtr cip)
 			(void) alarm(0);
 #endif	/* NO_SIGNALS */
 
-		(void) closesocket(cip->dataSocket);
+		(void) DisposeSocket(cip->dataSocket);
 		if (newSocket < 0) {
-			Error(cip, kDoPerror, "Could not accept a data connection.\n");
+			FTPLogError(cip, kDoPerror, "Could not accept a data connection.\n");
 			cip->dataSocket = kClosedFileDescriptor;
 			cip->errNo = kErrAcceptDataSocket;
 			return (kErrAcceptDataSocket);
+		}
+	
+		if (cip->allowProxyForPORT == 0) {
+			if (memcmp(&cip->servDataAddr.sin_addr.s_addr, &cip->servCtlAddr.sin_addr.s_addr, sizeof(cip->servDataAddr.sin_addr.s_addr)) != 0) {
+				AddrToAddrStr(ctrlAddrStr, sizeof(ctrlAddrStr), &cip->servCtlAddr, 0, NULL);
+				AddrToAddrStr(dataAddrStr, sizeof(dataAddrStr), &cip->servDataAddr, 0, NULL);
+				FTPLogError(cip, kDontPerror, "Data connection from %s did not originate from remote server %s!\n", dataAddrStr, ctrlAddrStr);
+				(void) DisposeSocket(newSocket);
+				cip->dataSocket = kClosedFileDescriptor;
+				cip->errNo = kErrAcceptDataSocket;
+				return (kErrAcceptDataSocket);
+			}
 		}
 
 		if (cip->require20 != 0) {
 			remoteDataPort = ntohs(cip->servDataAddr.sin_port);
 			remoteCtrlPort = ntohs(cip->servCtlAddr.sin_port);
 			if ((int) remoteDataPort != ((int) remoteCtrlPort - 1)) {
-				Error(cip, kDontPerror, "Data connection did not originate on correct port!\n");
-				(void) closesocket(newSocket);
-				cip->dataSocket = kClosedFileDescriptor;
-				cip->errNo = kErrAcceptDataSocket;
-				return (kErrAcceptDataSocket);
-			} else if (memcmp(&cip->servDataAddr.sin_addr.s_addr, &cip->servCtlAddr.sin_addr.s_addr, sizeof(cip->servDataAddr.sin_addr.s_addr)) != 0) {
-				Error(cip, kDontPerror, "Data connection did not originate from remote server!\n");
-				(void) closesocket(newSocket);
+				FTPLogError(cip, kDontPerror, "Data connection did not originate on correct port!\n");
+				(void) DisposeSocket(newSocket);
 				cip->dataSocket = kClosedFileDescriptor;
 				cip->errNo = kErrAcceptDataSocket;
 				return (kErrAcceptDataSocket);
 			}
 		}
-		
 		cip->dataSocket = newSocket;
 	}
 
@@ -1103,7 +1122,7 @@ SendTelnetInterrupt(const FTPCIPtr cip)
 #else
 	if (send(cip->ctrlSocketW, msg, 2, MSG_OOB) != 2)
 #endif
-		Error(cip, kDoPerror, "Could not send an urgent message.\n");
+		FTPLogError(cip, kDoPerror, "Could not send an urgent message.\n");
 }	/* SendTelnetInterrupt */
 
 /* eof FTP.c */
