@@ -106,6 +106,10 @@
 #	include <time.h>
 #	include <pwd.h>
 #	include <fcntl.h>
+#	if defined(HAVE_SYS_IOCTL_H) && defined(HAVE_TERMIOS_H)
+#		include <sys/ioctl.h>
+#		include <termios.h>
+#	endif
 #	ifdef HAVE_LOCALE_H
 #		include <locale.h>
 #	endif

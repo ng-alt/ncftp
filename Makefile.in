@@ -4,7 +4,7 @@
 #
 #-----------------------------------------------------------------------------
 
-VER=3.0.0
+VER=3.0.1
 #BETA=-DBETA=21
 CC=@CC@
 CFLAGS=@CFLAGS@
@@ -121,7 +121,7 @@ udgz: dgz
 	./sh/upload.sh 'ncftp/binaries' $(DTGZFILE)
 	-rm $(DTGZFILE)
 
-sgz:
+sgz gz:
 	./sh/mksrctar.sh $(TARDIR) $(STGZFILE)
 
 usgz: sgz

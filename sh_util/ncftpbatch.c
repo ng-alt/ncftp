@@ -1159,11 +1159,19 @@ EventShell(volatile unsigned int sleepval)
 					/* rename it back, so it will
 					 * get reprocessed.
 					 */
-					(void) rename(gMyItemPath, gItemPath);
+					if (rename(gMyItemPath, gItemPath) != 0) {
+						/* quit now */
+						Log(0, "Could not rename job %s!\n", gMyItemPath);
+						return;
+					}
 					Log(0, "Re-queueing %s.\n", gItemPath);
 				} else {
-					(void) unlink(gMyItemPath);
 					Log(0, "Done with %s.\n", gItemPath);
+					if (unlink(gMyItemPath) != 0) {
+						/* quit now */
+						Log(0, "Could not delete finished job %s!\n", gMyItemPath);
+						return;
+					}
 				}
 				(void) chdir(LOCAL_PATH_DELIM_STR);
 #if defined(WIN32) || defined(_WINDOWS)

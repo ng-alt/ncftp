@@ -125,11 +125,11 @@ Abort(int sigNumUNUSED)
 
 
 static int
-Copy(FTPCIPtr cip, char *dstdir, char **files, int rflag, int xtype, int appendflag, const char *tmppfx, const char *tmpsfx, int resumeflag, int deleteflag)
+Copy(FTPCIPtr cip, const char *const dstdir, char **const files, const int rflag, const int xtype, const int appendflag, const char *const tmppfx, const char *const tmpsfx, const int resumeflag, const int deleteflag)
 {
 	int i;
 	int result;
-	char *file;
+	const char *file;
 	int rc = 0;
 
 	for (i=0; ; i++) {
@@ -415,26 +415,42 @@ main(int argc, char **argv)
 		DisposeWinsock(0);
 		exit((int) es);
 	}
+
 	if (fi.hasCLNT != kCommandNotAvailable)
 		(void) FTPCmd(&fi, "CLNT NcFTPPut %.5s %s", gVersion + 11, gOS);
+
 	if (Umask != NULL) {
 		errstr = "could not set umask on remote host";
 		result = FTPUmask(&fi, Umask);
 		if (result != 0)
 			FTPPerror(&fi, result, kErrUmaskFailed, "ncftpput", "could not set umask");
 	}
-	if (wantMkdir != 0) {
-		errstr = "could not mkdir on remote host";
-		result = FTPMkdir2(&fi, dstdir, kRecursiveYes, fi.startingWorkingDirectory);
-		if (result != 0)
-			FTPPerror(&fi, result, kErrMKDFailed, "ncftpput: Could not create directory", dstdir);
+
+	if (dstdir != NULL) {
+		es = kExitChdirTimedOut;
+		if (wantMkdir != 0)  {
+			errstr = "could not create and chdir on remote host";
+			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirOneSubdirAtATime|kChdirAndMkdir);
+		} else {
+			errstr = "could not chdir on remote host";
+			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirOneSubdirAtATime);
+		}
 	}
+
+	if (result != 0) {
+		FTPPerror(&fi, result, kErrCWDFailed, "ncftpput: Could not change to directory", dstdir);
+		(void) FTPCloseHost(&fi);
+		es = kExitChdirFailed;
+		DisposeWinsock(0);
+		exit((int) es);
+	}
+
 	if (result >= 0) {
 		errstr = "could not write to file on remote host";
 		es = kExitXferTimedOut;
 		(void) signal(SIGINT, Abort);
 		if (ftpcat == 0) {
-			if (Copy(&fi, dstdir, files, rflag, xtype, appendflag, (const char *) tmppfx, (const char *) tmpsfx, resumeflag, deleteflag) < 0)
+			if (Copy(&fi, "", files, rflag, xtype, appendflag, (const char *) tmppfx, (const char *) tmpsfx, resumeflag, deleteflag) < 0)
 				es = kExitXferFailed;
 			else
 				es = kExitSuccess;

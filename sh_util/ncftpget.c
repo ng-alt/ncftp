@@ -136,7 +136,10 @@ Copy(FTPCIPtr cip, char *dstdir, const char ** volatile files, int rflag, int xt
 		result = FTPGetFiles3(cip, file, dstdir, rflag, kGlobYes, xtype, resumeflag, appendflag, deleteflag, tarflag, NoConfirmResumeDownloadProc, 0);
 		if (result != 0) {
 			FTPPerror(cip, result, kErrCouldNotStartDataTransfer, "ncftpget", file);
-			rc = result;
+			if (result != kErrLocalSameAsRemote) {
+				/* Display the warning, but don't consider it an error. */
+				rc = result;
+			}
 		}
 	}
 	return (rc);
@@ -447,6 +450,7 @@ main(int argc, char **argv)
 		for (lp = cdlist.first; lp != NULL; lp = lp->next) {
 			if ((rc = FTPChdir(&fi, lp->line)) != 0) {
 				FTPPerror(&fi, rc, kErrCWDFailed, "Could not chdir to", lp->line);
+				(void) FTPCloseHost(&fi);
 				es = kExitChdirFailed;
 				DisposeWinsock(0);
 				exit((int) es);

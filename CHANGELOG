@@ -1,6 +1,29 @@
 Change Log:
 ===========
 
+3.0.1, 2000-03-27:
+
++ ncftpput has been changed to cd to the destination directory on the
+  remote host before storing files.  In addition, it does it one
+  subdirectory node at a time, like URL mode does for ncftpget.
+
++ Bug fixed where the "ncftp_bookmarks --dimensions-terse" hack could
+  be closed and generate a SIGPIPE which caused it to exit uncleanly,
+  and possibly leave the terminal state hosed.
+
++ Added a snippet from Felix von Leitner <leitner@fefe.de> to get the
+  terminal width fairly painlessly, so the aforementioned hack should
+  not be necessary in many cases.
+
++ Dtterm and vt220 added to the short list of vt100ish term types.
+
++ Win32 version bug fixed where ncftpbookmarks was not honoring the
+  HOME enviornment variable, instead writing data to the install
+  directory under Program Files.
+
++ Win32 version now uses Wise installer instead of InstallShield.
+
+
 3.0.0, 2000-03-19:
 
 + New "redial-delay" preference setting, so you can easily set it and

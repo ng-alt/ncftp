@@ -17,17 +17,19 @@ FTPChdir(const FTPCIPtr cip, const char *const cdCwd)
 	if (strcmp(cip->magic, kLibraryMagic))
 		return (kErrBadMagic);
 
-	if ((cdCwd == NULL) || (cdCwd[0] == '\0')) {
+	if (cdCwd == NULL) {
 		result = kErrInvalidDirParam;
 		cip->errNo = kErrInvalidDirParam;
 	} else {
-		if (strcmp(cdCwd, "..") == 0)
+		if (cdCwd[0] == '\0')	/* But allow FTPChdir(cip, ".") to go through. */
+			result = 2;	
+		else if (strcmp(cdCwd, "..") == 0)
 			result = FTPCmd(cip, "CDUP");
 		else
 			result = FTPCmd(cip, "CWD %s", cdCwd);
 		if (result >= 0) {
 			if (result == 2) {
-				result = 0;
+				result = kNoErr;
 			} else {
 				result = kErrCWDFailed;
 				cip->errNo = kErrCWDFailed;
@@ -321,10 +323,14 @@ FTPChdirAndGetCWD(const FTPCIPtr cip, const char *const cdCwd, char *const newCw
 	if (strcmp(cip->magic, kLibraryMagic))
 		return (kErrBadMagic);
 
-	if ((newCwd == NULL) || (cdCwd == NULL) || (cdCwd[0] == '\0')) {
+	if ((newCwd == NULL) || (cdCwd == NULL)) {
 		result = kErrInvalidDirParam;
 		cip->errNo = kErrInvalidDirParam;
 	} else {
+		if (cdCwd[0] == '\0') {	/* But allow FTPChdir(cip, ".") to go through. */
+			result = FTPGetCWD(cip, newCwd, newCwdSize);
+			return (result);
+		}
 		rp = InitResponse();
 		if (rp == NULL) {
 			result = kErrMallocFailed;
@@ -364,6 +370,95 @@ FTPChdirAndGetCWD(const FTPCIPtr cip, const char *const cdCwd, char *const newCw
 	}
 	return (result);
 }	/* FTPChdirAndGetCWD */
+
+
+
+
+int
+FTPChdir3(FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_t newCwdSize, int flags)
+{
+	char *cp, *startcp;
+	int result;
+	int lastSubDir;
+	int mkd, pwd;
+
+	if (cip == NULL)
+		return (kErrBadParameter);
+	if (strcmp(cip->magic, kLibraryMagic))
+		return (kErrBadMagic);
+
+	if (cdCwd == NULL) {
+		result = kErrInvalidDirParam;
+		cip->errNo = kErrInvalidDirParam;
+		return result;
+	}
+
+	if (flags == kChdirOnly)
+		return (FTPChdir(cip, cdCwd));
+	if (flags == kChdirAndGetCWD) {
+		return (FTPChdirAndGetCWD(cip, cdCwd, newCwd, newCwdSize));
+	} else if (flags == kChdirAndMkdir) {
+		result = FTPMkdir(cip, cdCwd, kRecursiveYes);
+		if (result == kNoErr)
+			result = FTPChdir(cip, cdCwd);
+		return result;
+	} else if (flags == (kChdirAndMkdir|kChdirAndGetCWD)) {
+		result = FTPMkdir(cip, cdCwd, kRecursiveYes);
+		if (result == kNoErr)
+			result = FTPChdirAndGetCWD(cip, cdCwd, newCwd, newCwdSize);
+		return result;
+	}
+
+	/* else: (flags | kChdirOneSubdirAtATime) == true */
+	
+	cp = cip->buf;
+	cp[cip->bufSize - 1] = '\0';
+	(void) Strncpy(cip->buf, cdCwd, cip->bufSize);
+	if (cp[cip->bufSize - 1] != '\0')
+		return (kErrBadParameter);
+	
+	mkd = (flags & kChdirAndMkdir);
+	pwd = (flags & kChdirAndGetCWD);
+
+	if ((cdCwd[0] == '\0') || (strcmp(cdCwd, ".") == 0)) {
+		result = 0;
+		if (flags == kChdirAndGetCWD)
+			result = FTPGetCWD(cip, newCwd, newCwdSize);
+		return (result);
+	}
+
+	do {
+		startcp = cp;
+		cp = StrFindLocalPathDelim(cp);
+		if (cp != NULL) {
+			*cp++ = '\0';
+		}
+		lastSubDir = (cp == NULL);
+		if (strcmp(startcp, ".") == 0) {
+			result = 0;
+			if ((lastSubDir != 0) && (pwd != 0))
+				result = FTPGetCWD(cip, newCwd, newCwdSize);
+		} else if ((lastSubDir != 0) && (pwd != 0)) {
+			result = FTPChdirAndGetCWD(cip, startcp, newCwd, newCwdSize);
+		} else {
+			result = FTPChdir(cip, startcp);
+		}
+		if (result < 0) {
+			if (mkd != 0) {
+				if (FTPCmd(cip, "MKD %s", startcp) == 2) {
+					result = FTPChdir(cip, startcp);
+				} else {
+					/* couldn't change nor create */
+					cip->errNo = result;
+				}
+			} else {
+				cip->errNo = result;
+			}
+		}
+	} while ((!lastSubDir) && (result == 0));
+
+	return (result);
+}	/* FTPChdir3 */
 
 
 

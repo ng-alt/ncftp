@@ -252,7 +252,6 @@ static void
 PreInit(void)
 {
 	int result;
-	char *cp;
 
 #if defined(WIN32) || defined(_WINDOWS)
 	if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0) {
@@ -294,40 +293,7 @@ PreInit(void)
 	InitLs();
 	TruncBatchLog();
 	GetoptReset();
-
-	if ((cp = (char *) getenv("COLUMNS")) == NULL)
-		gScreenColumns = 80;
-	else
-		gScreenColumns = atoi(cp);
-
-#if defined(WIN32) || defined(_WINDOWS)
-	{
-		CONSOLE_SCREEN_BUFFER_INFO csbi;
-
-		if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-			gScreenColumns = (int) csbi.dwSize.X;
-			if (gScreenColumns < 80)
-				gScreenColumns = 80;
-		}
-	}
-#else
-	/* This is a brutal hack where we've hacked a
-	 * special command line option into ncftp_bookmarks
-	 * (which is linked with curses) so that it computes
-	 * the screen size and prints it to stdout.
-	 *
-	 * This next function runs ncftp_bookmarks and gets
-	 * that information.  The reason we do this is that
-	 * we may or may not have a sane installation of
-	 * curses/termcap, and we don't want to increase
-	 * NcFTP's complexity by the curses junk just to
-	 * get the screen size.  Instead, we delegate this
-	 * to ncftp_bookmarks which already deals with the
-	 * ugliness of curses.
-	 */
 	GetScreenColumns();
-#endif
-
 }	/* PreInit */
 
 

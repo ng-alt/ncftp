@@ -48,17 +48,64 @@ void
 GetScreenColumns(void)
 {
 #if defined(WIN32) || defined(_WINDOWS)
-	/* don't do this on Windows */
-#else
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+	if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+		gScreenColumns = (int) csbi.dwSize.X;
+		if (gScreenColumns < 80)
+			gScreenColumns = 80;
+	}
+#else	/* Unix */
 #ifdef BINDIR
 	char ncftpbookmarks[256];
 	FILE *infp;
 	vsigproc_t osigpipe;
 	int columns;
+#endif	/* BINDIR */
+	char *cp;
 
+	if ((cp = (char *) getenv("COLUMNS")) == NULL) {
+		gScreenColumns = 80;
+	} else {
+		gScreenColumns = atoi(cp);
+		return;
+	}
+
+#ifdef TIOCGWINSZ
+	{
+		struct winsize felix;
+
+		memset(&felix, 0, sizeof(felix));
+		if (ioctl(0, TIOCGWINSZ, &felix) == 0) {
+			columns = felix.ws_col;
+			if ((columns > 0) && (columns < GL_BUF_SIZE))
+				gScreenColumns = columns;
+			else
+				gScreenColumns = 80;
+			return;
+		}
+	}
+#endif
+
+#ifdef BINDIR
 	/* Don't run things as root unless really necessary. */
 	if (gUid == 0)
 		return;
+
+	/* This is a brutal hack where we've hacked a
+	 * special command line option into ncftp_bookmarks
+	 * (which is linked with curses) so that it computes
+	 * the screen size and prints it to stdout.
+	 *
+	 * This function runs ncftp_bookmarks and gets
+	 * that information.  The reason we do this is that
+	 * we may or may not have a sane installation of
+	 * curses/termcap, and we don't want to increase
+	 * NcFTP's complexity by the curses junk just to
+	 * get the screen size.  Instead, we delegate this
+	 * to ncftp_bookmarks which already deals with the
+	 * ugliness of curses.
+	 */
 
 	STRNCPY(ncftpbookmarks, BINDIR);
 	STRNCAT(ncftpbookmarks, "/");
@@ -69,19 +116,19 @@ GetScreenColumns(void)
 
 	STRNCAT(ncftpbookmarks, " --dimensions-terse");
 
-	infp = popen(ncftpbookmarks, "r");
-	if (infp == NULL)
-		return;
-
 	osigpipe = (vsigproc_t) NcSignal(SIGPIPE, SIG_IGN);
+	infp = popen(ncftpbookmarks, "r");
+	if (infp != NULL) {
+		columns = 0;
+		(void) fscanf(infp, "%d", &columns);
+		while (getc(infp) != EOF)
+			;
+		(void) pclose(infp);
+
+		if ((columns > 0) && (columns < GL_BUF_SIZE))
+			gScreenColumns = columns;
+	}
 	(void) NcSignal(SIGPIPE, (sigproc_t) osigpipe);
-
-	columns = 0;
-	(void) fscanf(infp, "%d", &columns);
-	(void) pclose(infp);
-
-	if ((columns > 0) && (columns < GL_BUF_SIZE))
-		gScreenColumns = columns;
 #endif	/* BINDIR */
 #endif	/* Windows */
 }	/* GetScreenColumns */
@@ -125,6 +172,7 @@ InitTermcap(void)
 	term = gTerm;
 	if (	(strstr(term, "xterm") != NULL) ||
 		(strstr(term, "rxvt") != NULL) ||
+		(strstr(term, "dtterm") != NULL) ||
 		(ISTRCMP(term, "scoterm") == 0)
 	) {
 		gXterm = gXtermTitle = 1;
@@ -133,6 +181,7 @@ InitTermcap(void)
 	if (	(gXterm != 0) ||
 		(strcmp(term, "vt100") == 0) ||
 		(strcmp(term, "linux") == 0) ||
+		(strcmp(term, "vt220") == 0) ||
 		(strcmp(term, "vt102") == 0)
 	) {
 		tcap_normal = "\033[0m";       /* Default ANSI escapes */

@@ -22,6 +22,7 @@ libncftp/Readme.txt
 libncftp/config.h.in
 libncftp/dos2unix.sh
 libncftp/mksrczip.bat
+libncftp/mksrctar.sh
 Strn/Strn.dsp
 Strn/Strn.dsw
 Strn/Strn.h
@@ -70,6 +71,8 @@ doc/html/ncftpget.html
 doc/html/ncftpls.html
 doc/html/ncftpput.html
 doc/html/ncftp.html
+doc/html/ncftpbatch.html
+doc/html/index.html
 Makefile.in
 configure
 config.h.in
@@ -129,6 +132,7 @@ sh/dos2unix.sh
 sh/mksrczip.bat
 sh/mksrctar.sh
 sh/mksrczip.sh
+sh/man2html.sh
 autoconf/aclocal.m4
 autoconf/acconfig.h
 autoconf/configure.in
@@ -196,6 +200,7 @@ win/bmed/bookmark.c
 win/bmed/util.h
 win/bmed/BookmarkProperties.h
 win/bmed/BookmarkProperties.cpp
+win/setup/ncftp.wse
 NcFTP_All.dsp
 NcFTP_All.dsw
 Makefile.bin

@@ -1,10 +1,10 @@
 #!/bin/sh
 
-wd=`pwd`
-if [ -f ../sh_util/Makefile.in ] ; then
+if [ -f rcmd.c ] ; then
 	cd ..
 fi
-for f in ncftp libncftp sh_util vis sio Strn ; do
+wd=`pwd`
+for f in libncftp sio Strn doc ; do
 	if [ ! -f "$f" ] && [ ! -d "$f" ] ; then
 		echo "Missing directory $f ?" 1>&2
 		exit 1
@@ -13,7 +13,7 @@ done
 
 TMPDIR=/tmp
 if [ "$#" -lt 2 ] ; then
-	TARDIR="ncftp"
+	TARDIR="libncftp"
 	STGZFILE="$TARDIR.tar.gz"
 else
 	TARDIR="$1"
@@ -23,17 +23,9 @@ fi
 rm -rf $TMPDIR/TAR
 mkdir -p -m755 $TMPDIR/TAR/$TARDIR 2>/dev/null
 
-chmod 755 configure sh/* install-sh
-find . -name '*.[ch]' -exec sh/dos2unix.sh {} \;
-find . -name '*.in' -exec sh/dos2unix.sh {} \;
-
-if [ -f "$wd/sh/fixfcase.sh" ] ; then
-	$wd/sh/fixfcase.sh "$wd"
-fi
+chmod 755 configure sh/* install-sh 2>/dev/null
 
 find . -depth -follow -type f | sed '
-/\/samples/d
-/libncftp\/configure$/d
 /sio\/configure$/d
 /Strn\/configure$/d
 /\.o$/d
@@ -46,7 +38,6 @@ find . -depth -follow -type f | sed '
 /\.pch$/d
 /\.ilk$/d
 /\.res$/d
-/\.aps$/d
 /\.opt$/d
 /\.plg$/d
 /\.obj$/d
@@ -71,12 +62,7 @@ find . -depth -follow -type f | sed '
 /\/config\./d
 /\/Makefile$/d
 /\/OLD/d
-/\/old/d' | cut -c3- | tee "$wd/doc/manifest" | cpio -Lpdm $TMPDIR/TAR/$TARDIR
-
-if [ -f "$wd/sh/unix2dos.sh" ] ; then
-	cp "$wd/doc/manifest" "$wd/doc/manifest.txt" 
-	$wd/sh/unix2dos.sh "$wd/doc/manifest.txt"
-fi
+/\/old/d' | cut -c3- | tee "$wd/doc/manifest.txt" | cpio -Lpdm $TMPDIR/TAR/$TARDIR
 
 x=`tar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
 case "$x" in

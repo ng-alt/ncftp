@@ -8,7 +8,7 @@
 #ifndef _ncftp_h_
 #define _ncftp_h_ 1
 
-#define kLibraryVersion "@(#) LibNcFTP 3.0.0 (March 14, 2000)"
+#define kLibraryVersion "@(#) LibNcFTP 3.0.1 (March 27, 2000)"
 
 #if defined(WIN32) || defined(_WINDOWS)
 #	define longest_int LONGLONG
@@ -402,6 +402,12 @@ typedef struct MLstItem{
 #define kFtwFile 0
 #define kFtwDir 1
 
+/* For FTPChdir3(). */
+#define kChdirOnly		00000
+#define kChdirAndMkdir		00001
+#define kChdirAndGetCWD		00002
+#define kChdirOneSubdirAtATime	00004
+
 /* Return codes for custom ConfirmResumeDownloadProcs. */
 #define kConfirmResumeProcNotUsed 0
 #define kConfirmResumeProcSaidSkip 1
@@ -494,6 +500,7 @@ extern char gLibNcFTPVersion[64];
 void FTPAbortDataTransfer(const FTPCIPtr cip);
 int FTPChdir(const FTPCIPtr cip, const char *const cdCwd);
 int FTPChdirAndGetCWD(const FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_t newCwdSize);
+int FTPChdir3(FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_t newCwdSize, int flags);
 int FTPChmod(const FTPCIPtr cip, const char *const pattern, const char *const mode, const int doGlob);
 int FTPCloseHost(const FTPCIPtr cip);
 int FTPCmd(const FTPCIPtr cip, const char *const cmdspec, ...)
