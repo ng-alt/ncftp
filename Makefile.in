@@ -11,7 +11,7 @@ CFLAGS=@CFLAGS@@NDEFS@
 #CC=gcc
 #CFLAGS=-O2 -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion
 STRIPFLAG=@SFLAG@
-STRIP=strip
+STRIP=@STRIP@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 BINDIR=@bindir@
@@ -22,18 +22,22 @@ INSTALL_PROGRAM=@INSTALL_PROGRAM@
 INSTALL_DATA=@INSTALL_DATA@
 SHELL=/bin/sh
 
-all:
-	@( cd Strn ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	@( cd sio ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	@( cd libncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	@[ -d bin ] || mkdir bin
-	@( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
-	@( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
-	@( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+all: progs
 	-@/bin/ls -l bin
 	-@echo 'Done.'
 	-@echo
 	-@echo '** Please report any problems to ncftp@ncftp.com **'
+
+libs:
+	@( cd Strn ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@( cd sio ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@( cd libncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+
+progs: libs
+	@[ -d bin ] || mkdir bin
+	@( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	@( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	@( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
 
 install:
 	@( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )

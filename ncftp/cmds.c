@@ -3392,7 +3392,7 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 	SpoolCmdInfo *cinfop;
 
 	if (ftwip->depth >= 50) {
-		Trace(-1, "Aborting -- recursion depth is %u.\nPerhaps an infinite loop exists on the remote filesystem?", ftwip->depth);
+		Trace(-1, "Aborting -- recursion depth is %u.\nPerhaps an infinite loop exists on the remote filesystem?", (unsigned int) ftwip->depth);
 		return (-1);
 	}
 

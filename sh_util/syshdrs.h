@@ -52,9 +52,9 @@
 #	include <stdlib.h>
 #	include <ctype.h>
 #	include <stdarg.h>
-#	include <time.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
+#	include <time.h>
 #	include <fcntl.h>
 #	include <signal.h>
 #	include <assert.h>
@@ -134,6 +134,7 @@
 #	include <sys/types.h>
 #	include <sys/stat.h>
 #	include <sys/socket.h>
+#	include <sys/time.h>
 #	include <sys/wait.h>
 #	ifdef CAN_USE_SYS_SELECT_H
 #		include <sys/select.h>

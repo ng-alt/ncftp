@@ -3,7 +3,7 @@
 #	pragma hdrstop
 #endif
 
-static const char UNUSED(gSioVersion[]) = "@(#) sio 6.1.0 ** Copyright 1992-2001 Mike Gleason. All rights reserved.";
+static const char UNUSED(gSioVersion[]) = "@(#) sio 6.1.1 ** Copyright 1992-2001 Mike Gleason. All rights reserved.";
 
 #ifdef NO_SIGNALS
 static const char UNUSED(gNoSignalsMarker[]) = "@(#) sio - NO_SIGNALS";

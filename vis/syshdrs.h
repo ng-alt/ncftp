@@ -44,6 +44,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 
 #ifdef CAN_USE_SYS_SELECT_H

@@ -30,12 +30,31 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 	if (h != NULL)
 		return (0);
 #elif defined(HAVE_GETHOSTBYNAME_R) && defined(LINUX)
-	struct hostent *h = NULL;
-	int h_errno_unused = 0, rc;
-	memset(hpbuf, 0, hpbufsize);
-	rc = gethostbyname_r(name, hp, hpbuf, hpbufsize, &h, &h_errno_unused);
-	if ((rc == 0) || (rc == ERANGE))
-		return (0);
+	char *usehpbuf;
+	struct hostent *h;
+	int my_h_errno, rc;
+
+	usehpbuf = hpbuf;
+	forever {
+		errno = 0;
+		my_h_errno = 0;
+		h = NULL;
+		memset(usehpbuf, 0, hpbufsize);
+		rc = gethostbyname_r(name, hp, usehpbuf, hpbufsize, &h, &my_h_errno);
+		if ((rc == 0) && (my_h_errno == 0))
+			return (0);
+		if ((rc == ERANGE) || ((rc == -1) && (errno == ERANGE))) {
+			hpbufsize *= 2;
+			usehpbuf = alloca(hpbufsize);
+			if (usehpbuf == NULL) {
+				errno = ENOMEM;
+				return (-1);
+			}
+		}
+		if ((rc == 0) && (my_h_errno != 0))
+			errno = ENOENT;
+		break;
+	}
 #elif defined(HAVE_GETHOSTBYNAME_R) && defined(AIX)
 	struct hostent_data hed;
 	memset(hpbuf, 0, hpbufsize);
@@ -71,12 +90,31 @@ GetHostByAddr(struct hostent *const hp, void *addr, int asize, int atype, char *
 	if (h != NULL)
 		return (0);
 #elif defined(HAVE_GETHOSTBYADDR_R) && defined(LINUX)
-	struct hostent *h = NULL;
-	int h_errno_unused = 0, rc;
-	memset(hpbuf, 0, hpbufsize);
-	rc = gethostbyaddr_r((gethost_addrptr_t) addr, asize, atype, hp, hpbuf, hpbufsize, &h, &h_errno_unused);
-	if ((rc == 0) || (rc == ERANGE))
-		return (0);
+	char *usehpbuf;
+	struct hostent *h;
+	int my_h_errno, rc;
+
+	usehpbuf = hpbuf;
+	forever {
+		errno = 0;
+		my_h_errno = 0;
+		h = NULL;
+		memset(usehpbuf, 0, hpbufsize);
+		rc = gethostbyaddr_r((gethost_addrptr_t) addr, asize, atype, hp, usehpbuf, hpbufsize, &h, &my_h_errno);
+		if ((rc == 0) && (my_h_errno == 0))
+			return (0);
+		if ((rc == ERANGE) || ((rc == -1) && (errno == ERANGE))) {
+			hpbufsize *= 2;
+			usehpbuf = alloca(hpbufsize);
+			if (usehpbuf == NULL) {
+				errno = ENOMEM;
+				return (-1);
+			}
+		}
+		if ((rc == 0) && (my_h_errno != 0))
+			errno = ENOENT;
+		break;
+	}
 #elif defined(HAVE_GETHOSTBYADDR_R) && defined(AIX)
 	struct hostent_data hed;
 	memset(hpbuf, 0, hpbufsize);
@@ -232,7 +270,7 @@ GetOurHostName(char *const host, const size_t siz)
 	int result;
 	char **curAlias;
 	char domain[128];
-	char hpbuf[256];
+	char hpbuf[1024];
 	char *cp;
 	char *dlim, *dcp;
 	char *ctext;
@@ -253,7 +291,7 @@ GetOurHostName(char *const host, const size_t siz)
 		goto done;	/* Success */
 	}
 
-	if (GetHostByName(&hp, host, hpbuf, sizeof(hpbuf)) == 0) {
+	if ((GetHostByName(&hp, host, hpbuf, sizeof(hpbuf)) == 0) && (hp.h_name != NULL) && (hp.h_name[0] != '\0')) {
 		/* Maybe the host entry has the full name. */
 		cp = strchr((char *) hp.h_name, '.');
 		if ((cp != NULL) && (cp[1] != '\0')) {

@@ -16,7 +16,7 @@ BINDIR=@bindir@
 SYSCONFDIR=@sysconfdir@
 SOCKS_LIBS=@SOCKS_LIBS@
 LIBS=@LIBS@ $(SOCKS_LIBS)
-STRIP=strip
+STRIP=@STRIP@
 LDFLAGS=-L../libncftp -L../Strn -L../sio @LDFLAGS@
 
 # Any -D definitions:

@@ -27,9 +27,9 @@
 #	include <stdlib.h>
 #	include <ctype.h>
 #	include <stdarg.h>
-#	include <time.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
+#	include <time.h>
 #	include <fcntl.h>
 #	define strcasecmp stricmp
 #	define strncasecmp strnicmp

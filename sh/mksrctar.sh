@@ -35,8 +35,8 @@ elif [ -x /usr/local/bin/bzip2 ] ; then
 else
 	BZIP=":"
 fi
-ZIPFILE=`echo "$STGZFILE" | sed 's/\.tar\.gz/.zip/g'`
 SBGZFILE=`echo "$STGZFILE" | sed 's/\.tar\.gz/.tar.bz2/g'`
+ZIPFILE=`echo "$STGZFILE" | sed 's/\.tar\.gz/.zip/g'`
 rm -rf $TMPDIR/TAR
 mkdir -p -m755 $TMPDIR/TAR/$TARDIR 2>/dev/null
 

@@ -904,7 +904,7 @@ LogEndItemResult(int uiShow, const char *const fmt, ...)
 	strcpy(buf, "\nresult=");
 
 	va_start(ap, fmt);
-#ifdef HAVE_VNSPRINTF
+#ifdef HAVE_VSNPRINTF
 	(void) vsnprintf(buf + 8, sizeof(buf) - 8, fmt, ap);
 #else
 	(void) vsprintf(buf + 8, fmt, ap);

@@ -1,6 +1,20 @@
 Change Log:
 ===========
 
+3.1.1, 2001-12-23:
+
+ + Fixed bugs with our use of gethostbyname_r/addr_r on Linux.
+
+ + Fixed bugs with our implementation of stat64() on Windows, which caused
+   problems when querying information about local directories.
+ 
+ + Source distributions now include install-sh again.
+
+ + Bug fixed with Win32 version of ncftp_bookmarks, which could look
+   in $HOME/.ncftp rather than $HOME/ncftp.  Many Win32 users weren't
+   affected, since the HOME environment variable is not always set.
+
+
 3.1.0, 2001-12-17:
 
 + ACCT is now always sent if the server requests it and you're going

@@ -237,13 +237,15 @@ WinFStat64(const int h0, struct WinStat64 *const stp)
 	stp->st_rdev = st32.st_rdev;
 	stp->st_uid = st32.st_uid;
 
-	fSize = (_int64)0;
-	fSize1 = GetFileSize(h, &fSize2);
-	if ((fSize1 == 0xFFFFFFFF) && ((winErr = GetLastError()) != NO_ERROR))
-		goto return_err;
+	if (S_ISREG(stp->st_mode)) {
+		fSize = (_int64)0;
+		fSize1 = GetFileSize(h, &fSize2);
+		if ((fSize1 == 0xFFFFFFFF) && ((winErr = GetLastError()) != NO_ERROR))
+			goto return_err;
 
-	fSize = ((__int64) fSize2 << 32) | (__int64) fSize1;
-	stp->st_size = fSize;
+		fSize = ((__int64) fSize2 << 32) | (__int64) fSize1;
+		stp->st_size = fSize;
+	}
 	return (0);
 
 return_err:
@@ -286,26 +288,28 @@ WinStat64(const char *const path, struct WinStat64 *const stp)
 	stp->st_rdev = st32.st_rdev;
 	stp->st_uid = st32.st_uid;
 
-	h = CreateFile(path,
-		0,				/* Not GENERIC_READ; use 0 for "query attributes only" mode */
-		0,
-		NULL,
-		OPEN_EXISTING,	/* fails if it doesn't exist */
-		0,
-		NULL
-		);
-	
-	if (h == INVALID_HANDLE_VALUE)
-		goto return_err;
+	if (S_ISREG(stp->st_mode)) {
+		h = CreateFile(path,
+			0,				/* Not GENERIC_READ; use 0 for "query attributes only" mode */
+			0,
+			NULL,
+			OPEN_EXISTING,	/* fails if it doesn't exist */
+			0,
+			NULL
+			);
+		
+		if (h == INVALID_HANDLE_VALUE)
+			goto return_err;
 
-	fSize = (_int64)0;
-	fSize1 = GetFileSize(h, &fSize2);
-	if ((fSize1 == 0xFFFFFFFF) && ((winErr = GetLastError()) != NO_ERROR))
-		goto return_err;
+		fSize = (_int64)0;
+		fSize1 = GetFileSize(h, &fSize2);
+		if ((fSize1 == 0xFFFFFFFF) && ((winErr = GetLastError()) != NO_ERROR))
+			goto return_err;
 
-	fSize = ((__int64) fSize2 << 32) | (__int64) fSize1;
-	stp->st_size = fSize;
-	CloseHandle(h);
+		fSize = ((__int64) fSize2 << 32) | (__int64) fSize1;
+		stp->st_size = fSize;
+		CloseHandle(h);
+	}
 	return (0);
 
 return_err:

@@ -13,7 +13,7 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.1.0 (December 17, 2001)"
+#define kLibraryVersion "@(#) LibNcFTP 3.1.1 (December 23, 2001)"
 
 #if defined(WIN32) || defined(_WINDOWS)
 #	pragma once

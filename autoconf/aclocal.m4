@@ -623,9 +623,6 @@ changequote([, ])dnl
 	if test "$DEBUGBUILD" = yes ; then
 		AC_MSG_RESULT(yes)
 		CFLAGS="$DEBUGCFLAGS"
-		SFLAG=""
-		STRIPFLAG=""
-		STRIP=":"
 	else
 		AC_MSG_RESULT(no)
 	fi

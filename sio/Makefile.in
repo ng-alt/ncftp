@@ -171,6 +171,7 @@ gz: tar
 
 @SIO_PRECOMP@
 
+DNSUtil.o: DNSUtil.c $(SYSHDRS_DEP)
 PRead.o: PRead.c $(SYSHDRS_DEP)
 PWrite.o: PWrite.c $(SYSHDRS_DEP)
 SAcceptA.o: SAcceptA.c $(SYSHDRS_DEP)
