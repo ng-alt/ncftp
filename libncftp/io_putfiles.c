@@ -123,7 +123,7 @@ FTPPutFiles3(
 				if (result != kNoErr)
 					batchResult = result;
 			} else {
-				if ((result != kNoErr) && (result != kErrLocalFileNewer) && (result != kErrRemoteFileNewer) && (result != kErrLocalSameAsRemote))
+				if ((result != kNoErr) && (result != kErrLocalFileNewer) && (result != kErrRemoteFileNewer) && (result != kErrRemoteSameAsLocal))
 					batchResult = result;
 			}
 			if (result == kErrUserCanceled)
@@ -136,7 +136,7 @@ FTPPutFiles3(
 				if (result != kNoErr)
 					batchResult = result;
 			} else {
-				if ((result != kNoErr) && (result != kErrLocalFileNewer) && (result != kErrRemoteFileNewer) && (result != kErrLocalSameAsRemote))
+				if ((result != kNoErr) && (result != kErrLocalFileNewer) && (result != kErrRemoteFileNewer) && (result != kErrRemoteSameAsLocal))
 					batchResult = result;
 			}
 			if (result == kErrUserCanceled)

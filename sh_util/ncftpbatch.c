@@ -74,6 +74,7 @@ unsigned int gPort;
 char gRUser[128];
 char gRPass[128];
 char gRAcct[128];
+char gManualOverrideFeatures[256];
 char gPreFTPCommand[128];
 char gPerFileFTPCommand[128];
 char gPostFTPCommand[128];
@@ -113,7 +114,6 @@ jmp_buf gCancelJmp;
 
 extern const char gOS[], gVersion[];
 
-extern void CloseControlConnection(const FTPCIPtr);
 extern struct dirent *Readdir(DIR *const dir, struct dirent *const dp);
 
 static void ErrBox(const char *const fmt, ...)
@@ -693,6 +693,7 @@ LoadCurrentSpoolFileContents(int logErrors)
 	gLDir[0] = '\0';
 	gRFile[0] = '\0';
 	gLFile[0] = '\0';
+	gManualOverrideFeatures[0] = '\0';
 	gPreFTPCommand[0] = '\0';
 	gPerFileFTPCommand[0] = '\0';
 	gPostFTPCommand[0] = '\0';
@@ -749,6 +750,8 @@ LoadCurrentSpoolFileContents(int logErrors)
 			(void) STRNCPY(gRFile, tok2);
 		} else if (strcmp(tok1, "local-file") == 0) {
 			(void) STRNCPY(gLFile, tok2);
+		} else if (strcmp(tok1, "manual-override-features") == 0) {
+			(void) STRNCPY(gManualOverrideFeatures, tok2);
 		} else if (strcmp(tok1, "pre-ftp-command") == 0) {
 			(void) STRNCPY(gPreFTPCommand, tok2);
 			cp = gPreFTPCommand;
@@ -911,7 +914,7 @@ RunShellCommandWithSpoolItemData(const char *const cmd, const char *const addstr
 		/* Avoid sharing other resources with the shell
 		 * command, such as our FTP session descriptors.
 		 */
-		CloseControlConnection(&gConn);
+		FTPCloseControlConnection(&gConn);
 		gMyPID = getpid();
 		CloseLog();
 
@@ -1067,6 +1070,7 @@ DoItem(void)
 		(void) STRNCPY(gConn.acct, gRAcct);
 		gConn.maxDials = 1;
 		gConn.dataPortMode = gPassive;
+		gConn.manualOverrideFeatures = gManualOverrideFeatures;
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		gConn.progress = PrWinStatBar;
 #endif
@@ -1152,8 +1156,11 @@ DoItem(void)
 		if (result == kErrCouldNotStartDataTransfer) {
 			LogEndItemResult(1, "Remote item %s is no longer retrievable.\n", gRFile);
 			result = 0;	/* file no longer on host */
-		} else if (result == kErrLocalSameAsRemote) {
+		} else if (result == kErrRemoteSameAsLocal) {
 			LogEndItemResult(1, "Remote item %s is already present locally.\n", gRFile);
+			result = 0;
+		} else if (result == kErrLocalFileNewer) {
+			LogEndItemResult(1, "Remote item %s is already present on remote host and is newer.\n", gRFile);
 			result = 0;
 		} else if (result == kNoErr) {
 			(void) AdditionalCmd(&gConn, gPerFileFTPCommand, gRFile);
@@ -1179,6 +1186,9 @@ DoItem(void)
 		} else if (result == kErrLocalSameAsRemote) {
 			LogEndItemResult(1, "Local item %s is already present on remote host.\n", gLFile);
 			result = 0;
+		} else if (result == kErrRemoteFileNewer) {
+			LogEndItemResult(1, "Local item %s is already present on remote host and is newer.\n", gLFile);
+			result = 0;
 		} else if (result == kNoErr) {
 			(void) AdditionalCmd(&gConn, gPerFileFTPCommand, gLFile);
 			LogEndItemResult(1, "Succeeded uploading %s.\n", gLFile);
@@ -1186,6 +1196,23 @@ DoItem(void)
 			LogEndItemResult(1, "Error (%d) occurred on %s: %s\n", result, gLFile, FTPStrError(result));
 		}
 	}
+	
+	switch (result) {
+		case kErrSYMLINKFailed:
+		case kErrSYMLINKNotAvailable:
+		case kErrLocalDeleteFailed:
+		case kErrDELEFailed:
+		case kErrMKDFailed:
+		case kErrCWDFailed:
+		case kErrRMDFailed:
+		case kErrRenameFailed:
+			/* We logged the error, but do not attempt to
+			 * retry this spool entry.
+			 */
+			result = 0;
+			break;
+	}
+	
 	return (result);
 }	/* DoItem */
 
@@ -1485,7 +1512,9 @@ EventShell(volatile unsigned int sleepval)
 						gPreShellCommand,
 						gPostShellCommand,
 						tnext,
-						gDelaySinceLastFailure
+						gDelaySinceLastFailure,
+						gManualOverrideFeatures,
+						0
 					) < 0) {
 						/* quit now */
 						Log(0, "Could not rename job %s!\n", gMyItemPath);

@@ -32,9 +32,14 @@ int gXterm;
 int gXtermTitle;	/* Idea by forsberg@lysator.liu.se */
 char gCurXtermTitleStr[256];
 
-#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
-	&& defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) ) && defined(_CONSOLE)
 	char gSavedConsoleTitle[64];
+	static WORD GetConsoleTextAttribute(HANDLE Console)
+	{
+		CONSOLE_SCREEN_BUFFER_INFO	ConsoleInfo;
+		GetConsoleScreenBufferInfo(Console, &ConsoleInfo);
+		return ConsoleInfo.wAttributes;
+	}
 #endif
 
 extern int gMaySetXtermTitle;
@@ -151,13 +156,12 @@ GetScreenColumns(void)
 void
 InitTermcap(void)
 {
-#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
-	&& defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) ) && defined(_CONSOLE)
 	gXterm = gXtermTitle = 0;
 	gCurXtermTitleStr[0] = '\0';
 
-	tcap_normal = "";
-	tcap_boldface = "";
+	tcap_normal = "\033[0m";       /* Default ANSI escapes */
+	tcap_boldface = "\033[1m";
 	tcap_underline = "";
 	tcap_reverse = "";
 
@@ -744,8 +748,7 @@ SetXtermTitle(const char *const fmt, ...)
 
 	if ((gXtermTitle != 0) && (gMaySetXtermTitle != 0)) {
 		if ((fmt == NULL) || (ISTRCMP(fmt, "RESTORE") == 0)) {
-#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
-	&& defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) ) && defined(_CONSOLE)
 			STRNCPY(buf, gSavedConsoleTitle);
 #else
 			STRNCPY(buf, gTerm);
@@ -763,8 +766,7 @@ SetXtermTitle(const char *const fmt, ...)
 			va_end(ap);
 		}
 		if (buf[0] != '\0') {
-#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
-	&& defined(_CONSOLE)
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) ) && defined(_CONSOLE)
 			SetConsoleTitle(buf);
 #else
 			if (strcmp(gCurXtermTitleStr, buf) != 0) {
@@ -799,6 +801,29 @@ PrintStartupBanner(void)
 		(void) STRNCAT(vdate, ")");
 	}
 
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) ) && defined(_CONSOLE)
+	{
+		HANDLE Console = GetStdHandle(STD_OUTPUT_HANDLE);
+		WORD Attribute = GetConsoleTextAttribute(Console);
+		Attribute |= FOREGROUND_INTENSITY;
+		SetConsoleTextAttribute(Console, Attribute);
+#if defined(BETA) && (BETA > 0)
+		(void) fprintf(stdout, "%.11s beta %d",
+			gVersion + 5,
+			BETA
+		);
+#else
+		(void) fprintf(stdout, "%.11s",
+			gVersion + 5
+		);
+#endif
+		Attribute &= ~FOREGROUND_INTENSITY;
+		SetConsoleTextAttribute(Console, Attribute);
+		(void) fprintf(stdout, "%s by Mike Gleason (http://www.NcFTP.com/contact/).\n",
+			vdate
+		);
+	}
+#else
 #if defined(BETA) && (BETA > 0)
 	(void) fprintf(stdout, "%s%.11s beta %d%s%s by Mike Gleason (http://www.NcFTP.com/contact/).\n",
 		tcap_boldface,
@@ -814,6 +839,7 @@ PrintStartupBanner(void)
 		tcap_normal,
 		vdate
 	);
+#endif
 #endif
 	(void) fflush(stdout);
 }	/* PrintStartupBanner */

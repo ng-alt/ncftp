@@ -72,6 +72,7 @@ find . -depth -follow -type f | sed '
 /\.swp$/d
 /\.orig$/d
 /\.rej$/d
+/\/\._/d
 /\/Makefile\.bin$/d
 /\.bin$/d
 /\/bin/d

@@ -136,7 +136,7 @@ RemoteGlobCollapse(const FTPCIPtr cip, const char *pattern, FTPLineListPtr fileL
 	cur = prev = NULL;
 	for (lp=fileList->first; lp != NULL; lp = nextLine) {
 		nextLine = lp->next;
-		if (strncmp(lp->line, patPrefix, plen) == 0) {
+		if (ISTRNEQ(lp->line, patPrefix, plen)) {
 			if (Dynsrecpy(&cur, lp->line + plen, 0) == NULL)
 				goto done;
 			cp = strpbrk(cur, "/\\");
@@ -216,7 +216,7 @@ FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int do
 		/* Optimize for "NLST *" case which is same as "NLST". */
 		if (strcmp(pattern, "*") == 0) {
 			pattern = "";
-			lsflags = "-a";
+			lsflags = (cip->hasNLST_a == kCommandNotAvailable) ? "" : "-a";
 		} else if (strcmp(pattern, "**") == 0) {
 			/* Hack; Lets you try "NLST -a" if you're daring. */
 			/* Need to use "NLST -a" whenever possible,
@@ -225,13 +225,14 @@ FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int do
 			 *  if you do "NLST /the/dir" without -a.)
 			 */
 			pattern = "";
-			lsflags = "-a";
+			lsflags = (cip->hasNLST_a == kCommandNotAvailable) ? "" : "-a";
 		}
 
 		if ((result = FTPListToMemory2(cip, pattern, fileList, lsflags, 0, (int *) 0)) < 0) {
 			if (*lsflags == '\0')
 				return (result);
 			/* Try again, without "-a" */
+			cip->hasNLST_a = kCommandNotAvailable;
 			lsflags = "";
 			if ((result = FTPListToMemory2(cip, pattern, fileList, lsflags, 0, (int *) 0)) < 0) {
 				return (result);

@@ -504,7 +504,7 @@ UnLslR(const FTPCIPtr cip, FTPFileInfoListPtr filp, FTPLineListPtr llp, int serv
 	size_t fileLen;
 	int plugend;
 	int skipdir = 0;
-	int cwdlen;
+	size_t cwdlen;
 
 	if (Localtime(time(&now), &nowtm) == NULL)
 		thisyear = 1970;	/* should never happen */

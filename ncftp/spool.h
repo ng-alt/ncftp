@@ -42,7 +42,9 @@ int SpoolX(
 	const char *const preshellcmd,
 	const char *const postshellcmd,
 	const time_t when,
-	const unsigned int delaySinceLastFailure);
+	const unsigned int delaySinceLastFailure,
+	const char *const manualOverrideFeatures,
+	const int reserved);
 void RunBatch(void);
 void RunBatchWithCore(const FTPCIPtr);
 void Jobs(void);

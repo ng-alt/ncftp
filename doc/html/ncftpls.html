@@ -89,6 +89,35 @@ For the
 into the name of the file that was transferred.
 </DD>
 
+<DT><B>-o </B><I>XX</I> </DT>
+<DD>Set advanced option <I>XX</I>.
+<P>
+This option is used primarily for debugging.
+It sets the value of an internal variable to an integer value.
+An example usage would be:
+<tt>-o useFEAT=0,useCLNT=1</tt>
+which in this case, disables use of the
+FEAT command and enables use of the CLNT command.
+The available variables include:
+<tt>usePASV</tt>,
+<tt>useSIZE</tt>,
+<tt>useMDTM</tt>,
+<tt>useREST</tt>,
+<tt>useNLST_a</tt>,
+<tt>useNLST_d</tt>,
+<tt>useFEAT</tt>,
+<tt>useMLSD</tt>,
+<tt>useMLST</tt>,
+<tt>useCLNT</tt>,
+<tt>useHELP_SITE</tt>,
+<tt>useSITE_UTIME</tt>,
+<tt>STATfileParamWorks</tt>,
+<tt>NLSTfileParamWorks</tt>,
+<tt>require20</tt>,
+<tt>allowProxyForPORT</tt>,
+<tt>doNotGetStartCWD</tt>.
+</DD>
+
 </blockquote>
 
 <H2>Description</H2>

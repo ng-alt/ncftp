@@ -397,7 +397,7 @@ main(int argc, char **const argv)
 
 	PreInit();
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:p:j:rd:eg:FVLD")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:p:j:rd:eg:o:FVLD")) > 0) switch(c) {
 		case 'P':
 		case 'u':
 		case 'p':
@@ -408,6 +408,7 @@ main(int argc, char **const argv)
 		case 'g':
 		case 'd':
 		case 'e':
+		case 'o':
 		case 'V':
 		case 'L':
 		case 'D':
@@ -432,7 +433,7 @@ main(int argc, char **const argv)
 	 * bookmark settings.
 	 */
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:p:j:rd:eg:FVLD")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:p:j:rd:eg:o:FVLD")) > 0) switch(c) {
 		case 'P':
 			gConn.port = atoi(opt.arg);	
 			break;
@@ -463,6 +464,9 @@ main(int argc, char **const argv)
 			n = atoi(opt.arg);
 			if (n >= 10)
 				gConn.redialDelay = n;
+			break;
+		case 'o':
+			gConn.manualOverrideFeatures = opt.arg;
 			break;
 		case 'F':
 			DumpFirewallPrefsTemplate();

@@ -64,7 +64,7 @@ Usage(void)
   -f XX  Read the file XX for host, user, and password information.\n\
   -A     Append to local files, instead of overwriting them.\n");
 	(void) fprintf(fp, "\
-  -z/-Z  Do (do not) not try to resume downloads (default: -z).\n\
+  -z/-Z  Do (do not) try to resume downloads (default: -z).\n\
   -E     Use regular (PORT) data connections.\n\
   -F     Use passive (PASV) data connections (default).\n\
   -DD    Delete remote file after successfully downloading it.\n\
@@ -73,6 +73,7 @@ Usage(void)
 	(void) fprintf(fp, "\
   -B XX  Try setting the SO_RCVBUF size to XX.\n\
   -r XX  Redial XX times until connected.\n\
+  -o XX  Specify miscellaneous options (see documentation).\n\
   -W XX  Send raw FTP command XX after logging in.\n\
   -X XX  Send raw FTP command XX after each file transferred.\n\
   -Y XX  Send raw FTP command XX before logging out.\n\
@@ -230,7 +231,7 @@ main(int argc, char **argv)
 
 	if (batchmode > 0) {
 		GetoptReset(&opt);
-		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
+		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:o:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
 			case 'v': case 'V': case 'A': case 'B': case 'T':
 			case 'd': case 'e': case 't': case 'r': case 'c':
 			case 'z': case 'Z':
@@ -241,21 +242,24 @@ main(int argc, char **argv)
 	}
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:t:aRTr:vVf:ADzZEFbcB:W:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:t:aRTr:vVf:o:ADzZEFbcB:W:X:Y:")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
 			break;
 		case 'u':
 			(void) STRNCPY(fi.user, opt.arg);
-			memset(opt.arg, '*', strlen(fi.user));
+			memset(opt.arg, 0, strlen(fi.user));
+			opt.arg[0] = '?';
 			break;
 		case 'j':
 			(void) STRNCPY(fi.acct, opt.arg);
-			memset(opt.arg, '*', strlen(fi.acct));
+			memset(opt.arg, 0, strlen(fi.acct));
+			opt.arg[0] = '?';
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
-			memset(opt.arg, '*', strlen(fi.pass));
+			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
 			break;
 		case 'e':
 			if (strcmp(opt.arg, "stdout") == 0)
@@ -304,6 +308,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			ReadConfigFile(opt.arg, &fi);
+			break;
+		case 'o':
+			fi.manualOverrideFeatures = opt.arg;
 			break;
 		case 'A':
 			appendflag = kAppendYes;
@@ -469,6 +476,8 @@ main(int argc, char **argv)
 				NULL,
 				NULL,
 				(time_t) 0,	/* when: now */
+				0,
+				fi.manualOverrideFeatures,
 				0
 			);
 			if ((rc == 0) && (batchmode < 3)) {
@@ -512,6 +521,8 @@ main(int argc, char **argv)
 					NULL,
 					NULL,
 					(time_t) 0,	/* when: now */
+					0,
+					fi.manualOverrideFeatures,
 					0
 				);
 				if ((rc == 0) && (batchmode < 3)) {

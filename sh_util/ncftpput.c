@@ -79,6 +79,7 @@ Usage(void)
 	(void) fprintf(fp, "\
   -B XX  Try setting the SO_SNDBUF size to XX.\n\
   -r XX  Redial XX times until connected.\n\
+  -o XX  Specify miscellaneous options (see documentation).\n\
   -W XX  Send raw FTP command XX after logging in.\n\
   -X XX  Send raw FTP command XX after each file transferred.\n\
   -Y XX  Send raw FTP command XX before logging out.\n\
@@ -143,7 +144,10 @@ Copy(FTPCIPtr cip, const char *const dstdir, char **const files, const int rflag
 			xtype, appendflag, tmppfx, tmpsfx, resumeflag, deleteflag, kNoFTPConfirmResumeUploadProc, 0);
 		if (result != 0) {
 			FTPPerror(cip, result, kErrCouldNotStartDataTransfer, "ncftpput", file);
-			rc = result;
+			if (result != kErrRemoteSameAsLocal) {
+				/* Display the warning, but don't consider it an error. */
+				rc = result;
+			}
 		} else {
 			(void) AdditionalCmd(cip, perfilecmd, file);
 		}
@@ -221,7 +225,7 @@ main(int argc, char **argv)
 	perfilecmd[0] = '\0';
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:AT:S:EFcyZzDbB:W:X:Y:")) > 0) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:o:AT:S:EFcyZzDbB:W:X:Y:")) > 0) {
 		if (c == 'b') {
 			batchmode++;
 		}
@@ -241,21 +245,24 @@ main(int argc, char **argv)
 	}
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:o:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
 			break;
 		case 'u':
 			(void) STRNCPY(fi.user, opt.arg);
-			memset(opt.arg, '*', strlen(fi.user));
+			memset(opt.arg, 0, strlen(fi.user));
+			opt.arg[0] = '?';
 			break;
 		case 'j':
 			(void) STRNCPY(fi.acct, opt.arg);
-			memset(opt.arg, '*', strlen(fi.acct));
+			memset(opt.arg, 0, strlen(fi.acct));
+			opt.arg[0] = '?';
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
-			memset(opt.arg, '*', strlen(fi.pass));
+			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
 			break;
 		case 'e':
 			if (strcmp(opt.arg, "stdout") == 0)
@@ -308,6 +315,9 @@ main(int argc, char **argv)
 		case 'f':
 			ReadConfigFile(opt.arg, &fi);
 			usingcfg = 1;
+			break;
+		case 'o':
+			fi.manualOverrideFeatures = opt.arg;
 			break;
 		case 'A':
 			appendflag = 1;
@@ -372,7 +382,7 @@ main(int argc, char **argv)
 		} else {
 			if (opt.ind > argc - 1)
 				Usage();
-			dstfile = argv[opt.ind];
+			dstfile = argv[opt.ind + 1];
 		}
 	} else {
 		if (ftpcat == 0) {
@@ -450,6 +460,8 @@ main(int argc, char **argv)
 				NULL,
 				NULL,
 				(time_t) 0,	/* when: now */
+				0,
+				fi.manualOverrideFeatures,
 				0
 			);
 			if ((result == 0) && (batchmode < 3)) {

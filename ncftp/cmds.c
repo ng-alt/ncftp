@@ -2404,7 +2404,7 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 
 	/* Need to find the host argument first. */
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "aP:u:p:j:rd:g:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "aP:u:p:j:rd:g:o:")) > 0) switch(c) {
 		case 'u':
 			uOptInd = opt.ind + 1;
 			opts++;
@@ -2497,7 +2497,7 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	}
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "aP:u:p:j:rd:g:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "aP:u:p:j:rd:g:o:")) > 0) switch(c) {
 		case 'j':
 			(void) STRNCPY(gConn.acct, opt.arg);
 			break;
@@ -2535,6 +2535,9 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 			n = atoi(opt.arg);
 			if (n >= 10)
 				gConn.redialDelay = n;
+			break;
+		case 'o':
+			gConn.manualOverrideFeatures = opt.arg;
 			break;
 		default:
 			PrintCmdUsage(cmdp);
@@ -3541,6 +3544,8 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 			NULL,
 			NULL,
 			cinfop->when,
+			0,
+			gConn.manualOverrideFeatures,
 			0
 		);
 		if (rc == 0) {
@@ -3674,6 +3679,8 @@ SpoolGetCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 			NULL,
 			NULL,
 			cinfo.when,
+			0,
+			gConn.manualOverrideFeatures,
 			0
 		);
 		if (rc == 0) {
@@ -3727,6 +3734,8 @@ SpoolGetCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 					NULL,
 					NULL,
 					cinfo.when,
+					0,
+					gConn.manualOverrideFeatures,
 					0
 				);
 				if (rc == 0) {
@@ -3889,6 +3898,8 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 			NULL,
 			NULL,
 			cinfop->when,
+			0,
+			gConn.manualOverrideFeatures,
 			0
 		);
 		if (rc == 0) {
@@ -4024,6 +4035,8 @@ SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 			NULL,
 			NULL,
 			cinfo.when,
+			0,
+			gConn.manualOverrideFeatures,
 			0
 		);
 		if (rc == 0) {
@@ -4077,6 +4090,8 @@ SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 					NULL,
 					NULL,
 					cinfo.when,
+					0,
+					gConn.manualOverrideFeatures,
 					0
 				);
 				if (rc == 0) {

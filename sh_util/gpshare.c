@@ -319,12 +319,16 @@ ReadConfigFile(const char *fn, FTPCIPtr cip)
 	char *cp;
 	int goodfile = 0;
 
-	fp = fopen(fn, FOPEN_READ_TEXT);
-	if (fp == NULL) {
-		perror(fn);
-		exit(kExitBadConfigFile);
+	if ((fn[0] == '\0') || (strcmp(fn, "-") == 0)) {
+		fp = stdin;
+	} else {
+		fp = fopen(fn, FOPEN_READ_TEXT);
+		if (fp == NULL) {
+			perror(fn);
+			exit(kExitBadConfigFile);
+		}
 	}
-
+	
 	line[sizeof(line) - 1] = '\0';
 	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
 		if ((line[0] == '#') || (isspace((int) line[0])))
@@ -353,7 +357,8 @@ ReadConfigFile(const char *fn, FTPCIPtr cip)
 			(void) STRNCPY(cip->acct, line + 8);
 		}
 	}
-	(void) fclose(fp);
+	if ((fp != NULL) && (fp != stdin))
+		(void) fclose(fp);
 
 	if (goodfile == 0) {
 		(void) fprintf(stderr, "%s doesn't contain anything useful.\n", fn);

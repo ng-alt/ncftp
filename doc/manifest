@@ -80,6 +80,8 @@ libncftp/u_pathcat.c
 libncftp/u_getopt.c
 libncftp/pch.mk.gcc-gch
 libncftp/u_miscdebug.c
+libncftp/u_feat.c
+libncftp/u_decodehost.c
 Strn/syshdrs.h
 Strn/configure.in
 Strn/DStrCat.c

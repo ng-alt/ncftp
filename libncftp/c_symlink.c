@@ -21,5 +21,6 @@ FTPSymlink(const FTPCIPtr cip, const char *const lfrom, const char *const lto)
 		return (kErrBadParameter);
 	if (FTPCmd(cip, "SITE SYMLINK %s %s", lfrom, lto) == 2)
 		return (kNoErr);
+	cip->errNo = kErrSYMLINKFailed;
 	return (kErrSYMLINKFailed);
 }	/* FTPSymlink */

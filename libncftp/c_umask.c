@@ -21,5 +21,6 @@ FTPUmask(const FTPCIPtr cip, const char *const umsk)
 		return (kErrBadParameter);
 	if (FTPCmd(cip, "SITE UMASK %s", umsk) == 2)
 		return (kNoErr);
+	cip->errNo = kErrUmaskFailed;
 	return (kErrUmaskFailed);
 }	/* FTPUmask */

@@ -84,16 +84,6 @@ int GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbu
 int GetPwNam(struct passwd *pwp, const char *const nam, char *const pwbuf, size_t pwbufsize);
 #endif
 void CloseFile(FILE **);
-void PrintF(const FTPCIPtr cip, const char *const fmt, ...)
-#if (defined(__GNUC__)) && (__GNUC__ >= 2)
-__attribute__ ((format (printf, 2, 3)))
-#endif
-;
-void FTPLogError(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
-#if (defined(__GNUC__)) && (__GNUC__ >= 2)
-__attribute__ ((format (printf, 3, 4)))
-#endif
-;
 #if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 char *StrFindLocalPathDelim(const char *src);
 char *StrRFindLocalPathDelim(const char *src);

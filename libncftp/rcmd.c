@@ -36,14 +36,6 @@ BrokenCtrl(int UNUSED(signumIgnored))
 #endif	/* NO_SIGNALS */
 
 
-static int
-SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
-#if (defined(__GNUC__)) && (__GNUC__ >= 2)
-__attribute__ ((format (printf, 2, 0)))
-#endif
-;
-
-
 
 /* A 'Response' parameter block is simply zeroed to be considered init'ed. */
 ResponsePtr
@@ -518,8 +510,8 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 
 #ifdef NO_SIGNALS
 
-static int
-SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
+int
+FTPSendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 {
 	longstring command;
 	int result;
@@ -548,13 +540,14 @@ SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 		}
 		return (kNoErr);
 	}
+	cip->errNo = kErrNotConnected;
 	return (kErrNotConnected);
-}	/* SendCommand */
+}	/* FTPSendCommand */
 
 #else	/* NO_SIGNALS */
 
-static int
-SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
+int
+FTPSendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 {
 	longstring command;
 	int result;
@@ -616,8 +609,9 @@ SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 		memset(&cip->lastCmdFinish, 0, sizeof(cip->lastCmdFinish));
 		return (kNoErr);
 	}
+	cip->errNo = kErrNotConnected;
 	return (kErrNotConnected);
-}	/* SendCommand */
+}	/* FTPSendCommand */
 #endif	/* NO_SIGNALS */
 
 
@@ -652,7 +646,7 @@ FTPCmd(const FTPCIPtr cip, const char *const cmdspec, ...)
 	if (cip->ctrlTimeout > 0)
 		(void) alarm(cip->ctrlTimeout);
 #endif	/* NO_SIGNALS */
-	result = SendCommand(cip, cmdspec, ap);
+	result = FTPSendCommand(cip, cmdspec, ap);
 	va_end(ap);
 	if (result < 0) {
 #ifndef NO_SIGNALS
@@ -696,7 +690,7 @@ FTPCmdNoResponse(const FTPCIPtr cip, const char *const cmdspec, ...)
 	if (cip->ctrlTimeout > 0)
 		(void) alarm(cip->ctrlTimeout);
 #endif	/* NO_SIGNALS */
-	(void) SendCommand(cip, cmdspec, ap);
+	(void) FTPSendCommand(cip, cmdspec, ap);
 #ifndef NO_SIGNALS
 	if (cip->ctrlTimeout > 0)
 		(void) alarm(0);
@@ -769,7 +763,7 @@ RCmd(const FTPCIPtr cip, ResponsePtr rp, const char *cmdspec, ...)
 	if (cip->ctrlTimeout > 0)
 		(void) alarm(cip->ctrlTimeout);
 #endif	/* NO_SIGNALS */
-	result = SendCommand(cip, cmdspec, ap);
+	result = FTPSendCommand(cip, cmdspec, ap);
 	va_end(ap);
 	if (result < 0) {
 #ifndef NO_SIGNALS
@@ -837,7 +831,7 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 
 	/* If asked, attempt to start at a later position in the remote file. */
 	if (startPoint != (longest_int) 0) {
-		if ((startPoint == kSizeUnknown) || ((result = SetStartOffset(cip, startPoint)) != 0))
+		if ((startPoint == kSizeUnknown) || ((result = FTPSetStartOffset(cip, startPoint)) != 0))
 			startPoint = (longest_int) 0;
 	}
 	cip->startPoint = startPoint;
@@ -851,7 +845,7 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 	if (cip->ctrlTimeout > 0)
 		(void) alarm(cip->ctrlTimeout);
 #endif	/* NO_SIGNALS */
-	result = SendCommand(cip, cmdspec, ap);
+	result = FTPSendCommand(cip, cmdspec, ap);
 	va_end(ap);
 	if (result < 0) { 
 #ifndef NO_SIGNALS

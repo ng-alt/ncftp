@@ -16,7 +16,7 @@
 	}
 #endif
 
-#if ((defined(MACOSX)) || (defined(AIX) && (AIX < 430)) || (defined(DIGITAL_UNIX)) || (defined(SOLARIS)) || (defined(SCO)) || (defined(HPUX)))
+#if (((defined(MACOSX)) && (MACSOX < 10300)) || (defined(AIX) && (AIX < 430)) || (defined(DIGITAL_UNIX)) || (defined(SOLARIS)) || (defined(SCO)) || (defined(HPUX)))
 extern int getdomainname(char *name, gethostname_size_t namelen);
 #endif
 
@@ -69,7 +69,7 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 		h = NULL;
 		memset(usehpbuf, 0, hpbufsize);
 		rc = gethostbyname_r(name, hp, usehpbuf, hpbufsize, &h, &my_h_errno);
-		if ((rc == 0) && (my_h_errno == 0))
+		if ((rc == 0) && (h != NULL))
 			return (0);
 		if ((rc == ERANGE) || ((rc == -1) && (errno == ERANGE))) {
 			hpbufsize *= 2;

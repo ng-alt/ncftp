@@ -362,6 +362,12 @@
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
+/* Define to sizeof(struct stat) */
+#undef SIZEOF_STRUCT_STAT
+
+/* Define to sizeof(struct stat64), if you have it. */
+#undef SIZEOF_STRUCT_STAT64
+
 #undef sockaddr_size_t
 
 /* If SOCKS library is being used, define the major version (i.e. 5) */

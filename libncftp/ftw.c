@@ -1,6 +1,6 @@
 /* Ftw.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -103,23 +103,28 @@ void closedir(DIR *dir)
 struct dirent *
 Readdir(DIR *const dir, struct dirent *const dp)
 {
-	struct dirent *p;
-
 #if defined(MACOSX)
+	struct dirent *p;
 	p = readdir(dir);
 	if (p != NULL) {
 		memcpy(dp, p, sizeof(struct dirent));
 		return (dp);
 	}
-#elif defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(SCO)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
+#elif defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(SCO)) || (defined(IRIX) && (IRIX < 6)) )
+	struct dirent *p;
 	p = readdir_r(dir, dp);
 	if (p != NULL)
 		return (dp);
+#elif defined(HAVE_READDIR_R) && (defined(HPUX) && (HPUX < 1100))
+	if (readdir_r(dir, dp) >= 0)
+		return (dp);
 #elif defined(HAVE_READDIR_R)
+	struct dirent *p;
 	p = NULL;
 	if ((readdir_r(dir, dp, &p) == 0) && (p != NULL))
 		return (dp);
 #else
+	struct dirent *p;
 	p = readdir(dir);
 	if (p != NULL) {
 		memcpy(dp, p, sizeof(struct dirent));
@@ -347,12 +352,30 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 			return (-1);
 		ftwip->curPathAllocSize = alen - 2;
 	}
+
+	ftwip->curType = 'd';
+	memset(ftwip->curPath, 0, ftwip->curPathAllocSize);
+	memcpy(ftwip->curPath, path, len + 1);
+	cp = ftwip->curPath + strlen(ftwip->curPath);
+	--cp;
+	while ((cp > ftwip->curPath) && IsLocalPathDelim(*cp))
+		*cp-- = '\0';
+	endp = cp + 1;
+	ftwip->curPathLen = ftwip->startPathLen = len = (size_t) (endp - ftwip->curPath);
+	while (cp >= ftwip->curPath) {
+		if (IsLocalPathDelim(*cp))
+			break;
+		--cp;
+	}
+	ftwip->curFile = ++cp;
+	ftwip->curFileLen = (size_t) (endp - cp);
+
 	/* Note: we use Stat instead of Lstat here because we allow the
 	 * top level node (as specified by path) to be a symlink
 	 * to a directory.
 	 */
 	memset(&ftwip->curStat, 0, sizeof(ftwip->curStat));
-	if (Stat(path, &ftwip->curStat) < 0) {
+	if (Stat(ftwip->curPath, &ftwip->curStat) < 0) {
 		return (-1);
 	} else if (! S_ISDIR(ftwip->curStat.st_mode)) {
 		errno = ENOTDIR;
@@ -360,7 +383,7 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 	}
 
 #ifdef HAVE_PATHCONF
-	nmx = pathconf(path, _PC_NAME_MAX);
+	nmx = pathconf(ftwip->curPath, _PC_NAME_MAX);
 	if (nmx >= 256)
 		debufsize = nmx;
 #endif
@@ -370,21 +393,6 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 		return (-1);
 	}
 
-	ftwip->curType = 'd';
-	memset(ftwip->curPath, 0, ftwip->curPathAllocSize);
-	memcpy(ftwip->curPath, path, len + 1);
-	endp = cp = ftwip->curPath + strlen(ftwip->curPath);
-	--cp;
-	while ((cp > ftwip->curPath) && IsLocalPathDelim(*cp))
-		*cp-- = '\0';
-	ftwip->curPathLen = ftwip->startPathLen = len = (size_t) (endp - ftwip->curPath);
-	while (cp >= ftwip->curPath) {
-		if (IsLocalPathDelim(*cp))
-			break;
-		--cp;
-	}
-	ftwip->curFile = ++cp;
-	ftwip->curFileLen = (size_t) (endp - cp);
 	ftwip->proc = proc;
 	if ((*proc)(ftwip) < 0) {
 		free(ftwip->direntbuf);
@@ -437,6 +445,7 @@ FtwSetBuf(const FtwInfoPtr ftwip, char *const buf, const size_t bufsize, int aut
 		 */
 		ftwip->noAutoMallocAndFree = 1;
 		ftwip->curPath = buf;
+		ftwip->curPathAllocSize = bufsize;
 		ftwip->autoGrow = (autogrow == kFtwAutoGrow) ? kFtwNoAutoGrowAndFail : autogrow;
 	}
 }	/* FtwSetBuf */

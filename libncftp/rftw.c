@@ -50,7 +50,7 @@ FTPFtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 	mls = 0;
 	lsl = 0;
 
-	if (cip->hasMLSD) {
+	if (cip->hasMLSD == kCommandAvailable) {
 		mls = 1;
 		if (((result = FTPListToMemory2(cip, dirPathLen ? path : ".", &ll, "-a", 0, &mls)) < 0) || (ll.first == NULL)) {
 			/* Not an error unless the first directory could not be opened. */
@@ -62,7 +62,7 @@ FTPFtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 		unlsrc = UnMlsD(cip, &fil, &ll);
 		if (unlsrc < 0) {
 			DisposeLineListContents(&ll);
-			return (kErrInvalidMLSTResponse);
+			return (cip->errNo = kErrInvalidMLSTResponse);
 		} else if (unlsrc == 0) {
 			/* empty */
 			DisposeLineListContents(&ll);
@@ -73,7 +73,7 @@ FTPFtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 	} else {
 		if (((result = FTPListToMemory2(cip, dirPathLen ? path : ".", &ll, "-la", 0, &mls)) < 0) || (ll.first == NULL)) {
 			DisposeLineListContents(&ll);
-			if (((result = FTPListToMemory2(cip, dirPathLen ? path : ".", &ll, "-a", 0, &mls)) < 0) || (ll.first == NULL)) {
+			if (((result = FTPListToMemory2(cip, dirPathLen ? path : ".", &ll, (cip->hasNLST_a == kCommandNotAvailable) ? "" : "-a", 0, &mls)) < 0) || (ll.first == NULL)) {
 				DisposeLineListContents(&ll);
 				return (0);
 			} else {
@@ -87,7 +87,7 @@ FTPFtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 			unlsrc = UnLslR(cip, &fil, &ll, cip->serverType);
 			if (unlsrc < 0) {
 				DisposeLineListContents(&ll);
-				return (kErrInvalidMLSTResponse);
+				return (cip->errNo = kErrInvalidMLSTResponse);
 			} else if (unlsrc == 0) {
 				/* empty */
 				DisposeLineListContents(&ll);

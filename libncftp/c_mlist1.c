@@ -76,11 +76,8 @@ FTPRequestMlsOptions(const FTPCIPtr cip)
 
 		/* Tell the server what we prefer. */
 		optstrlen = strlen(optstr);
-		if (optstrlen != 0) {
-			if (optstr[optstrlen - 1] == ';')
-				optstr[optstrlen - 1] = '\0';
+		if (optstrlen != 0)
 			(void) FTPCmd(cip, "OPTS MLST %s", optstr);
-		}
 	}
 }	/* FTPRequestMlsOptions */
 

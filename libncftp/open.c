@@ -410,8 +410,20 @@ FTPQueryFeatures(const FTPCIPtr cip)
 		return (kNoErr);
 	}
 
-	if (cip->serverType == kServerTypeDguxFTP) {
-		/* DG/UX server chokes if you send HELP SITE */
+	if (cip->serverType == kServerTypeProFTPD) {
+		/* They won't fix a bug where "NLST -a" outputs as "LIST -a" */
+		cip->hasNLST_a = kCommandNotAvailable;
+	}
+	
+	/* Older ftpd implementations have problems. */
+	if (	(cip->serverType == kServerTypeDguxFTP) ||
+		(cip->serverType == kServerTypePyramid) ||
+		(cip->serverType == kServerTypeIBMFTPCS))
+	{
+		cip->hasCLNT = kCommandNotAvailable;
+		cip->hasMLST = kCommandNotAvailable;
+		cip->hasMLSD = kCommandNotAvailable;
+		cip->hasSITE_UTIME = kCommandNotAvailable;
 		cip->hasHELP_SITE = kCommandNotAvailable;
 	}
 	
@@ -419,7 +431,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 	if (rp == NULL) {
 		cip->errNo = kErrMallocFailed;
 		result = cip->errNo;
-	} else {
+	} else if (cip->hasFEAT != kCommandNotAvailable) {
 		rp->printMode = (kResponseNoPrint|kResponseNoSave);
 		result = RCmd(cip, rp, "FEAT");
 		if (result < kNoErr) {
@@ -562,7 +574,7 @@ FTPCloseHost(const FTPCIPtr cip)
 		}
 	}
 	
-	CloseControlConnection(cip);
+	FTPCloseControlConnection(cip);
 
 	/* Dispose dynamic data structures, so you won't leak
 	 * if you OpenHost with this again.
@@ -759,10 +771,11 @@ FTPOpenHost(const FTPCIPtr cip)
 		return (kErrBadMagic);
 
 	if (cip->host[0] == '\0') {
-		cip->errNo = kErrBadParameter;
-		return (kErrBadParameter);
+		cip->errNo = kErrNoHostSpecified;
+		return (kErrNoHostSpecified);
 	}
 
+	FTPManualOverrideFeatures(cip);
 	FTPInitialLogEntry(cip);
 
 	for (	result = kErrConnectMiscErr, cip->numDials = 0;
@@ -797,6 +810,11 @@ FTPOpenHost(const FTPCIPtr cip)
 			result = FTPLoginHost(cip);
 			if (result == kNoErr) {
 				(void) FTPQueryFeatures(cip);
+				/* Do this again in case QueryFeatures
+				 * changed anything that the user wants
+				 * to use.
+				 */
+				FTPManualOverrideFeatures(cip);
 				break;
 			}
 
@@ -887,6 +905,7 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->hasSIZE = kCommandAvailabilityUnknown;
 	cip->hasMDTM = kCommandAvailabilityUnknown;
 	cip->hasREST = kCommandAvailabilityUnknown;
+	cip->hasNLST_a = kCommandAvailabilityUnknown;
 	cip->hasNLST_d = kCommandAvailabilityUnknown;
 	cip->hasFEAT = kCommandAvailabilityUnknown;
 	cip->hasMLSD = kCommandAvailabilityUnknown;

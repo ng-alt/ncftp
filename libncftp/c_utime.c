@@ -89,15 +89,29 @@ FTPUtime(const FTPCIPtr cip, const char *const file, time_t actime, time_t modti
 			} else if (result == 2) {
 				cip->hasSITE_UTIME = kCommandAvailable;
 				result = kNoErr;
+				DoneWithResponse(cip, rp);
 			} else if (UNIMPLEMENTED_CMD(rp->code)) {
 				cip->hasSITE_UTIME = kCommandNotAvailable;
 				cip->errNo = kErrUTIMENotAvailable;
 				result = kErrUTIMENotAvailable;
+				DoneWithResponse(cip, rp);
+			} else if ((cip->serverType == kServerTypeNcFTPd) && (strchr(file, ' ') != NULL)) {
+				/* Workaround bug with filenames containing
+				 * spaces.
+				 */
+				DoneWithResponse(cip, rp);
+				result = FTPCmd(cip, "MDTM %s %s", mstr, file); 	
+				if ((result == 2) || (result == 0)) {
+					result = kNoErr;
+				} else {
+					cip->errNo = kErrUTIMEFailed;
+					result = kErrUTIMEFailed;
+				}
 			} else {
 				cip->errNo = kErrUTIMEFailed;
 				result = kErrUTIMEFailed;
+				DoneWithResponse(cip, rp);
 			}
-			DoneWithResponse(cip, rp);
 		}
 	}
 	if (result == kErrUTIMENotAvailable) {

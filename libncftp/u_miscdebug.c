@@ -28,9 +28,9 @@ FTPGetDateStr(time_t t, const char *fmt, char *const ltstr1, const size_t ltstr1
 
 	memset(gtstr, 0, sizeof(gtstr));
 	memset(ltstr, 0, sizeof(ltstr));
-	if ((ltstr1 != NULL) && (ltstr1size > 0))
+	if ((ltstr1 != NULL) && (ltstr1size != 0))
 		memset(ltstr1, 0, ltstr1size);
-	if ((gtstr1 != NULL) && (gtstr1size > 0))
+	if ((gtstr1 != NULL) && (gtstr1size != 0))
 		memset(gtstr1, 0, gtstr1size);
 
 	if (t == 0) {
@@ -43,13 +43,13 @@ FTPGetDateStr(time_t t, const char *fmt, char *const ltstr1, const size_t ltstr1
 
 	if ((gtp = gmtime(&t)) != NULL) {
 		strftime(gtstr, sizeof(gtstr) - 1, fmt, gtp);
-		if ((gtstr1 != NULL) && (gtstr1size > 0))
+		if ((gtstr1 != NULL) && (gtstr1size != 0))
 			(void) Strncpy(gtstr1, gtstr, gtstr1size);
 	}
 
 	if ((ltp = localtime(&t)) != NULL) {
 		strftime(ltstr, sizeof(ltstr) - 1, fmt, ltp);
-		if ((ltstr1 != NULL) && (ltstr1size > 0))
+		if ((ltstr1 != NULL) && (ltstr1size != 0))
 			(void) Strncpy(ltstr1, ltstr, ltstr1size);
 	}
 }	/* FTPGetDateStr */

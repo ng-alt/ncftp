@@ -94,6 +94,35 @@ For the
 option, you can use the cookie
 .B %s
 to expand into the name of the file that was transferred.
+.TP 8
+.BI "-o " "XX"
+Set advanced option
+.IR "XX" "."
+.IP
+This option is used primarily for debugging.
+It sets the value of an internal variable to an integer value.
+An example usage would be:
+.BI "-o " "useFEAT=0,useCLNT=1"
+which in this case, disables use of the
+FEAT command and enables the CLNT command.
+The available variables include:
+usePASV,
+useSIZE,
+useMDTM,
+useREST,
+useNLST_a,
+useNLST_d,
+useFEAT,
+useMLSD,
+useMLST,
+useCLNT,
+useHELP_SITE,
+useSITE_UTIME,
+STATfileParamWorks,
+NLSTfileParamWorks,
+require20,
+allowProxyForPORT,
+doNotGetStartCWD.
 .\"-------
 .SH "DESCRIPTION"
 .\"-------

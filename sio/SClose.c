@@ -20,7 +20,6 @@ SCloseSocket(int sfd)
 
 #ifndef NO_SIGNALS
 extern Sjmp_buf gNetTimeoutJmp;
-extern Sjmp_buf gPipeJmp;
 #endif
 
 int

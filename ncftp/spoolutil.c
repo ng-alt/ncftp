@@ -137,7 +137,9 @@ SpoolX(
 	const char *const preshellcmd,
 	const char *const postshellcmd,
 	const time_t when,
-	const unsigned int delaySinceLastFailure)
+	const unsigned int delaySinceLastFailure,
+	const char *const manualOverrideFeatures,
+	const int reserved)
 {
 	char sdir2[256];
 	char pass[160];
@@ -246,7 +248,12 @@ SpoolX(
 		goto err;
 	if (fprintf(fp, "local-file=%s\n", lfile) < 0)
 		goto err;
-
+	if ((manualOverrideFeatures != NULL) && (manualOverrideFeatures[0] != '\0')) {
+		if (fprintf(fp, "manual-override-features=") < 0)
+			goto err;
+		if (WriteSpoolLine(fp, manualOverrideFeatures) < 0)
+			goto err;
+	}
 	if ((preftpcmd != NULL) && (preftpcmd[0] != '\0')) {
 		if (fprintf(fp, "pre-ftp-command=") < 0)
 			goto err;

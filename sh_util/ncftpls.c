@@ -65,6 +65,7 @@ Usage(void)
   -F     Use passive (PASV) data connections (default).\n\
   -K     Show disk usage by attempting SITE DF.\n");
 	(void) fprintf(fp, "\
+  -o XX  Specify miscellaneous options (see documentation).\n\
   -W XX  Send raw FTP command XX after logging in.\n\
   -X XX  Send raw FTP command XX after each listing.\n\
   -Y XX  Send raw FTP command XX before logging out.\n\
@@ -205,21 +206,24 @@ main(int argc, char **argv)
 	es = kExitSuccess;
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "1lRx:P:u:j:p:e:d:t:r:f:EFKW:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "1lRx:P:u:j:p:e:d:t:r:f:o:EFKW:X:Y:")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
 			break;
 		case 'u':
 			(void) STRNCPY(fi.user, opt.arg);
-			memset(opt.arg, '*', strlen(fi.user));
+			memset(opt.arg, 0, strlen(fi.user));
+			opt.arg[0] = '?';
 			break;
 		case 'j':
 			(void) STRNCPY(fi.acct, opt.arg);
-			memset(opt.arg, '*', strlen(fi.acct));
+			memset(opt.arg, 0, strlen(fi.acct));
+			opt.arg[0] = '?';
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
-			memset(opt.arg, '*', strlen(fi.pass));
+			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
 			break;
 		case 'e':
 			if (strcmp(opt.arg, "stdout") == 0)
@@ -249,6 +253,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			ReadConfigFile(opt.arg, &fi);
+			break;
+		case 'o':
+			fi.manualOverrideFeatures = opt.arg;
 			break;
 		case 'E':
 			fi.dataPortMode = kSendPortMode;

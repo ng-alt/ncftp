@@ -1,6 +1,46 @@
 NcFTP Change Log:
 ================
 
+3.1.8.1, 2004-07-27
+
+  + A fix for some DNS resolution problems on Linux.
+
+
+3.1.8, 2004-07-07
+
+  + Ncftpget, ncftpput, and ncftpls now try to erase the arguments to the
+    -u/-p/-j (user, password, account) options so they do not show in
+    a "ps" command (Thanks, Konstantin Gavrilenko).
+
+  + Recognize broken IBM mainframe FTP servers and work around them.
+
+  + Working around a problem with ProFTPD 1.2.9 and later which would
+    cause recursive downloads to fail.
+
+  + Fixed a bug where ncftpput in recursive mode could lock up if you
+    used a trailing slash on the directory to upload.
+
+  + For the malicious server problem that was addressed in 3.1.5, enhanced
+    the fix for better compatibility with mainframe FTP servers.
+
+  + Ncftpget, ncftpput, and ncftpls, and ncftp's open command now accept
+    an additional advanced option (-o) which lets you do things like disable
+    NcFTP's use of SITE UTIME, FEAT, HELP SITE, etc.
+
+  + Several HP-UX 10 compatibility bugs fixed (Thanks, Laurent FAILLIE).
+
+  + A couple of looping problems with ncftpbatch fixed (Thanks, George Goffe).
+
+  + Bug fixed with the upload socket buffer not being set (Thanks, ybobble).
+
+  + The utility programs now accept "-" for the config file name used
+    with "-f" to denote standard input (Thanks, Jeremy Monin).
+
+  + Bug fixed with ncftpput when using both -c and -A (Thanks, Ken Woodmansee).
+ 
+  + Support for boldface text in Windows version (Thanks, Adam Gates).
+
+
 3.1.7, 2004-01-07
 
   + Fixed a memory leak introduced in 3.1.6.

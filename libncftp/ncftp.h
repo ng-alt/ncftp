@@ -13,7 +13,7 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.1.7 (January 6, 2004)"
+#define kLibraryVersion "@(#) LibNcFTP 3.1.8 (May 26, 2004)"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */
@@ -205,7 +205,7 @@ extern "C"
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.1.7"
+#define kLibraryMagic "LibNcFTP 3.1.8"
 
 #ifndef longest_int
 #define longest_int long long
@@ -358,6 +358,7 @@ typedef struct FTPConnectionInfo {
 	int hasSIZE;				/* Do not modify this field. */
 	int hasMDTM;				/* Do not modify this field. */
 	int hasREST;				/* Do not modify this field. */
+	int hasNLST_a;				/* Do not modify this field. */
 	int hasNLST_d;				/* Do not modify this field. */
 	int hasFEAT;				/* Do not modify this field. */
 	int hasMLSD;				/* Do not modify this field. */
@@ -414,6 +415,7 @@ typedef struct FTPConnectionInfo {
 
 	int doNotGetStartingWorkingDirectory;	/* You may modify this. */
 	char textEOLN[4];			/* Set automatically per platform. */
+	const char *manualOverrideFeatures;	/* You may modify this. */
 #if USE_SIO
 	char srlBuf[768];
 	SReadlineInfo ctrlSrl;			/* Do not use or modify. */
@@ -662,6 +664,8 @@ typedef int (*FTPConfirmResumeUploadProc)(
 #define kServerTypeNetWareFTP		11
 #define kServerTypeWS_FTP		12
 #define kServerTypeDguxFTP		13
+#define kServerTypeIBMFTPCS		14
+#define kServerTypePyramid		15
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Windows has separate functions to close and ioctl sockets. */
@@ -848,6 +852,7 @@ int FTPCmd(const FTPCIPtr cip, const char *const cmdspec, ...)
 __attribute__ ((format (printf, 2, 3)))
 #endif
 ;
+int FTPDecodeHostName(const FTPCIPtr cip, const char *const hstr0);
 int FTPDecodeURL(const FTPCIPtr cip, char *const url, FTPLineListPtr cdlist, char *const fn, const size_t fnsize, int *const xtype, int *const wantnlst);
 int FTPDelete(const FTPCIPtr cip, const char *const pattern, const int recurse, const int doGlob);
 int FTPFileExists(const FTPCIPtr cip, const char *const file);
@@ -874,6 +879,7 @@ int FTPOpenHostNoLogin(const FTPCIPtr cip);
 void FTPPerror(const FTPCIPtr cip, const int err, const int eerr, const char *const s1, const char *const s2);
 int FTPPutFiles3(const FTPCIPtr cip, const char *const pattern, const char *const dstdir1, const int recurse, const int doGlob, const int xtype, int appendflag, const char *const tmppfx, const char *const tmpsfx, const int resumeflag, const int deleteflag, const FTPConfirmResumeUploadProc resumeProc, int UNUSED(reserved));
 int FTPPutOneFile3(const FTPCIPtr cip, const char *const file, const char *const dstfile, const int xtype, const int fdtouse, const int appendflag, const char *const tmppfx, const char *const tmpsfx, const int resumeflag, const int deleteflag, const FTPConfirmResumeUploadProc resumeProc, int UNUSED(reserved));
+int FTPReadLoginConfigFile(FTPCIPtr cip, const char *const fn);
 int FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int doGlob);
 int FTPRename(const FTPCIPtr cip, const char *const oldname, const char *const newname);
 int FTPRmdir(const FTPCIPtr cip, const char *const pattern, const int recurse, const int doGlob);
@@ -914,6 +920,7 @@ char *FGets(char *, size_t, FILE *);
 void GetHomeDir(char *, size_t);
 void GetUsrName(char *, size_t);
 void Scramble(unsigned char *dst, size_t dsize, unsigned char *src, char *key);
+double Duration(struct timeval *t0);
 struct tm *Gmtime(time_t t, struct tm *const tp);
 struct tm *Localtime(time_t t, struct tm *const tp);
 time_t GetUTCOffset(const int mon, const int mday);
@@ -923,6 +930,7 @@ int MkDirs(const char *const, int mode1);
 char *GetPass(const char *const prompt, char *const pwbuf, const size_t pwbufsize);
 int FilenameExtensionIndicatesASCII(const char *const pathName, const char *const extnList);
 void StrRemoveTrailingSlashes(char *dst);
+int StrToBoolOrInt(const char *s);
 #if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 char *StrFindLocalPathDelim(const char *src);
 char *StrRFindLocalPathDelim(const char *src);
@@ -958,8 +966,18 @@ int FTPPutFileFromMemory(const FTPCIPtr cip, const char *volatile dstfile, const
 
 /* Everything else below are private routines, or stuff for testing */
 int FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, size_t bufSize);
+int FTPSendPort(const FTPCIPtr cip, struct sockaddr_in *saddr);
+int FTPSendPassive(const FTPCIPtr cip, struct sockaddr_in *saddr, int *weird);
+int FTPSetStartOffset(const FTPCIPtr cip, longest_int restartPt);
+void FTPCloseControlConnection(const FTPCIPtr cip);
+int FTPSendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 2, 0)))
+#endif
+;
 char *FTPGetLocalCWD(char *buf, size_t size);
 int FTPQueryFeatures(const FTPCIPtr);
+void FTPManualOverrideFeatures(const FTPCIPtr cip);
 int FTPMListOneFile(const FTPCIPtr cip, const char *const file, const MLstItemPtr mlip);
 void FTPInitializeAnonPassword(const FTPLIPtr);
 void FTPInitIOTimer(const FTPCIPtr);
@@ -1033,6 +1051,16 @@ void ReInitResponse(const FTPCIPtr, ResponsePtr);
 int GetTelnetString(const FTPCIPtr, char *, size_t, FILE *, FILE *);
 int GetResponse(const FTPCIPtr, ResponsePtr);
 int RCmd(const FTPCIPtr, ResponsePtr, const char *, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 3, 4)))
+#endif
+;
+void PrintF(const FTPCIPtr cip, const char *const fmt, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 2, 3)))
+#endif
+;
+void FTPLogError(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
 #if (defined(__GNUC__)) && (__GNUC__ >= 2)
 __attribute__ ((format (printf, 3, 4)))
 #endif

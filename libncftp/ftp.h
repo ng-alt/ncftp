@@ -6,7 +6,6 @@
  */
 
 /* FTP.c */
-void CloseControlConnection(const FTPCIPtr cip);
 int OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port);
 void CloseDataConnection(const FTPCIPtr cip);
 int SetStartOffset(const FTPCIPtr cip, longest_int restartPt);

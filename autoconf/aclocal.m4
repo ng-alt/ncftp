@@ -3328,7 +3328,7 @@ if test "x$CCDV" = "x" ; then
 #define TEXT_BLOCK_SIZE 8192
 #define INDENT 2
 
-#define TERMS "vt100:vt102:vt220:vt320:xterm:xterm-color:ansi:linux:scoterm:scoansi:dtterm:cons25:cygwin"
+#define TERMS "vt100:vt102:vt220:vt320:xterm:xterm-color:ansi:linux:scoterm:scoansi:dtterm:cons25:cygwin:screen"
 
 size_t gNBufUsed = 0, gNBufAllocated = 0;
 char *gBuf = NULL;
@@ -4691,7 +4691,7 @@ EOF
 		if [ "$arch" = "" ] ; then arch="sparc" ; fi
 		if [ "$archp" = "" ] ; then archp="$arch" ; fi
 		case "$os_r" in
-			5.[789]*)
+			5.[789]*|5.1[0-9][0-9]*)
 				os_r1=`echo "$os_r" | cut -d. -f2`
 				os_r2=`echo "$os_r" | cut -d. -f3`
 				if [ "$os_r2" = "" ] ; then os_r2=0 ; fi
@@ -4703,7 +4703,7 @@ EOF
 				NDEFS="$NDEFS -DSOLARIS=$os_int"
 				SYS=solaris
 				;;
-			5.[0123456]*)
+			5.[023456]*|5.1)
 				os_r=`echo "$os_r" | sed 's/^5/2/;'`
 				os_r1=`echo "$os_r" | cut -d. -f1`
 				os_r2=`echo "$os_r" | cut -d. -f2`
@@ -4756,4 +4756,120 @@ AC_SUBST(OS)
 AC_SUBST(host)
 AC_SUBST(SYS)
 AC_SUBST(HOME_OS)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SIZEOF_STRUCT_STAT, [
+AC_MSG_CHECKING(size of struct stat)
+wi_PREREQ_UNISTD_H([$0])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+main()
+{
+	struct stat x;
+	FILE *fp;
+
+	fp = fopen("conftest.out", "w");
+	if (fp != NULL) {
+		fprintf(fp, "%u\n", (unsigned int) sizeof(x));
+		fclose(fp);
+		exit(0);	/* OK */
+	}
+	exit(1);		/* Not OK */
+}
+],[
+	# action if true
+	x=`cat conftest.out`
+	case "$x" in
+changequote(<<, >>)dnl
+		[0-9]*)
+changequote([, ])dnl
+			AC_DEFINE_UNQUOTED(SIZEOF_STRUCT_STAT, $x)
+			ac_cv_sizeof_struct_stat="$x"
+			;;
+		*)
+			x="failed"
+			;;
+	esac
+	/bin/rm -f conftest.out
+],[
+	# action if false
+	x="failed";
+	/bin/rm -f conftest.out
+],[
+	# action if cross compiling
+	x="unknown";
+	/bin/rm -f conftest.out
+])
+AC_MSG_RESULT($x)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SIZEOF_STRUCT_STAT64, [
+AC_MSG_CHECKING(size of struct stat64)
+wi_PREREQ_UNISTD_H([$0])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+main()
+{
+	struct stat64 x;
+	FILE *fp;
+
+	fp = fopen("conftest.out", "w");
+	if (fp != NULL) {
+		fprintf(fp, "%u\n", (unsigned int) sizeof(x));
+		fclose(fp);
+		exit(0);	/* OK */
+	}
+	exit(1);		/* Not OK */
+}
+],[
+	# action if true
+	x=`cat conftest.out`
+	case "$x" in
+changequote(<<, >>)dnl
+		[0-9]*)
+changequote([, ])dnl
+			AC_DEFINE_UNQUOTED(SIZEOF_STRUCT_STAT64, $x)
+			ac_cv_sizeof_struct_stat64="$x"
+			;;
+		*)
+			x="failed"
+			;;
+	esac
+	/bin/rm -f conftest.out
+],[
+	# action if false
+	x="failed";
+	/bin/rm -f conftest.out
+],[
+	# action if cross compiling
+	x="unknown";
+	/bin/rm -f conftest.out
+])
+AC_MSG_RESULT($x)
 ])

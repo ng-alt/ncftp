@@ -89,7 +89,7 @@ static const char *gErrList[kErrLast - kErrFirst + 2] = {
 	"file transfer buffer has not been allocated",			/* -175 */
 	"will not overwrite local file with older remote file",		/* -176 */
 	"will not overwrite remote file with older local file",		/* -177 */
-	"local file appears to be the same as the remote file, no transfer necessary",	/* -178 */
+	"local file appears to be the same as the remote file, download is not necessary",	/* -178 */
 	"could not get extended directory information (MLSD)",		/* -179 */
 	"could not get extended file or directory information (MLST)",	/* -180 */
 	"could not parse extended file or directory information",	/* -181 */
@@ -107,6 +107,10 @@ static const char *gErrList[kErrLast - kErrFirst + 2] = {
 	"timed out while waiting for server response",			/* -193 */
 	"data transfer timed out",					/* -194 */
 	"canceled by user",						/* -195 */
+	"no remote host was specified",					/* -196 */
+	"remote file appears to be the same as the local file, upload is not necessary",	/* -197 */
+	"data connection did not originate from same IP address as control connection to server",	/* -198 */
+	"data connection did not originate from correct port number",	/* -199 */
 	NULL,								
 };
 

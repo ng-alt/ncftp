@@ -34,7 +34,7 @@ FTPShutdownHost(const FTPCIPtr cip)
 	CloseDataConnection(cip);	/* Shouldn't be open normally. */
 
 	/* Linger should already be turned off for this. */
-	CloseControlConnection(cip);
+	FTPCloseControlConnection(cip);
 
 	FTPDeallocateHost(cip);
 

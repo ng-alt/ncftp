@@ -31,32 +31,38 @@ extern int _posix_getpwnam_r(const char *, struct passwd *, char *, int, struct 
 int
 GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsize)
 {
-	struct passwd *p;
-
 #if ((defined(MACOSX)) && (defined(HAVE_GETPWUID_R)))
 	/* Allow backwards compat on 10.1 if building on 10.2+ */
 #	undef HAVE_GETPWUID_R
 #	undef HAVE_GETPWNAM_R
 #endif
 
-#if defined(HAVE_GETPWUID_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
+#if defined(HAVE_GETPWUID_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(IRIX) && (IRIX < 6)) )
+	struct passwd *p;
 	memset(pwbuf, 0, pwbufsize);
 	p = getpwuid_r(uid, pwp, pwbuf, pwbufsize);
 	if (p != NULL)
 		return (0);
+#elif defined(HAVE_GETPWUID_R) && (defined(HPUX)) && (HPUX < 1100)
+	memset(pwbuf, 0, pwbufsize);
+	if (getpwuid_r(uid, pwp, pwbuf, pwbufsize) >= 0)
+		return (0);
 #elif defined(HAVE__POSIX_GETPWUID_R)
+	struct passwd *p;
 	memset(pwbuf, 0, pwbufsize);
 	p = NULL;
 	if ((_posix_getpwuid_r(uid, pwp, pwbuf, pwbufsize, &p) == 0) && (p != NULL)) {
 		return (0);
 	}
 #elif defined(HAVE_GETPWUID_R)
+	struct passwd *p;
 	memset(pwbuf, 0, pwbufsize);
 	p = NULL;
 	if ((getpwuid_r(uid, pwp, pwbuf, pwbufsize, &p) == 0) && (p != NULL)) {
 		return (0);
 	}
 #else
+	struct passwd *p;
 	p = getpwuid(uid);
 	if (p != NULL) {
 		memcpy(pwp, p, sizeof(struct passwd));
@@ -75,26 +81,32 @@ GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsiz
 int
 GetPwNam(struct passwd *pwp, const char *const nam, char *const pwbuf, size_t pwbufsize)
 {
+#if defined(HAVE_GETPWNAM_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(IRIX) && (IRIX < 6)) )
 	struct passwd *p;
-
-#if defined(HAVE_GETPWNAM_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
 	memset(pwbuf, 0, pwbufsize);
 	p = getpwnam_r(nam, pwp, pwbuf, pwbufsize);
 	if (p != NULL)
 		return (0);
+#elif defined(HAVE_GETPWNAM_R) && (defined(HPUX)) && (HPUX < 1100)
+	memset(pwbuf, 0, pwbufsize);
+	if (getpwnam_r(nam, pwp, pwbuf, pwbufsize) >= 0)
+		return (0);
 #elif defined(HAVE__POSIX_GETPWNAM_R)
+	struct passwd *p;
 	memset(pwbuf, 0, pwbufsize);
 	p = NULL;
 	if ((_posix_getpwnam_r(nam, pwp, pwbuf, pwbufsize, &p) == 0) && (p != NULL)) {
 		return (0);
 	}
 #elif defined(HAVE_GETPWNAM_R)
+	struct passwd *p;
 	memset(pwbuf, 0, pwbufsize);
 	p = NULL;
 	if ((getpwnam_r(nam, pwp, pwbuf, pwbufsize, &p) == 0) && (p != NULL)) {
 		return (0);
 	}
 #else
+	struct passwd *p;
 	p = getpwnam(nam);
 	if (p != NULL) {
 		memcpy(pwp, p, sizeof(struct passwd));

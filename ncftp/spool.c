@@ -23,7 +23,6 @@ int gJobs = 0;
 int gHaveSpool = -1;
 
 extern char gOurDirectoryPath[];
-extern void CloseControlConnection(const FTPCIPtr);
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 extern char gOurInstallationPath[];
 #endif
@@ -219,7 +218,7 @@ RunBatchWithCore(const FTPCIPtr cip)
 	 * the server a QUIT message.  This will cause it
 	 * to think it already has.
 	 */
-	CloseControlConnection(cip);
+	FTPCloseControlConnection(cip);
 
 	if (pid > 1) {
 #ifdef HAVE_WAITPID

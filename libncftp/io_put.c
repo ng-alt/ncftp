@@ -76,7 +76,8 @@ FTPPutOneF(
 #endif	/* NO_SIGNALS */
 	volatile int vzaction;
 	int zaction = kConfirmResumeProcSaidBestGuess;
-
+	int sameAsRemote;
+	
 	if (cip->buf == NULL) {
 		FTPLogError(cip, kDoPerror, "Transfer buffer not allocated.\n");
 		cip->errNo = kErrNoBuf;
@@ -149,6 +150,7 @@ FTPPutOneF(
 			statrc = FTPFileExists2(cip, dstfile, 0, 0, 0, 1, 1);
 		}
 
+		sameAsRemote = 0;
 		if (
 			(resumeProc != kNoFTPConfirmResumeUploadProc) &&
 			(statrc == 0)
@@ -180,6 +182,7 @@ FTPPutOneF(
 			} else if ((longest_int) st.st_size == startPoint) {
 				/* Already sent file, done. */
 				zaction = kConfirmResumeProcSaidSkip; 
+				sameAsRemote = 1;
 			} else if ((startPoint != kSizeUnknown) && ((longest_int) st.st_size > startPoint)) {
 				zaction = kConfirmResumeProcSaidResume; 
 			} else {
@@ -197,6 +200,10 @@ FTPPutOneF(
 					cip->errNo = kErrLocalDeleteFailed;
 					return (cip->errNo);
 				}
+			}
+			if (sameAsRemote != 0) {
+				cip->errNo = kErrRemoteSameAsLocal;
+				return (cip->errNo);
 			}
 			return (kNoErr);
 		} else if (zaction == kConfirmResumeProcSaidResume) {
@@ -224,6 +231,8 @@ FTPPutOneF(
 			/* overwrite: leave startPoint at zero */
 			cip->startPoint = startPoint = 0;
 		}
+	} else if (appendflag == kAppendYes) {
+		zaction = kConfirmResumeProcSaidAppend;
 	}
 
 	FTPSetUploadSocketBufferSize(cip);

@@ -79,6 +79,12 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
 #	define UNC_PATH_PREFIX "\\\\"
 #	define IsUNCPrefixed(s) (IsLocalPathDelim(s[0]) && IsLocalPathDelim(s[1]))
 #	define __windows__ 1
+	static WORD GetConsoleTextAttribute(HANDLE Console)
+	{
+		CONSOLE_SCREEN_BUFFER_INFO	ConsoleInfo;
+		GetConsoleScreenBufferInfo(Console, &ConsoleInfo);
+		return ConsoleInfo.wAttributes;
+	}
 #else
 #	if defined(HAVE_CONFIG_H)
 #		include <config.h>
@@ -210,7 +216,7 @@ static int      gl_getcx(int);		/* read one char from terminal, if available bef
 static void     gl_kill(int pos);	/* delete to EOL */
 static void     gl_newline(void);	/* handle \n or \r */
 static void     gl_putc(int c);		/* write one char to terminal */
-static void     gl_puts(const char *const buf);	/* write a line to terminal */
+static void     gl_puts(const char *buf);	/* write a line to terminal */
 static void     gl_redraw(void);	/* issue \n and redraw all */
 static void     gl_transpose(void);	/* transpose two chars */
 static void     gl_yank(void);		/* yank killed text */
@@ -505,14 +511,49 @@ gl_putc(int c)
 /******************** fairly portable part *********************************/
 
 static void
-gl_puts(const char *const buf)
+gl_puts(const char *buf)
 {
-    write_size_t len; 
+#if ( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) ) && defined(_CONSOLE)
+	HANDLE Console = GetStdHandle(STD_OUTPUT_HANDLE);
+	WORD Attribute = GetConsoleTextAttribute(Console);
+	write_size_t len; 
+	const char *end;
+	const char escape[] = "\033[";
+    
+    while (buf && *buf) {
+		end = strstr(buf, escape);
+		if (end)
+		{
+			len = (write_size_t) (end - buf);
+			(void) write(1, buf, len);
+			switch(end[sizeof(escape) - 1])
+			{
+			case '0':
+				Attribute &= ~FOREGROUND_INTENSITY;
+				break;
+
+			case '1':
+				Attribute |= FOREGROUND_INTENSITY;
+				break;
+			}
+			SetConsoleTextAttribute(Console, Attribute);
+			buf = strchr(end, 'm') + 1;
+		}
+		else
+		{
+			len = (write_size_t) strlen(buf);
+			(void) write(1, buf, len);
+			buf = 0;
+		}
+    }
+#else
+	write_size_t len; 
     
     if (buf) {
         len = (write_size_t) strlen(buf);
         (void) write(1, buf, len);
     }
+#endif
 }
 
 static void

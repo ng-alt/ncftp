@@ -269,6 +269,10 @@ SOURCE=.\u_error.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\u_feat.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\u_fileextn.c
 # End Source File
 # Begin Source File

@@ -23,6 +23,26 @@
 #	endif
 #endif
 
+double
+Duration(struct timeval *t0)
+{
+	struct timeval t1;
+	double sec;
+
+	(void) gettimeofday(&t1, NULL);
+	if (t0->tv_usec > t1.tv_usec) {
+		t1.tv_usec += 1000000;
+		t1.tv_sec--;
+	}
+	sec = ((double) (t1.tv_usec - t0->tv_usec) * 0.000001)
+		+ (t1.tv_sec - t0->tv_sec);
+
+	return (sec);
+}	/* Duration */
+
+
+
+
 void
 FTPInitIOTimer(const FTPCIPtr cip)
 {
@@ -302,11 +322,11 @@ FTPCheckForRestartModeAvailability(const FTPCIPtr cip)
 {
 	if (cip->hasREST == kCommandAvailabilityUnknown) {
 		(void) FTPSetTransferType(cip, kTypeBinary);
-		if (SetStartOffset(cip, (longest_int) 1) == kNoErr) {
+		if (FTPSetStartOffset(cip, (longest_int) 1) == kNoErr) {
 			/* Now revert -- we still may not end up
 			 * doing it.
 			 */
-			SetStartOffset(cip, (longest_int) -1);
+			FTPSetStartOffset(cip, (longest_int) -1);
 		}
 	}
 }	/* FTPCheckForRestartModeAvailability */

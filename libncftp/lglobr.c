@@ -16,6 +16,7 @@ typedef struct LRFLState {
 	FTPFileInfoListPtr filp;
 } LRFLState;
 
+
 static int
 FTPLocalRecursiveFileListFtwProc(const FtwInfoPtr ftwip)
 {
@@ -47,11 +48,17 @@ FTPLocalRecursiveFileListFtwProc(const FtwInfoPtr ftwip)
 		fi.type = '-';
 		fi.size = (longest_int) ftwip->curStat.st_size;
 		(void) AddFileInfo(lrflstate->filp, &fi);
+#ifdef LGLOBR_DEBUG
+		(void) fprintf(stderr, "- %s\n", fi.lname);
+#endif
 	} else if (S_ISDIR(m)) {
 		/* directory */
 		fi.type = 'd';
 		fi.size = (longest_int) 0;
 		(void) AddFileInfo(lrflstate->filp, &fi);
+#ifdef LGLOBR_DEBUG
+		(void) fprintf(stderr, "d %s\n", fi.lname);
+#endif
 #if defined(S_ISLNK) && defined(HAVE_READLINK)
 	} else if (S_ISLNK(m)) {
 		/* symbolic link */
@@ -70,9 +77,15 @@ FTPLocalRecursiveFileListFtwProc(const FtwInfoPtr ftwip)
 			free(fi.relname);
 			free(fi.lname);
 		}
+#	ifdef LGLOBR_DEBUG
+		(void) fprintf(stderr, "l %s -> %s\n", fi.lname, fi.rlinkto);
+#	endif
 #endif	/* S_ISLNK */
 	} else {
 		/* Unknown type, skip it */
+#ifdef LGLOBR_DEBUG
+		(void) fprintf(stderr, "! %s\n", fi.lname);
+#endif
 		free(fi.relname);
 		free(fi.lname);
 	}
@@ -103,6 +116,7 @@ FTPLocalRecursiveFileList2(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInfoLis
 	{
 		nextFilePtr = filePtr->next;
 
+		StrRemoveTrailingLocalPathDelim(filePtr->line);
 		cp = NULL;
 		if (erelative != 0) {
 			/* Relative paths requested */
