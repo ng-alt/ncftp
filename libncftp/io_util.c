@@ -1,6 +1,6 @@
 /* io_util.c
  *
- * Copyright (c) 2001 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */

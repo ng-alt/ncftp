@@ -419,7 +419,7 @@ OpenPager(void)
 	FILE *fp;
 
 #if defined(WIN32) || defined(_WINDOWS)
-	fp = stderr;
+	fp = stdout;
 #else
 	const char *cp;
 
@@ -437,7 +437,7 @@ OpenPager(void)
 
 void ClosePager(FILE *fp)
 {
-	if (fp == stderr)
+	if ((fp == stderr) || (fp == stdout))
 		return;
 #if defined(WIN32) || defined(_WINDOWS)
 #else

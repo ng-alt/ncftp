@@ -76,6 +76,7 @@ libncftp/u_signal.c
 libncftp/u_slash.c
 libncftp/u_unmdtm.c
 libncftp/unls.c
+libncftp/u_pathcat.c
 libncftp/u_getopt.c
 Strn/syshdrs.h
 Strn/configure.in
@@ -195,6 +196,7 @@ ncftp/ncftp.ico
 ncftp/rc.rc
 ncftp/resource.h
 ncftp/spoolutil.c
+.DS_Store
 sh/fixfcase.sh
 sh/dos2unix.sh
 sh/unix2dos.sh

@@ -1,6 +1,6 @@
 /* lglobr.c
  *
- * Copyright (c) 2001 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -22,12 +22,19 @@ FTPLocalRecursiveFileListFtwProc(const FtwInfoPtr ftwip)
 	FileInfo fi;
 	mode_t m;
 	LRFLState *lrflstate;
+	const char *cp;
 
 	if ((ftwip->curPath[0] == '\0') || (strcmp(ftwip->curPath, ".") == 0))
 		return (0);
 
 	lrflstate = (LRFLState *) ftwip->userdata;
-	fi.relname = StrDup(ftwip->curPath + lrflstate->relativePathStartOffset);
+	cp = ftwip->curPath;
+	if (lrflstate->relativePathStartOffset > 0) {
+		cp += lrflstate->relativePathStartOffset;
+		if (IsLocalPathDelim(*cp))
+			cp++;
+	}
+	fi.relname = StrDup(cp);
 	fi.rname = NULL;
 	fi.lname = StrDup(ftwip->curPath);
 	fi.mdtm = ftwip->curStat.st_mtime;
@@ -98,14 +105,14 @@ FTPLocalRecursiveFileList2(FTPCIPtr cip, LineListPtr fileList, FileInfoListPtr f
 
 		cp = NULL;
 		if (erelative != 0) {
-			/* Don't skip anything if requested */
-			lrflstate.relativePathStartOffset = 0;
+			/* Relative paths requested */
 			cp = filePtr->line;
-		} if (strcmp(filePtr->line, ".") == 0) {
-			/* skip . and then a / character */
-			lrflstate.relativePathStartOffset = 2;
-		} else if (strcmp(filePtr->line, "") == 0) {
-			/* skip a / character */
+			lrflstate.relativePathStartOffset = (int) strlen(cp);
+		} else if (strcmp(filePtr->line, ".") == 0) {
+			/* special case: . */
+			lrflstate.relativePathStartOffset = 1;
+		} else if (IsLocalPathDelim(filePtr->line[0]) && (filePtr->line[1] == '\0')) {
+			/* special case: root directory */
 			lrflstate.relativePathStartOffset = 1;
 		} else if ((cp = StrRFindLocalPathDelim(filePtr->line)) == NULL) {
 			/* Don't skip anything if this is a directory */

@@ -23,7 +23,7 @@ GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsiz
 {
 	struct passwd *p;
 
-#if defined(HAVE_GETPWUID_R) && (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS))
+#if defined(HAVE_GETPWUID_R) && ( (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS)) || (defined(HPUX) && (HPUX < 1100)) )
 	memset(pwbuf, 0, pwbufsize);
 	p = getpwuid_r(uid, pwp, pwbuf, pwbufsize);
 	if (p != NULL)
@@ -61,7 +61,7 @@ GetPwNam(struct passwd *pwp, const char *const nam, char *const pwbuf, size_t pw
 {
 	struct passwd *p;
 
-#if defined(HAVE_GETPWNAM_R) && (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS))
+#if defined(HAVE_GETPWNAM_R) && ( (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS)) || (defined(HPUX) && (HPUX < 1100)) )
 	memset(pwbuf, 0, pwbufsize);
 	p = getpwnam_r(nam, pwp, pwbuf, pwbufsize);
 	if (p != NULL)
@@ -102,26 +102,33 @@ GetMyPwEnt(struct passwd *pwp, char *const pwbuf, size_t pwbufsize)
 {
 	char *cp;
 	int rc;
-
 #ifdef HAVE_GETLOGIN_R
 	char logname[128];
-	memset(logname, 0, sizeof(logname));
-	(void) getlogin_r(logname, sizeof(logname) - 1);
-	cp = (logname[0] == '\0') ? NULL : logname;
-#else
-	cp = getlogin();
 #endif
+	rc = GetPwUid(pwp, getuid(), pwbuf, pwbufsize);
+	if (rc == 0)
+		return (rc);
+
+	cp = (char *) getenv("LOGNAME");
+	if (cp == NULL)
+		cp = (char *) getenv("USER");
 
 	if (cp == NULL) {
-		cp = (char *) getenv("LOGNAME");
-		if (cp == NULL)
-			cp = (char *) getenv("USER");
+		/* Avoid getlogin() if possible, which may
+		 * wade through a potentially large utmp file.
+		 */
+#ifdef HAVE_GETLOGIN_R
+		memset(logname, 0, sizeof(logname));
+		(void) getlogin_r(logname, sizeof(logname) - 1);
+		cp = (logname[0] == '\0') ? NULL : logname;
+#else
+		cp = getlogin();
+#endif
 	}
+
 	rc = -1;
 	if ((cp != NULL) && (cp[0] != '\0'))
 		rc = GetPwNam(pwp, cp, pwbuf, pwbufsize);
-	if (rc != 0)
-		rc = GetPwUid(pwp, getuid(), pwbuf, pwbufsize);
 	return (rc);
 }	/* GetMyPwEnt */
 

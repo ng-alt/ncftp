@@ -105,8 +105,8 @@ dnl Checks for library functions.
 dnl ---------------------------------------------------------------------------
 dnl
 wi_FUNC_GETCWD
-AC_CHECK_FUNCS(fstat64 getdomainname gethostname getpass getpassphrase inet_aton inet_ntop llseek lseek64 lstat64 memmove mktime open64 readlink res_init setlocale setpgid setpgrp setsid setvbuf sigaction stat64 strcasecmp strcoll strdup strerror strncoll strstr strtoq symlink syslog uname waitpid)
-AC_CHECK_FUNCS(gethostbyaddr_r gethostbyname_r getlogin_r getpwnam_r _posix_getpwnam_r getpwuid_r _posix_getpwuid_r getservbyname_r getservbyport_r gmtime_r localtime_r readdir_r)
+AC_CHECK_FUNCS(fstat64 getdomainname gethostname getpass getpassphrase inet_aton inet_ntop llseek lseek64 lstat64 memmove mktime open64 pathconf readlink res_init setlocale setpgid setpgrp setsid setvbuf sigaction stat64 strcasecmp strcoll strdup strerror strncoll strstr strtoq symlink syslog uname waitpid)
+AC_CHECK_FUNCS(gethostbyaddr_r gethostbyname_r gethostbyname2_r getlogin_r getpwnam_r _posix_getpwnam_r getpwuid_r _posix_getpwuid_r getservbyname_r getservbyport_r gmtime_r localtime_r readdir_r)
 wi_SNPRINTF
 wi_FUNC_SIGSETJMP
 AC_FUNC_SETPGRP

@@ -19,7 +19,7 @@ CFILES=\
 	DStrCat.c      DStrFree.c  Dynscpy.c	Strncpy.c   strtokc.c \
 	DStrCatList.c  DStrInit.c  Dynsrecpy.c	Strnpcat.c  \
 	DStrCpy.c      DStrNew.c   StrFree.c	Strnpcpy.c \
-	DStrCpyList.c  Dynscat.c   Strncat.c	Strntok.c \
+	DStrCpyList.c  Dynscat.c   Strncat.c	Strntok.c
 
 HFILES=\
 	DStrInternal.h	Strn.h	   syshdrs.h
@@ -28,7 +28,7 @@ OBJS=\
 	DStrCat.o      DStrFree.o  Dynscpy.o	Strncpy.o   strtokc.o \
 	DStrCatList.o  DStrInit.o  Dynsrecpy.o	Strnpcat.o  \
 	DStrCpy.o      DStrNew.o   StrFree.o	Strnpcpy.o \
-	DStrCpyList.o  Dynscat.o   Strncat.o	Strntok.o \
+	DStrCpyList.o  Dynscat.o   Strncat.o	Strntok.o
 
 SOBJS=\
 	DStrCat.so      DStrFree.so  Dynscpy.so	Strncpy.so   strtokc.so \

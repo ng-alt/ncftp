@@ -2122,19 +2122,18 @@ gl_set_home_dir(const char *homedir)
 		}
 		homedir = wdir;
 #else
-		cp = (char *) getlogin();
-		if (cp == NULL) {
+		pw = getpwuid(getuid());
+		if (pw == NULL) {
 			cp = (char *) getenv("LOGNAME");
 			if (cp == NULL)
 				cp = (char *) getenv("USER");
+			if (cp == NULL)
+				cp = (char *) getlogin();
+			if (cp != NULL)
+				pw = getpwnam(cp);
+			if (pw == NULL)
+				return;	/* hell with it */
 		}
-		pw = NULL;
-		if (cp != NULL)
-			pw = getpwnam(cp);
-		if (pw == NULL)
-			pw = getpwuid(getuid());
-		if (pw == NULL)
-			return;	/* hell with it */
 		homedir = pw->pw_dir;
 #endif
 	}

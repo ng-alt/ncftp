@@ -1,6 +1,6 @@
 /* ncftp.h
  *
- * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2002 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
@@ -13,7 +13,7 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.1.1 (December 23, 2001)"
+#define kLibraryVersion "@(#) LibNcFTP 3.1.2 (January 28, 2002)"
 
 #if defined(WIN32) || defined(_WINDOWS)
 #	pragma once
@@ -195,7 +195,7 @@ extern "C"
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.1.0"
+#define kLibraryMagic "LibNcFTP 3.1.2"
 
 #ifndef longest_int
 #define longest_int long long
@@ -299,6 +299,7 @@ typedef struct FTPConnectionInfo {
 	size_t dataSocketSBufSize;		/* OPTIONAL input parameter. */
 
 	const char *asciiFilenameExtensions;	/* OPTIONAL input parameter. */
+	int shutdownUnusedSideOfSockets;	/* OPTIONAL input parameter. */
 
 	unsigned short ephemLo;			/* OPTIONAL input parameter. */
 	unsigned short ephemHi;			/* OPTIONAL input parameter. */
@@ -470,7 +471,7 @@ typedef struct MLstItem{
 #define kDefaultXferTimeout		600
 #define kDefaultConnTimeout		30
 #define kDefaultCtrlTimeout		135
-#define kDefaultAbortTimeout	10
+#define kDefaultAbortTimeout		10
 #else
 /* The library doesn't use timeouts by default because it would
  * break apps that don't have a SIGALRM handler.
@@ -483,7 +484,7 @@ typedef struct MLstItem{
 
 
 /* Suggested timeout values, in seconds, if you use timeouts. */
-#define kSuggestedDefaultXferTimeout	(0)	/* No timeout on data blocks. */
+#define kSuggestedDefaultXferTimeout	600
 #define kSuggestedDefaultConnTimeout	30
 #define kSuggestedDefaultCtrlTimeout	135	/* 2*MSL, + slop */ 
 #define kSuggestedAbortTimeout		10
@@ -491,7 +492,7 @@ typedef struct MLstItem{
 #define kDefaultMaxDials		3
 #define kDefaultRedialDelay		20	/* seconds */
 
-#define kDefaultDataPortMode		kSendPortMode
+#define kDefaultDataPortMode		kFallBackToSendPortMode
 
 #define kRedialStatusDialing		0
 #define kRedialStatusSleeping		1
@@ -735,6 +736,7 @@ typedef struct FtwInfo {
 	size_t numLinks;
 	const char *rlinkto;	/* only valid during FTPFtw() */
 	int reserved;
+	void *direntbuf;
 	void *cip;		/* only valid during FTPFtw() */
 	void *userdata;
 } FtwInfo;
@@ -944,6 +946,10 @@ FileInfoPtr AddFileInfo(FileInfoListPtr, FileInfoPtr);
 void SortFileInfoList(FileInfoListPtr, int, int);
 void VectorizeFileInfoList(FileInfoListPtr);
 void UnvectorizeFileInfoList(FileInfoListPtr);
+int IsValidUNCPath(const char *const src);
+void CompressPath(char *const dst, const char *const src, const size_t dsize, int dosCompat);
+void PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *const src, int dosCompat);
+int DPathCat(char **const dst0, const char *const cwd, const char *const src, int dosCompat);
 int ComputeRNames(FileInfoListPtr, const char *, int, int);
 int ComputeLNames(FileInfoListPtr, const char *, const char *, int);
 int ConcatFileInfoList(FileInfoListPtr, FileInfoListPtr);

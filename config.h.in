@@ -234,6 +234,9 @@
 /* Define if you have the gethostbyaddr_r function.  */
 #undef HAVE_GETHOSTBYADDR_R
 
+/* Define if you have the gethostbyname2_r function.  */
+#undef HAVE_GETHOSTBYNAME2_R
+
 /* Define if you have the gethostbyname_r function.  */
 #undef HAVE_GETHOSTBYNAME_R
 
@@ -299,6 +302,9 @@
 
 /* Define if you have the open64 function.  */
 #undef HAVE_OPEN64
+
+/* Define if you have the pathconf function.  */
+#undef HAVE_PATHCONF
 
 /* Define if you have the readdir_r function.  */
 #undef HAVE_READDIR_R
@@ -444,26 +450,8 @@
 /* Define if you have the 44bsd library (-l44bsd).  */
 #undef HAVE_LIB44BSD
 
-/* Define if you have the com_err library (-lcom_err).  */
-#undef HAVE_LIBCOM_ERR
-
-/* Define if you have the crypto library (-lcrypto).  */
-#undef HAVE_LIBCRYPTO
-
-/* Define if you have the db library (-ldb).  */
-#undef HAVE_LIBDB
-
 /* Define if you have the gen library (-lgen).  */
 #undef HAVE_LIBGEN
-
-/* Define if you have the gssapi_krb5 library (-lgssapi_krb5).  */
-#undef HAVE_LIBGSSAPI_KRB5
-
-/* Define if you have the isode library (-lisode).  */
-#undef HAVE_LIBISODE
-
-/* Define if you have the krb5 library (-lkrb5).  */
-#undef HAVE_LIBKRB5
 
 /* Define if you have the nsl library (-lnsl).  */
 #undef HAVE_LIBNSL
@@ -476,6 +464,3 @@
 
 /* Define if you have the socket library (-lsocket).  */
 #undef HAVE_LIBSOCKET
-
-/* Define if you have the socks5 library (-lsocks5).  */
-#undef HAVE_LIBSOCKS5

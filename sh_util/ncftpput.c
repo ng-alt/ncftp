@@ -220,6 +220,26 @@ main(int argc, char **argv)
 	perfilecmd[0] = '\0';
 
 	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:AT:S:EFcyZzDbB:W:X:Y:")) > 0) {
+		if (c == 'b') {
+			batchmode++;
+		}
+	}
+
+	if (batchmode > 0) {
+		GetoptReset(&opt);
+		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
+			case 'v': case 'V': case 'A': case 'B': case 'S':
+			case 'T': case 'd': case 'e': case 'U': case 't':
+			case 'm': case 'r': case 'c': case 'y': case 'z':
+			case 'Z':
+				(void) fprintf(stderr, "The \"-%c\" option is not valid when used with conjunction with \"-%c\".\n", c, 'b');
+				exit(kExitUsage);
+				break;
+		}
+	}
+
+	GetoptReset(&opt);
 	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
@@ -316,7 +336,7 @@ main(int argc, char **argv)
 			resumeflag = kResumeNo;
 			break;
 		case 'b':
-			batchmode++;
+			/* handled above */
 			break;
 		case 'B':
 			fi.dataSocketSBufSize = (size_t) atol(opt.arg);	
@@ -336,6 +356,12 @@ main(int argc, char **argv)
 		default:
 			Usage();
 	}
+
+	if ((wantMkdir != 0) && (ftpcat != 0)) {
+		(void) fprintf(stderr, "The \"-%c\" option is not valid when used with conjunction with \"-%c\".\n", 'm', 'c');
+		exit(kExitUsage);
+	}
+
 	if (usingcfg != 0) {
 		if (ftpcat == 0) {
 			if (opt.ind > argc - 2)

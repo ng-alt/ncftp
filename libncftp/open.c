@@ -1,6 +1,6 @@
 /* open.c
  *
- * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -232,7 +232,7 @@ FTPLoginHost(const FTPCIPtr cip)
 			case 332:	/* 332 Need account for login. */
 			case 532: 	/* 532 Need account for storing files. */
 				ReInitResponse(cip, rp);
-				result = RCmd(cip, rp, "ACCT %s", cip->acct);
+				result = RCmd(cip, rp, "ACCT %s", (cip->acct[0] != '\0') ? cip->acct : cip->firewallPass);
 				break;
 
 			case 530:	/* Not logged in. */
@@ -283,7 +283,9 @@ okay:
 	cip->curTransferType = 'A';
 	PrintF(cip, "Logged in to %s as %s.\n", cip->host, cip->user);
 
-	/* Don't leave cleartext password in memory. */
+	/* Don't leave cleartext password in memory, since we
+	 * are logged in and do not need it any more.
+	 */
 	if ((anonLogin == 0) && (cip->leavePass == 0))
 		(void) memset(cip->pass, '*', strlen(cip->pass));
 
@@ -295,9 +297,20 @@ done:
 	DoneWithResponse(cip, rp);
 
 done2:
-	/* Don't leave cleartext password in memory. */
-	if ((anonLogin == 0) && (cip->leavePass == 0))
-		(void) memset(cip->pass, '*', strlen(cip->pass));
+	if ((anonLogin == 0) && (cip->leavePass == 0)) {
+		switch (result) {
+			case kErrConnectRetryableErr:
+			case kErrConnectRefused:
+			case kErrRemoteHostClosedConnection:
+			case kErrHostDisconnectedDuringLogin:
+				break;
+			default:
+				/* Don't leave cleartext password in memory,
+				 * since we won't be redialing.
+				 */
+				(void) memset(cip->pass, '*', strlen(cip->pass));
+		}
+	}
 	if (result < 0)
 		cip->errNo = result;
 	return result;
@@ -596,7 +609,7 @@ FTPOpenHost(const FTPCIPtr cip)
 					break;
 				}
 			}
-		} else if ((result != kErrConnectRetryableErr) && (result != kErrConnectRefused) && (result != kErrRemoteHostClosedConnection)) {
+		} else if ((result != kErrConnectRetryableErr) && (result != kErrConnectRefused) && (result != kErrRemoteHostClosedConnection) && (result != kErrHostDisconnectedDuringLogin)) {
 			/* Irrecoverable error, so don't bother redialing.
 			 * The error message should have already been printed
 			 * from OpenControlConnection().
@@ -660,7 +673,7 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->abortTimeout = kDefaultAbortTimeout;
 	cip->ctrlSocketR = kClosedFileDescriptor;
 	cip->ctrlSocketW = kClosedFileDescriptor;
-	cip->dataPortMode = kFallBackToSendPortMode;
+	cip->dataPortMode = kDefaultDataPortMode;
 	cip->dataSocket = kClosedFileDescriptor;
 	cip->lip = lip;
 	cip->hasPASV = kCommandAvailabilityUnknown;
@@ -683,6 +696,7 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->NLSTfileParamWorks = kCommandAvailabilityUnknown;
 	cip->firewallType = kFirewallNotInUse;
 	cip->startingWorkingDirectory = NULL;
+	cip->shutdownUnusedSideOfSockets = 0;
 	(void) STRNCPY(cip->magic, kLibraryMagic);
 	(void) STRNCPY(cip->user, "anonymous");
 	return (kNoErr);

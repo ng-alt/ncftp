@@ -85,8 +85,6 @@ void OutOfMemory(void);
 void *Realloc(void *, size_t);
 char *GetCWD(char *, size_t);
 void MyInetAddr(char *, size_t, void *, int);
-void CompressPath(char *const dst, const char *const src, const size_t dsize);
-void PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *const src, int dosCompat);
 char *FileToURL(char *url, size_t urlsize, const char *const fn, const char *const rcwd, const char *const startdir, const char *const user, const char *const pass, const char *const hname, const unsigned int port);
 void AbbrevStr(char *, const char *, size_t, int);
 char *Path(char *const dst, const size_t siz, const char *const parent, const char *const fname);

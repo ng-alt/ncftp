@@ -1,6 +1,40 @@
 Change Log:
 ===========
 
+3.1.2, 2002-01-16:
+
+ + A fix for the local hostname detection code which could result with only
+   the first character of the domain appended, rather than the entire domain
+   (Thanks Bernhard Sadlowski <sadlowsk@mathematik.uni-bielefeld.de>).
+
+ + Another bug fixed in local hostname detection where looking up the host
+   by IP address was not done correctly.
+
+ + Fixed a few portability problems on HP-UX 10.20 which were introduced
+   in 3.1.0.
+
+ + Fixed bug with readdir_r usage on Solaris, which could cause crashes
+   when doing "put -R", among other things.
+
+ + On Linux, use gethostbyname2_r() to specify that we only want IPv4
+   addresses returned.
+
+ + Reversing behavior from 3.1.0 where we did a shutdown() on the half
+   of the socket that wasn't used.  We suspect this was causing some
+   firewalls and routers to panic and assume the whole connection was
+   to be closed.
+
+ + Bug fixed where an unresolvable hostname caused a pointless connection
+   attempt which would fail.
+
+ + Shell utilities now print an error message when incompatible flags
+   are used in conjunction with "-b" or "-c".
+
+ + A few fixes for ncftpbatch.
+
+ + Numerous fixes for SOCKS5.
+
+
 3.1.1, 2001-12-23:
 
  + Fixed bugs with our use of gethostbyname_r/addr_r on Linux.
@@ -10,7 +44,7 @@ Change Log:
  
  + Source distributions now include install-sh again.
 
- + Bug fixed with Win32 version of ncftp_bookmarks, which could look
+ + Bug fixed with Win32 version of ncftpbookmarks, which could look
    in $HOME/.ncftp rather than $HOME/ncftp.  Many Win32 users weren't
    affected, since the HOME environment variable is not always set.
 
@@ -58,7 +92,7 @@ Change Log:
   if your $TERM supports it.
 
 + Fixed bug where Win32 $HOME bug fixed for 3.0.4 wasn't fixed for
-  ncftp_bookmarks.
+  ncftpbookmarks.
 
 + Fixes for large file support for the Win32 port.
 
@@ -249,7 +283,7 @@ Change Log:
   remote host before storing files.  In addition, it does it one
   subdirectory node at a time, like URL mode does for ncftpget.
 
-+ Bug fixed where the "ncftp_bookmarks --dimensions-terse" hack could
++ Bug fixed where the "ncftpbookmarks --dimensions-terse" hack could
   be closed and generate a SIGPIPE which caused it to exit uncleanly,
   and possibly leave the terminal state hosed.
 

@@ -325,6 +325,9 @@
 
 #if (defined(SOCKS)) && (SOCKS >= 5)
 #	ifdef HAVE_SOCKS_H
+#		ifdef HAVE_SOCKS5P_H
+#			define INCLUDE_PROTOTYPES 1
+#		endif
 #		include <socks.h>
 #	endif
 #endif	/* SOCKS */

@@ -589,9 +589,9 @@ LoadCurrentSpoolFileContents(int logErrors)
 	FILE *fp;
 	char line[256];
 	char *tok1, *tok2;
+	char *cp, *lim;
 #if defined(WIN32) || defined(_WINDOWS)
 #else
-	char *cp;
 	struct stat st;
 #endif
 
@@ -682,7 +682,6 @@ LoadCurrentSpoolFileContents(int logErrors)
 		tok2 = strtok(NULL, "\r\n");
 		if (tok2 == NULL)
 			continue;
-
 		if (strcmp(tok1, "op") == 0) {
 			gOperation = tok2[0];
 			STRNCPY(gOperationStr, tok2);
@@ -726,14 +725,37 @@ LoadCurrentSpoolFileContents(int logErrors)
 			(void) STRNCPY(gLFile, tok2);
 		} else if (strcmp(tok1, "pre-ftp-command") == 0) {
 			(void) STRNCPY(gPreFTPCommand, tok2);
+			cp = gPreFTPCommand;
+			lim = cp + sizeof(gPreFTPCommand) - 1;
+			goto multi;
 		} else if (strcmp(tok1, "per-file-ftp-command") == 0) {
 			(void) STRNCPY(gPerFileFTPCommand, tok2);
+			cp = gPerFileFTPCommand;
+			lim = cp + sizeof(gPerFileFTPCommand) - 1;
+			goto multi;
 		} else if (strcmp(tok1, "post-ftp-command") == 0) {
 			(void) STRNCPY(gPostFTPCommand, tok2);
+			cp = gPostFTPCommand;
+			lim = cp + sizeof(gPostFTPCommand) - 1;
+			goto multi;
 		} else if (strcmp(tok1, "pre-shell-command") == 0) {
 			(void) STRNCPY(gPreShellCommand, tok2);
+			cp = gPreShellCommand;
+			lim = cp + sizeof(gPreShellCommand) - 1;
+			goto multi;
 		} else if (strcmp(tok1, "post-shell-command") == 0) {
 			(void) STRNCPY(gPostShellCommand, tok2);
+			cp = gPostShellCommand;
+			lim = cp + sizeof(gPostShellCommand) - 1;
+		multi:
+			cp += strlen(cp) - 1;
+			while ((*cp == '\\') && (cp < lim)) {
+				*cp++ = '\n';
+				(void) fgets(cp, lim - cp, fp);
+				cp += strlen(cp) - 1;
+				if (*cp == '\n')
+					*cp-- = '\0';
+			}
 		} else if (strcmp(tok1, "job-name") == 0) {
 			/* ignore */
 		} else {
@@ -1285,6 +1307,10 @@ EventShell(volatile unsigned int sleepval)
 
 				(void) FTPCloseHost(&gConn);
 				Log(0, "Sleeping %u seconds before starting pass %d.\n", sleepval, passes);
+				if ((sleepval == 0) || (sleepval > 30000)) {
+					Log(0, "Panic: invalid sleep amount %u.\n", sleepval);
+					exit(1);
+				}
 				(void) sleep(sleepval);
 			}
 			YieldUI(1);
@@ -1304,7 +1330,7 @@ EventShell(volatile unsigned int sleepval)
 		}
 
 		Log(0, "Starting pass %d.\n", passes);
-		for (nItems = 0, nProcessed = 0; ; ) {
+		for (nItems = 0, nProcessed = 0, nFinished = 0; ; ) {
 			if (Readdir(DIRp, &dent) == NULL)
 				break;
 
@@ -1366,8 +1392,15 @@ EventShell(volatile unsigned int sleepval)
 				if (DoItem() < 0) {
 					if (gDelaySinceLastFailure == 0)
 						gDelaySinceLastFailure = 5;
-					else
+					else {
 						gDelaySinceLastFailure = NEW_SLEEP_VAL(gDelaySinceLastFailure);
+						if (gDelaySinceLastFailure > 900) {
+							/* If sleep duration got so large it got past 15 minutes,
+							 * start over again.
+							 */
+							gDelaySinceLastFailure = 60;
+						}
+					}
 					tnext = time(NULL) + (time_t) gDelaySinceLastFailure;
 					strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S", Localtime(tnext, &tnext_tm));
 

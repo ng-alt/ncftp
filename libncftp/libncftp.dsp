@@ -313,6 +313,10 @@ SOURCE=.\u_mkdirs.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\u_pathcat.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\u_printf.c
 # End Source File
 # Begin Source File

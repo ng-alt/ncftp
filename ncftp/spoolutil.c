@@ -1,6 +1,6 @@
 /* spoolutil.c
  *
- * Copyright (c) 1992-2001 by Mike Gleason.
+ * Copyright (c) 1992-2002 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -86,6 +86,32 @@ SpoolName(char *const sp, const size_t size, const int flag, const int serial, t
 
 
 
+static int
+WriteSpoolLine(FILE *const ofp, const char *const line)
+{
+	int c;
+	const char *cp;
+
+	c = 0;
+	for (cp = line; *cp; cp++) {
+		c = (int) *cp;
+		if ((c == '\n') && (cp[1] != '\0')) {
+			if (putc('\\', ofp) == EOF)
+				return (-1);
+		}
+		if (putc(c, ofp) == EOF)
+			return (-1);
+	}
+	if (c != '\n') {
+		c = '\n';
+		if (putc(c, ofp) == EOF)
+			return (-1);
+	}
+	return (0);
+}	/* WriteSpoolLine */
+
+
+
 int
 SpoolX(
 	FILE *const ofp,
@@ -119,6 +145,7 @@ SpoolX(
 	char spathname[256];
 	char spathname2[256];
 	char ldir2[256];
+	char *ldir3;
 	FILE *fp;
 #if defined(WIN32) || defined(_WINDOWS)
 #else
@@ -194,6 +221,23 @@ SpoolX(
 		FTPGetLocalCWD(ldir2, sizeof(ldir2));
 		if (fprintf(fp, "local-dir=%s\n", ldir2) < 0)
 			goto err;
+#if defined(WIN32) || defined(_WINDOWS)
+	} else if ((ldir[0] != '/') && (ldir[0] != '\\')) {
+		FTPGetLocalCWD(ldir2, sizeof(ldir2));
+		if (DPathCat(&ldir3, ldir2, ldir, 1) == 0) {
+			if (fprintf(fp, "local-dir=%s\n", ldir3) < 0)
+				goto err;
+			free(ldir3);
+		}
+#else
+	} else if (ldir[0] != '/') {
+		FTPGetLocalCWD(ldir2, sizeof(ldir2));
+		if (DPathCat(&ldir3, ldir2, ldir, 0) == 0) {
+			if (fprintf(fp, "local-dir=%s\n", ldir3) < 0)
+				goto err;
+			free(ldir3);
+		}
+#endif
 	} else {
 		if (fprintf(fp, "local-dir=%s\n", ldir) < 0)
 			goto err;
@@ -202,16 +246,37 @@ SpoolX(
 		goto err;
 	if (fprintf(fp, "local-file=%s\n", lfile) < 0)
 		goto err;
-	if ((preftpcmd != NULL) && (preftpcmd[0] != '\0') && (fprintf(fp, "pre-ftp-command=%s\n", preftpcmd) < 0))
-		goto err;
-	if ((perfileftpcmd != NULL) && (perfileftpcmd[0] != '\0') && (fprintf(fp, "per-file-ftp-command=%s\n", perfileftpcmd) < 0))
-		goto err;
-	if ((postftpcmd != NULL) && (postftpcmd[0] != '\0') && (fprintf(fp, "post-ftp-command=%s\n", postftpcmd) < 0))
-		goto err;
-	if ((preshellcmd != NULL) && (preshellcmd[0] != '\0') && (fprintf(fp, "pre-shell-command=%s\n", preshellcmd) < 0))
-		goto err;
-	if ((postshellcmd != NULL) && (postshellcmd[0] != '\0') && (fprintf(fp, "post-shell-command=%s\n", postshellcmd) < 0))
-		goto err;
+
+	if ((preftpcmd != NULL) && (preftpcmd[0] != '\0')) {
+		if (fprintf(fp, "pre-ftp-command=") < 0)
+			goto err;
+		if (WriteSpoolLine(fp, preftpcmd) < 0)
+			goto err;
+	}
+	if ((perfileftpcmd != NULL) && (perfileftpcmd[0] != '\0')) {
+		if (fprintf(fp, "per-file-ftp-command=") < 0)
+			goto err;
+		if (WriteSpoolLine(fp, perfileftpcmd) < 0)
+			goto err;
+	}
+	if ((postftpcmd != NULL) && (postftpcmd[0] != '\0')) {
+		if (fprintf(fp, "post-ftp-command=") < 0)
+			goto err;
+		if (WriteSpoolLine(fp, postftpcmd) < 0)
+			goto err;
+	}
+	if ((preshellcmd != NULL) && (preshellcmd[0] != '\0')) {
+		if (fprintf(fp, "pre-shell-command=") < 0)
+			goto err;
+		if (WriteSpoolLine(fp, preshellcmd) < 0)
+			goto err;
+	}
+	if ((postshellcmd != NULL) && (postshellcmd[0] != '\0')) {
+		if (fprintf(fp, "post-shell-command=") < 0)
+			goto err;
+		if (WriteSpoolLine(fp, postshellcmd) < 0)
+			goto err;
+	}
 
 	if ((fp != ofp) && (fclose(fp) < 0))
 		goto err2;

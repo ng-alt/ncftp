@@ -7,26 +7,46 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_LIB_SOCKS5, [
-	ac_cv_lib_socks5_SOCKSinit=no
-	if test "$wi_want_socks5" = yes ; then
+	if test "$wi_want_socks5" != yes ; then
+		ac_cv_lib_socks5_SOCKSinit=no
+	else
 		# Look for the "SOCKS" library for use with Firewalls/Gateways.
-		savelibs="$LIBS"
-		LIBS=''
-		AC_CHECK_LIB(db,main)
-		AC_CHECK_LIB(isode,main)
-		AC_CHECK_LIB(com_err,main)
-		AC_CHECK_LIB(crypto,main)
-		AC_CHECK_LIB(krb5,main)
-		AC_CHECK_LIB(gssapi_krb5,main)
-		AC_CHECK_LIB(socks5,SOCKSinit)
-		AC_CHECK_HEADERS(socks.h)
+		SOCKS_LIBS=''
+
+		# First check for extra libraries that may be needed to
+		# link against socks.  If we already checked for one or
+		# more of these libraries, we don't want to count them
+		# in the socks-only list.
+		#
+		if test "x$ac_cv_lib_db_main" = "x" ; then
+			AC_CHECK_LIB(db,main,[SOCKS_LIBS="$SOCKS_LIBS -ldb"])
+		fi
+		if test "x$ac_cv_lib_isode_main" = "x" ; then
+			AC_CHECK_LIB(isode,main,[SOCKS_LIBS="$SOCKS_LIBS -lisode"])
+		fi
+		if test "x$ac_cv_lib_com_err_main" = "x" ; then
+			AC_CHECK_LIB(com_err,main,[SOCKS_LIBS="$SOCKS_LIBS -lcom_err"])
+		fi
+		if test "x$ac_cv_lib_crypto_main" = "x" ; then
+			AC_CHECK_LIB(crypto,main,[SOCKS_LIBS="$SOCKS_LIBS -lcrypto"])
+		fi
+		if test "x$ac_cv_lib_krb5_main" = "x" ; then
+			AC_CHECK_LIB(krb5,main,[SOCKS_LIBS="$SOCKS_LIBS -lkrb5"])
+		fi
+		if test "x$ac_cv_lib_gssapi_krb5_main" = "x" ; then
+			AC_CHECK_LIB(gssapi_krb5,main,[SOCKS_LIBS="$SOCKS_LIBS -lgssapi_krb5"])
+		fi
+
+		AC_CHECK_LIB(socks5,SOCKSinit,[SOCKS_LIBS="$SOCKS_LIBS -lsocks5"])
+		AC_CHECK_HEADERS(socks.h socks5p.h)
+
 		if test "$ac_cv_lib_socks5_SOCKSinit" != yes ; then
 			ac_cv_lib_socks5_SOCKSinit=no
-			SOCKS_LIBS="$LIBS"
+			unset SOCKS_LIBS
+		else
 			AC_SUBST(SOCKS_LIBS)
 			AC_DEFINE(SOCKS,5)
 		fi
-		LIBS="$savelibs"
 	fi
 	AC_MSG_CHECKING([if SOCKS5 will be used])
 	AC_MSG_RESULT([$ac_cv_lib_socks5_SOCKSinit])
@@ -432,10 +452,10 @@ if test "$wi_os_default_cflags" = yes ; then
 		wi_gcc_optimizer_flags=''
 		case "$wi_cv_gcc_version" in
 			2.7.*|2.8.*|2.9*)
-				wi_os_default_cflags="-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wbad-function-cast -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Winline"
+				wi_os_default_cflags="-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wbad-function-cast -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-declarations -Winline"
 				;;
 			3.*)
-				wi_os_default_cflags="-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wbad-function-cast -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Winline -Wdisabled-optimization -Wmissing-format-attribute -Wformat-security"
+				wi_os_default_cflags="-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wbad-function-cast -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-declarations -Winline -Wdisabled-optimization -Wmissing-format-attribute -Wformat-security"
 				wi_gcc_optimizer_flags='-Wdisabled-optimization'
 				;;
 			*)

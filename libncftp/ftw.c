@@ -1,6 +1,6 @@
 /* Ftw.c
  *
- * Copyright (c) 2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -93,7 +93,7 @@ Readdir(DIR *const dir, struct dirent *const dp)
 {
 	struct dirent *p;
 
-#if defined(HAVE_READDIR_R) && ((defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS)) || (defined(SCO)))
+#if defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && !defined(_POSIX_PTHREAD_SEMANTICS)) || (defined(SCO)) || (defined(HPUX) && (HPUX < 1100)) )
 	p = readdir_r(dir, dp);
 	if (p != NULL)
 		return (dp);
@@ -147,7 +147,7 @@ FtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 	DIR *DIRp;
 	char *cp;
 	size_t fnLen;
-	struct dirent dent;
+	struct dirent *dentp;
 	mode_t m;
 	char *filename;
 	char *newBuf;
@@ -177,10 +177,11 @@ FtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 	*filename = '\0';
 	/* Path now contains dir/  */
 
+	dentp = (struct dirent *) ftwip->direntbuf;
 	for (;;) {
-		if (Readdir(DIRp, &dent) == NULL)
+		if (Readdir(DIRp, dentp) == NULL)
 			break;
-		cp = dent.d_name;
+		cp = dentp->d_name;
 		if ((cp[0] == '.') && ((cp[1] == '\0') || ((cp[1] == '.') && (cp[2] == '\0'))))
 			continue;	/* Skip . and .. */
 
@@ -300,6 +301,10 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 	size_t len, alen;
 	int rc;
 	char *cp, *endp;
+	size_t debufsize = 256;
+#ifdef HAVE_PATHCONF
+	long nmx;
+#endif
 
 	if ((ftwip->init != kFtwMagic) || (path == NULL) || (path[0] == '\0') || (proc == (FtwProc) 0)) {
 		errno = EINVAL;
@@ -334,6 +339,18 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 		errno = ENOTDIR;
 		return (-1);
 	}
+
+#ifdef HAVE_PATHCONF
+	nmx = pathconf(path, _PC_NAME_MAX);
+	if (nmx >= 256)
+		debufsize = nmx;
+#endif
+	debufsize += sizeof(struct dirent) + 8;
+	ftwip->direntbuf = calloc(debufsize, (size_t) 1);
+	if (ftwip->direntbuf == NULL) {
+		return (-1);
+	}
+
 	ftwip->curType = 'd';
 	memset(ftwip->curPath, 0, ftwip->curPathAllocSize);
 	memcpy(ftwip->curPath, path, len + 1);
@@ -351,6 +368,8 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 	ftwip->curFileLen = (size_t) (endp - cp);
 	ftwip->proc = proc;
 	if ((*proc)(ftwip) < 0) {
+		free(ftwip->direntbuf);
+		ftwip->direntbuf = NULL;
 		return (-1);
 	}
 
@@ -370,6 +389,8 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 	ftwip->curFileLen = 0;
 	ftwip->cip = 0;
 	ftwip->rlinkto = NULL;
+	free(ftwip->direntbuf);
+	ftwip->direntbuf = NULL;
 
 	return (rc);
 }	/* Ftw */

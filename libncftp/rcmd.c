@@ -1,6 +1,6 @@
 /* rcmd.c
  *
- * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -878,7 +878,8 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 		goto done;
 
 	/* Close the half of the bidirectional pipe that we won't be using. */
-	(void) shutdown(cip->dataSocket, ((netMode == kNetReading) ? 1 : 0));
+	if (cip->shutdownUnusedSideOfSockets != 0)
+		(void) shutdown(cip->dataSocket, ((netMode == kNetReading) ? 1 : 0));
 
 	return (kNoErr);
 

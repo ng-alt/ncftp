@@ -1,6 +1,6 @@
 /* linelist.c
  *
- * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */

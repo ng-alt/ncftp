@@ -202,6 +202,9 @@ int GetHostByName(struct hostent *const hp, const char *const name, char *const 
 int GetHostByAddr(struct hostent *const hp, void *addr, int asize, int atype, char *const hpbuf, size_t hpbufsize);
 int GetHostEntry(struct hostent *const hp, const char *const host, struct in_addr *const ip_address, char *const hpbuf, size_t hpbufsize);
 int GetOurHostName(char *const host, const size_t siz);
+#if defined(WIN32) || defined(_WINDOWS)
+int getdomainname(char *const domain, unsigned int dsize);
+#endif
 
 /* PRead.c */
 int PRead(int, char *const, size_t, int);

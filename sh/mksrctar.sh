@@ -93,6 +93,7 @@ if [ -f "$wd/sh/unix2dos.sh" ] ; then
 fi
 
 cpio -Lpdm $TMPDIR/TAR/$TARDIR < "$wd/doc/manifest"
+chmod -R a+rX "$TMPDIR/TAR/$TARDIR"
 
 find $TMPDIR/TAR/$TARDIR -type f -name '*.[ch]' -exec $wd/sh/dos2unix.sh {} \;
 find $TMPDIR/TAR/$TARDIR -type f -name '*.in' -exec $wd/sh/dos2unix.sh {} \;

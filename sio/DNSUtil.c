@@ -29,6 +29,32 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 	h = gethostbyname_r(name, hp, hpbuf, hpbufsize, &h_errno_unused);
 	if (h != NULL)
 		return (0);
+#elif defined(HAVE_GETHOSTBYNAME2_R) && defined(LINUX)
+	char *usehpbuf;
+	struct hostent *h;
+	int my_h_errno, rc;
+
+	usehpbuf = hpbuf;
+	forever {
+		errno = 0;
+		my_h_errno = 0;
+		h = NULL;
+		memset(usehpbuf, 0, hpbufsize);
+		rc = gethostbyname2_r(name, AF_INET, hp, usehpbuf, hpbufsize, &h, &my_h_errno);
+		if ((rc == 0) && (my_h_errno == 0))
+			return (0);
+		if ((rc == ERANGE) || ((rc == -1) && (errno == ERANGE))) {
+			hpbufsize *= 2;
+			usehpbuf = alloca(hpbufsize);
+			if (usehpbuf == NULL) {
+				errno = ENOMEM;
+				return (-1);
+			}
+		}
+		if ((rc == 0) && (my_h_errno != 0))
+			errno = ENOENT;
+		break;
+	}
 #elif defined(HAVE_GETHOSTBYNAME_R) && defined(LINUX)
 	char *usehpbuf;
 	struct hostent *h;
@@ -153,7 +179,7 @@ GetHostEntry(struct hostent *const hp, const char *const host, struct in_addr *c
 	
 	/* See if the host was given in the dotted IP format, like "36.44.0.2."
 	 * If it was, inet_addr will convert that to a 32-bit binary value;
-	 * it not, inet_addr will return (-1L).
+	 * if not, inet_addr will return (-1L).
 	 */
 	ip.s_addr = inet_addr(host);
 	if (ip.s_addr != INADDR_NONE) {
@@ -166,6 +192,8 @@ GetHostEntry(struct hostent *const hp, const char *const host, struct in_addr *c
 		}
 	} else {
 		/* No IP address, so it must be a hostname, like ftp.wustl.edu. */
+		if (ip_address != NULL)
+			ip_address->s_addr = INADDR_NONE;
 		if (GetHostByName(hp, host, hpbuf, hpbufsize) == 0) {
 			rc = 0;
 			if (ip_address != NULL)
@@ -253,6 +281,94 @@ starttok:
 
 
 
+#if defined(WIN32) || defined(_WINDOWS)
+int
+getdomainname(char *const domain, unsigned int dsize)
+{
+	HKEY hkey;
+	DWORD rc;
+	DWORD valSize;
+
+	/* Works for Win NT/2000/XP */
+	rc = RegOpenKeyEx(
+			HKEY_LOCAL_MACHINE,
+			"System\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+			0,
+			KEY_READ,
+			&hkey
+	);
+
+	if (rc == ERROR_SUCCESS) {
+		valSize = (DWORD) (dsize - 1);
+		memset(domain, 0, dsize);
+		rc = RegQueryValueEx(
+			hkey,
+			"DhcpDomain",
+			NULL,
+			NULL,
+			(LPBYTE) domain,
+			&valSize
+		);
+
+		if ((rc == ERROR_SUCCESS) && (domain[0] != '\0')) {
+			RegCloseKey(hkey);
+			return (0);
+		}
+
+		valSize = (DWORD) (dsize - 1);
+		memset(domain, 0, dsize);
+		rc = RegQueryValueEx(
+			hkey,
+			"Domain",
+			NULL,
+			NULL,
+			(LPBYTE) domain,
+			&valSize
+		);
+
+		if ((rc == ERROR_SUCCESS) && (domain[0] != '\0')) {
+			RegCloseKey(hkey);
+			return (0);
+		}
+
+		RegCloseKey(hkey);
+	}
+
+	/* Works for Win 9x */
+	rc = RegOpenKeyEx(
+			HKEY_LOCAL_MACHINE,
+			"System\\CurrentControlSet\\Services\\VxD\\MSTCP",
+			0,
+			KEY_READ,
+			&hkey
+	);
+
+	if (rc == ERROR_SUCCESS) {
+		valSize = (DWORD) (dsize - 1);
+		memset(domain, 0, dsize);
+		rc = RegQueryValueEx(
+			hkey,
+			"Domain",
+			NULL,
+			NULL,
+			(LPBYTE) domain,
+			&valSize
+		);
+
+		if ((rc == ERROR_SUCCESS) && (domain[0] != '\0')) {
+			RegCloseKey(hkey);
+			return (0);
+		}
+
+		RegCloseKey(hkey);
+	}
+
+	memset(domain, 0, dsize);
+	return (-1);
+}	/* getdomainname */
+#endif	/* WINDOWS */
+
+
 
 /* Makes every effort to return a fully qualified domain name. */
 int
@@ -302,7 +418,7 @@ GetOurHostName(char *const host, const size_t siz)
 		}
 
 		/* Make note of the IP address. */
-		ip = * (struct in_addr *) hp.h_addr_list;
+		ip = * ((struct in_addr **) hp.h_addr_list)[0];
 
 		/* Now try the list of aliases, to see if any of those look real. */
 		for (curAlias = hp.h_aliases; *curAlias != NULL; curAlias++) {
@@ -348,6 +464,7 @@ GetOurHostName(char *const host, const size_t siz)
 #else
 	rc = kDomainnameUnknown;
 	domain[0] = '\0';
+
 #	if defined(HAVE_RES_INIT) && defined(HAVE__RES_DEFDNAME)
 	if (domain[0] == '\0') {
 		res_init();
@@ -398,6 +515,17 @@ GetOurHostName(char *const host, const size_t siz)
 			}
 		}
 	}
+
+#	if defined(HAVE_GETDOMAINNAME) || defined(WIN32) || defined(_WINDOWS)
+	if (domain[0] == '\0') {
+		if (getdomainname(domain, (gethostname_size_t) (sizeof(domain) - 1)) != 0) {
+			domain[0] = '\0';
+		} else if (strchr(domain, '.') == NULL) {
+			/* Probably a NIS domain, not a DNS domain name */
+			domain[0] = '\0';
+		}
+	}
+#	endif	/* HAVE_GETDOMAINNAME */
 #endif	/* DOMAINNAME */
 
 	if (domain[0] != '\0') {
@@ -407,6 +535,7 @@ GetOurHostName(char *const host, const size_t siz)
 		cp = domain + strlen(domain) - 1;
 		if (*cp == '.')
 			*cp = '\0';
+		cp = domain;
 		dcp = host + strlen(host);
 		dlim = host + siz - 1;
 		if ((domain[0] != '.') && (dcp < dlim))

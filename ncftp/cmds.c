@@ -1,6 +1,6 @@
 /* cmds.c
  *
- * Copyright (c) 1992-2001 by Mike Gleason.
+ * Copyright (c) 1992-2002 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -3434,7 +3434,7 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 	rdir = malloc(len + 1);
 	if (rdir == NULL)
 		return (-1);
-	CompressPath(rdir, rdir1, len + 1);
+	CompressPath(rdir, rdir1, len + 1, 1);
 	StrFree(&rdir1);
 	cp = strrchr(rdir, '/');
 	if ((cp != NULL) && (cp != rdir) && (toplevel == 0))
@@ -3444,7 +3444,12 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 	ldir = malloc(len + 1);
 	if (ldir == NULL)
 		return (-1);
-	CompressPath(ldir, ldir1, len + 1);
+	CompressPath(ldir, ldir1, len + 1,
+#if defined(WIN32) || defined(_WINDOWS)
+		1);
+#else
+		0);
+#endif
 	StrFree(&ldir1);
 	cp = StrRFindLocalPathDelim(ldir);
 	if ((cp != NULL) && (cp != ldir) && (toplevel == 0))
@@ -3778,7 +3783,7 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 	rdir = malloc(len + 1);
 	if (rdir == NULL)
 		return (-1);
-	CompressPath(rdir, rdir1, len + 1);
+	CompressPath(rdir, rdir1, len + 1, 1);
 	StrFree(&rdir1);
 	cp = strrchr(rdir, '/');
 	if ((cp != NULL) && (cp != rdir) && (toplevel == 0))
@@ -3788,7 +3793,12 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 	ldir = malloc(len + 1);
 	if (ldir == NULL)
 		return (-1);
-	CompressPath(ldir, ldir1, len + 1);
+	CompressPath(ldir, ldir1, len + 1,
+#if defined(WIN32) || defined(_WINDOWS)
+		1);
+#else
+		0);
+#endif
 	StrFree(&ldir1);
 	cp = StrRFindLocalPathDelim(ldir);
 	if ((cp != NULL) && (cp != ldir) && (toplevel == 0))
