@@ -7,18 +7,43 @@
 
 #define kSpoolDir "spool"
 #if defined(WIN32) || defined(_WINDOWS)
-#	define kSpoolLog "batchlog.txt"
+#	define kSpoolLog "log.txt"
 #else
-#	define kSpoolLog "batchlog"
+#	define kSpoolLog "log"
 #endif
 
 /* spool.c */
 void TruncBatchLog(void);
 int MkSpoolDir(char *, size_t);
-void SpoolName(const char *const, char *, size_t, int, int, time_t);
+void SpoolName(char *const sp, const size_t size, const int flag, const int serial, time_t when);
 int CanSpool(void);
 int HaveSpool(void);
-int SpoolX(const char *const, const char *const, const char *const, const char *const, const char *const, const char *const, const char *const, const unsigned int, const char *const, const char *const, int, int, int, int, const char *const, const char *const, const char *const, time_t);
-void RunBatch(int, const FTPCIPtr);
+int SpoolX(
+	FILE *const ofp,
+	const char *sdir,
+	const char *const op,
+	const char *const rfile,
+	const char *const rdir,
+	const char *const lfile,
+	const char *const ldir,
+	const char *const host,
+	const char *const ip,
+	const unsigned int port,
+	const char *const user,
+	const char *const passclear,
+	const char *const xacct,
+	const int xtype,
+	const int recursive,
+	const int delete,
+	const int passive,
+	const char *const preftpcmd,
+	const char *const perfileftpcmd,
+	const char *const postftpcmd,
+	const char *const preshellcmd,
+	const char *const postshellcmd,
+	const time_t when,
+	const unsigned int delaySinceLastFailure);
+void RunBatch(void);
+void RunBatchWithCore(const FTPCIPtr);
 void Jobs(void);
 void RunBatchIfNeeded(const FTPCIPtr);

@@ -29,6 +29,7 @@ int gLsCacheItemLifetime = kLsCacheItemLifetime;
 
 extern FTPConnectionInfo gConn;
 extern char gRemoteCWD[512];
+extern int gServerUsesMSDOSPaths;
 extern int gScreenColumns, gDebug;
 
 
@@ -537,7 +538,7 @@ Ls(const char *const item, int listmode, const char *const options, FILE *stream
 
 	/* Create a possibly relative path into an absolute path. */
 	PathCat(itempath, sizeof(itempath), gRemoteCWD,
-		(item == NULL) ? "." : item);
+		(item == NULL) ? "." : item, gServerUsesMSDOSPaths);
 
 	if (unknownOpts > 0) {
 		/* Can't handle these -- pass them through

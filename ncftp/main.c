@@ -469,6 +469,9 @@ main(int argc, const char **const argv)
 			Usage();
 	}
 
+#if (defined(SOCKS)) && (SOCKS >= 5)
+	SOCKSinit(argv[0]);
+#endif	/* SOCKS */
 	PostInit();
 	OpenURL();
 	CommandShell();

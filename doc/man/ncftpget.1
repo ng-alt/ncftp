@@ -8,13 +8,25 @@ ncftpget - Internet file transfer program for scripts
 .I "remote-host" "local-directory" "remote-files..."
 .PP
 .B ncftpget
--f login.cfg
+\-f login.cfg
 .RI [ "options" ]
 .I "local-directory" "remote-files..."
 .PP
 .B ncftpget
 .RI [ "options" ]
-.I "ftp://url.style/host/path/name"
+.I "ftp://url.style.host/path/name"
+.PP
+.B ncftpget
+\-c
+.RI [ "options" ]
+.I "remote-host" "remote-file"
+> stdout
+.PP
+.B ncftpget
+\-c
+.RI [ "options" ]
+.I "ftp://url.style.host/path/name"
+> stdout
 .\"-------
 .SH "OPTIONS"
 .\"-------
@@ -62,6 +74,9 @@ The default is to use progress meters if the output stream is a TTY.
 Read the file
 .I XX
 for host, user, and password information.
+.TP 8
+.B -c
+Send output to standard out, rather than writing to a local file.
 .TP 8
 .B -A
 Append to local files, instead of overwriting them.
@@ -155,8 +170,8 @@ behavior on some servers.
 For example, users accessing mainframes might need to send
 some special SITE commands to set blocksize and record format information.
 .IP
-When using those options, you can use a newline character to delimit
-multiple commands.
+For these options, you can use them multiple times each if you need
+to send multiple commands.
 For the
 .B "-X"
 option, you can use the cookie

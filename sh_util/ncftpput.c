@@ -191,9 +191,12 @@ main(int argc, char **argv)
 	char *ufilep;
 	const char *udirp;
 	char ufile[256];
-	char precmd[128], postcmd[128], perfilecmd[128];
+	char precmd[320], postcmd[320], perfilecmd[320];
 
 	InitWinsock();
+#if (defined(SOCKS)) && (SOCKS >= 5)
+	SOCKSinit(argv[0]);
+#endif	/* SOCKS */
 #ifdef SIGPOLL
 	NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
 #endif
@@ -328,13 +331,16 @@ main(int argc, char **argv)
 			fi.dataSocketSBufSize = (size_t) atol(optarg);	
 			break;
 		case 'W':
-			STRNCPY(precmd, optarg);
+			STRNCAT(precmd, optarg);
+			STRNCAT(precmd, "\n");
 			break;
 		case 'X':
-			STRNCPY(perfilecmd, optarg);
+			STRNCAT(perfilecmd, optarg);
+			STRNCAT(perfilecmd, "\n");
 			break;
 		case 'Y':
-			STRNCPY(postcmd, optarg);
+			STRNCAT(postcmd, optarg);
+			STRNCAT(postcmd, "\n");
 			break;
 		default:
 			Usage();
@@ -386,6 +392,9 @@ main(int argc, char **argv)
 	}
 
 	if (batchmode != 0) {
+		if (rflag != 0) {
+			(void) fprintf(stderr, "Warning: -R flag may not work reliably for background jobs.\n");
+		}
 		/* List of files specified */
 		for (i=0; files[i] != NULL; i++) {
 			STRNCPY(ufile, files[i]);
@@ -399,6 +408,8 @@ main(int argc, char **argv)
 			}
 
 			result = SpoolX(
+				(batchmode < 3) ? NULL : stdout,
+				NULL,
 				"put",
 				ufilep, 	/* Remote file */
 				dstdir,		/* Remote CWD */
@@ -409,6 +420,7 @@ main(int argc, char **argv)
 				fi.port,
 				fi.user,
 				fi.pass,
+				fi.acct,
 				xtype,
 				rflag,
 				deleteflag,
@@ -416,16 +428,19 @@ main(int argc, char **argv)
 				precmd,
 				perfilecmd,
 				postcmd,
-				(time_t) 0	/* when: now */
+				NULL,
+				NULL,
+				(time_t) 0,	/* when: now */
+				0
 			);
-			if (result == 0) {
+			if ((result == 0) && (batchmode < 3)) {
 				fprintf(stdout, "  + Spooled; sending remotely as %s/%s.\n", dstdir, ufilep);
 				spooled++;
 			}
 		}
-		if (spooled > 0) {
+		if ((spooled > 0) || (batchmode >= 3)) {
 			if (batchmode == 1) {
-				RunBatch(0, NULL);
+				RunBatch();
 			}
 			DisposeWinsock(0);
 			exit(kExitSuccess);
@@ -460,10 +475,10 @@ main(int argc, char **argv)
 		es = kExitChdirTimedOut;
 		if (wantMkdir != 0) {
 			errstr = "could not create and chdir on remote host";
-			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirOneSubdirAtATime|kChdirAndMkdir);
+			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirFullPath|kChdirOneSubdirAtATime|kChdirAndMkdir);
 		} else {
 			errstr = "could not chdir on remote host";
-			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirOneSubdirAtATime);
+			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirFullPath|kChdirOneSubdirAtATime);
 		}
 	}
 

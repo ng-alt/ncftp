@@ -4,6 +4,7 @@ AC_INIT(SWrite.c)
 
 AC_CONFIG_HEADER(config.h)
 
+wi_ARG_ENABLE_SOCKS5
 no_signals=yes
 AC_ARG_ENABLE(signals,[  --enable-signals       allow use of signal handling],[no_signals=no])
 
@@ -23,6 +24,7 @@ AC_PROG_RANLIB
 
 dnl Needed to build the samples.
 wi_NET_LIBS
+wi_LIB_SOCKS5
 
 AC_SUBST(CC)
 AC_SUBST(CFLAGS)

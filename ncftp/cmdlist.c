@@ -42,7 +42,6 @@ Command gCommands[] = {
 		SpoolGetCmd,
 "[-flags] file1 [file2...]\n\
 Flags:\n\
-  -R   : Recursive.  Useful for fetching whole directories.\n\
   -z   : Get the remote file X, and name it to Y.\n\
   -@ <time> : Wait until <time> to do the transfer.\n\
               It must be expressed as one of the following:\n\
@@ -58,7 +57,6 @@ Flags:\n\
 "[-flags] file1 [file2...]\n\
 Flags:\n\
   -z   : Send the local file X, and name the remote copy to Y.\n\
-  -R   : Recursive.  Useful for sending whole directories.\n\
   -@ <time> : Wait until <time> to do the transfer.\n\
               It must be expressed as one of the following:\n\
 	          YYYYMMDDHHMMSS\n\

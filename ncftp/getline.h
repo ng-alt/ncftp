@@ -5,12 +5,13 @@
  * the bsd or sysv interface will be used 
  */
 
-#define GL_BUF_SIZE 1024
+#define GL_BUF_SIZE 2048
 
 /* Result codes available for gl_get_result() */
 #define GL_OK 0			/* Valid line of input entered */
 #define GL_EOF (-1)		/* End of input */
 #define GL_INTERRUPT (-2)	/* User hit Ctrl+C */
+#define GL_SUSPEND (-3)		/* User hit Ctrl+Z */
 
 typedef size_t (*gl_strwidth_proc)(char *);
 typedef int (*gl_in_hook_proc)(char *);

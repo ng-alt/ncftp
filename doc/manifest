@@ -67,6 +67,7 @@ doc/man/ncftpbatch.1
 doc/man/ncftpget.1
 doc/man/ncftpput.1
 doc/man/ncftpls.1
+doc/man/ncftpspooler.1
 doc/manifest.txt
 doc/manifest
 doc/readme_windows.txt
@@ -77,10 +78,10 @@ doc/html/ncftpput.html
 doc/html/ncftp.html
 doc/html/ncftpbatch.html
 doc/html/index.html
+doc/html/ncftpspooler.html
 Makefile.in
 configure
 config.h.in
-README
 WHATSNEW-3.0
 READLINE-README
 vis/Makefile.in
@@ -129,6 +130,7 @@ ncftp/ncftp.dsw
 ncftp/ncftp.ico
 ncftp/rc.rc
 ncftp/resource.h
+ncftp/spoolutil.c
 install-sh
 sh/fixfcase.sh
 sh/unix2dos.sh
@@ -208,6 +210,8 @@ win/bmed/BookmarkProperties.cpp
 win/setup/ncftp.wse
 NcFTP_All.dsp
 NcFTP_All.dsw
-Makefile.bin
+README
 CHANGELOG
 LICENSE.txt
+Makefile.bin.in
+Makefile.bin

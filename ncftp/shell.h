@@ -6,10 +6,11 @@
  */
 
 typedef struct ArgvInfo {
-	const char *cargv[64];
-	int noglobargv[64];
+	const char *cargv[255];
 	int cargc;
-	char argbuf[256];
+	int noglobargv[255];
+	int reserved;
+	char argbuf[2048];
 } ArgvInfo, *ArgvInfoPtr;
 
 /* How often to no-op the remote site if the user is idle, in seconds. */

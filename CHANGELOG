@@ -1,6 +1,59 @@
 Change Log:
 ===========
 
+3.0.4, 2001-10-24:
+
++ Workaround new "feature" of glibc which defines printf as a macro if
+  gcc is version 2.97 or later.
+
++ Bug fixed from 3.0.3 that caused ^Z (suspend) to quit ncftp when it
+  was brought back to the foreground.
+
++ Bug fixed where large file support (LFS) was disabled on most systems.
+
++ New "ncftpspooler" utility program (actually a hard link to
+  "ncftpbatch") serves as a "Global batch FTP job processor daemon."
+
++ The utility program ncftpget now has a "-c" flag like ncftpput has.
+
++ Utility programs can now accept more than one -W/-X/-Y option, if
+  multiple commands are needed.
+
++ When changing directories, programs will try to change to the full path
+  first, then fall back to using "change one subdir at a time" mode.
+
++ Bug fixed where using the "delete local file after upload" option
+  and the "upload into temp file, then rename" option, the local file
+  would get deleted anyway if the rename failed.
+
++ Compatibility fixes for HP-UX.
+
++ Internal limits increased to handle longer command lines and more parameters.
+
++ Improvement to the reliability of the Win32 version by using the
+  _snprintf and _vsnprintf functions rather than sprintf and vsprintf.
+
++ A few more tweaks for MS-DOS pathname compatibility.
+
++ A tweak for better compatibility with Microsoft IIS.
+
++ A few tweaks for Cygwin support.
+
++ Fixes for --sysconfdir configure option courtesy of Christian Wiesgerber.
+
++ SOCKS5 is back in, but we don't support it.
+
++ Improved Y2K bug detection in remote servers.
+
++ Changed naming format for bgget/put spool files.  The contents are now
+  documented; see the ncftpspooler man page.
+
++ Bug fixed in Win32 port which used $HOME rather than $HOME/ncftp as the
+  UNIX equivalent of the $HOME/.ncftp directory.  Since most folks won't
+  have a $HOME environment variable on Win32, you'll probably not notice
+  the change.
+
+
 3.0.3, 2001-04-11:
 
 + Preference options can now be "file" completed on the command line with

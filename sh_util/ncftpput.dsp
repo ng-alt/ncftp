@@ -107,7 +107,7 @@ SOURCE=..\ncftp\preffw.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\ncftp\spool.c
+SOURCE=..\ncftp\spoolutil.c
 # End Source File
 # Begin Source File
 

@@ -42,14 +42,16 @@ typedef volatile sigproc_t vsigproc_t;
 #	define F_OK 0
 #endif
 
-#define kOurDirectoryName	".ncftp"
 
 #define kPasswordMagic "*encoded*"
 #define kPasswordMagicLen 9
 
 #if defined(WIN32) || defined(_WINDOWS)
+#	define kOurDirectoryName	"ncftp"
 #	define kNcFTPBookmarksMailslot "\\\\.\\mailslot\\ncftpbm.slt"
 #	define kNcFTPBookmarksMailslotMsgSize 128
+#else
+#	define kOurDirectoryName	".ncftp"
 #endif
 
 /* util.c */
@@ -61,7 +63,7 @@ char *GetCWD(char *, size_t);
 void MyInetAddr(char *, size_t, char **, int);
 struct hostent *GetHostEntry(const char *, struct in_addr *);
 void CompressPath(char *const dst, const char *const src, const size_t dsize);
-void PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *const src);
+void PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *const src, int dosCompat);
 char *FileToURL(char *url, size_t urlsize, const char *const fn, const char *const rcwd, const char *const startdir, const char *const user, const char *const pass, const char *const hname, const unsigned int port);
 void AbbrevStr(char *, const char *, size_t, int);
 char *Path(char *const dst, const size_t siz, const char *const parent, const char *const fname);

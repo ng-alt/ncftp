@@ -17,10 +17,19 @@
 #undef HAVE_GETBEGX
 
 /* Define if your curses library has this functionality. */
+#undef HAVE_GETBEGYX
+
+/* Define if your curses library has this functionality. */
+#undef HAVE_GETCURX
+
+/* Define if your curses library has this functionality. */
 #undef HAVE_GETMAXX
 
 /* Define if your curses library has this functionality. */
 #undef HAVE_GETMAXYX
+
+/* Define if your curses library has this functionality. */
+#undef HAVE_GETYX
 
 /* Define if you have the curses library. */
 #undef HAVE_LIBCURSES
@@ -46,6 +55,8 @@
 /* Define if your struct stat has st_blksize.  */
 #undef HAVE_ST_BLKSIZE
 
+#undef HAVE_STRUCT_STAT64
+
 /* Define if your curses library has this functionality. */
 #undef HAVE_TOUCHWIN
 
@@ -67,6 +78,9 @@
 /* Define if printing a "long long" with "%qd" works . */
 #undef PRINTF_LONG_LONG_QD
 
+/* Format string for the printf() family for 64 bit unsigned integers. */
+#undef PRINTF_ULONG_LONG
+
 /* Format string for the scanf() family for 64 bit integers. */
 #undef SCANF_LONG_LONG
 
@@ -75,6 +89,9 @@
 
 /* Define if scanning a "long long" with "%qd" works. */
 #undef SCANF_LONG_LONG_QD
+
+/* Format string for the scanf() family for 64 bit unsigned integers. */
+#undef SCANF_ULONG_LONG
 
   
 /* Define to the type of arg1 for select(). */
@@ -100,6 +117,9 @@
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
+/* If SOCKS library is being used, define the major version (i.e. 5) */
+#undef SOCKS
+
 /* Define if you have the ANSI C header files.  */
 #undef STDC_HEADERS
 
@@ -120,6 +140,12 @@
 
 /* Define if you have the __getbegy function.  */
 #undef HAVE___GETBEGY
+
+/* Define if you have the __getcurx function.  */
+#undef HAVE___GETCURX
+
+/* Define if you have the __getcury function.  */
+#undef HAVE___GETCURY
 
 /* Define if you have the __getmaxx function.  */
 #undef HAVE___GETMAXX
@@ -262,6 +288,9 @@
 /* Define if you have the <sgtty.h> header file.  */
 #undef HAVE_SGTTY_H
 
+/* Define if you have the <socks.h> header file.  */
+#undef HAVE_SOCKS_H
+
 /* Define if you have the <string.h> header file.  */
 #undef HAVE_STRING_H
 
@@ -304,8 +333,26 @@
 /* Define if you have the 44bsd library (-l44bsd).  */
 #undef HAVE_LIB44BSD
 
+/* Define if you have the com_err library (-lcom_err).  */
+#undef HAVE_LIBCOM_ERR
+
+/* Define if you have the crypto library (-lcrypto).  */
+#undef HAVE_LIBCRYPTO
+
+/* Define if you have the db library (-ldb).  */
+#undef HAVE_LIBDB
+
 /* Define if you have the gen library (-lgen).  */
 #undef HAVE_LIBGEN
+
+/* Define if you have the gssapi_krb5 library (-lgssapi_krb5).  */
+#undef HAVE_LIBGSSAPI_KRB5
+
+/* Define if you have the isode library (-lisode).  */
+#undef HAVE_LIBISODE
+
+/* Define if you have the krb5 library (-lkrb5).  */
+#undef HAVE_LIBKRB5
 
 /* Define if you have the nsl library (-lnsl).  */
 #undef HAVE_LIBNSL
@@ -315,3 +362,6 @@
 
 /* Define if you have the socket library (-lsocket).  */
 #undef HAVE_LIBSOCKET
+
+/* Define if you have the socks5 library (-lsocks5).  */
+#undef HAVE_LIBSOCKS5

@@ -5,12 +5,13 @@
 #-----------------------------------------------------------------------------
 VER=6.0.2
 CC=@CC@
-CFLAGS=@CFLAGS@
+CFLAGS=@CFLAGS@@NDEFS@
 #CFLAGS=-O2 -g -W -Wall -Wimplicit -Wstrict-prototypes -Wmissing-prototypes
 VPATH=@srcdir@
 CPPFLAGS=@CPPFLAGS@
 LDFLAGS=@LDFLAGS@
-LIBS=@LIBS@
+SOCKS_LIBS=@SOCKS_LIBS@
+LIBS=@LIBS@ $(SOCKS_LIBS)
 DEFS=@DEFS@@NDEFS@
 PREFIX=@prefix@
 LIB=libsio.a

@@ -85,8 +85,10 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 		&& (errno != EWOULDBLOCK) && (errno != EINPROGRESS)
 #endif
 		) {
+		cErrno = errno;
 		SETERRNO
 		shutdown(sfd, 2);
+		errno = cErrno;
 		return (-1);
 	}
 	cErrno = errno;

@@ -8,7 +8,7 @@ VERSION=3.0.1
 PREFIX=@prefix@
 
 CC=@CC@
-CFLAGS=@CFLAGS@
+CFLAGS=@CFLAGS@@NDEFS@
 #CC=gcc
 #CFLAGS=-g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion
 VPATH=@srcdir@
@@ -85,9 +85,6 @@ install_samples:
 
 .c.so:
 	$(CC) -fpic $(CFLAGS) $(CPPFLAGS) $(DEFS) $*.c -c -o $*.so
-
-test: test.c $(OBJS)
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) test.c $(OBJS) -o test $(LDFLAGS) $(LIBS)
 
 ### Archiving #################################################################
 

@@ -169,8 +169,8 @@ behavior on some servers.
 For example, users accessing mainframes might need to send
 some special SITE commands to set blocksize and record format information.
 .IP
-When using those options, you can use a newline character to delimit
-multiple commands.
+For these options, you can use them multiple times each if you need
+to send multiple commands.
 For the
 .B "-X"
 option, you can use the cookie
@@ -308,7 +308,7 @@ The following example shows how to make a backup and store
 it on a remote machine:
 .RS 4
 .sp
-$ tar cf / | ncftpput -c sonic\.sega\.co\.jp /usr/local/backup.tar
+$ tar cf - / | ncftpput -c sonic\.sega\.co\.jp /usr/local/backup.tar
 .RE
 .\"-------
 .SH "DIAGNOSTICS"

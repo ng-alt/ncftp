@@ -200,4 +200,11 @@
 #ifndef NO_UNIX_DOMAIN_SOCKETS
 #	include "usio.h"
 #endif
+
+#if (defined(SOCKS)) && (SOCKS >= 5)
+#	ifdef HAVE_SOCKS_H
+#		include <socks.h>
+#	endif
+#endif	/* SOCKS */
+
 /* eof */

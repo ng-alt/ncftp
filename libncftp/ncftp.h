@@ -8,7 +8,7 @@
 #ifndef _ncftp_h_
 #define _ncftp_h_ 1
 
-#define kLibraryVersion "@(#) LibNcFTP 3.0.6 (April 14, 2001)"
+#define kLibraryVersion "@(#) LibNcFTP 3.0.7 (October 7, 2001)"
 
 #if defined(WIN32) || defined(_WINDOWS)
 #	define longest_int LONGLONG
@@ -418,6 +418,7 @@ typedef struct MLstItem{
 #define kChdirAndMkdir		00001
 #define kChdirAndGetCWD		00002
 #define kChdirOneSubdirAtATime	00004
+#define kChdirFullPath		00010
 
 /* Return codes for custom ConfirmResumeDownloadProcs. */
 #define kConfirmResumeProcNotUsed 0
@@ -529,6 +530,7 @@ void FTPAbortDataTransfer(const FTPCIPtr cip);
 int FTPChdir(const FTPCIPtr cip, const char *const cdCwd);
 int FTPChdirAndGetCWD(const FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_t newCwdSize);
 int FTPChdir3(FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_t newCwdSize, int flags);
+int FTPChdirList(FTPCIPtr cip, LineListPtr const cdlist, char *const newCwd, const size_t newCwdSize, int flags);
 int FTPChmod(const FTPCIPtr cip, const char *const pattern, const char *const mode, const int doGlob);
 int FTPCloseHost(const FTPCIPtr cip);
 int FTPCmd(const FTPCIPtr cip, const char *const cmdspec, ...)
@@ -617,6 +619,7 @@ int FTPPutFiles(const FTPCIPtr cip, const char *const pattern, const char *const
 int FTPPutFiles2(const FTPCIPtr cip, const char *const pattern, const char *const dstdir, const int recurse, const int doGlob, const int xtype, const int appendflag, const char *const tmppfx, const char *const tmpsfx);
 int FTPPutOneFileAscii(const FTPCIPtr cip, const char *const file, const char *const dstfile);
 int FTPPutFilesAscii(const FTPCIPtr cip, const char *const pattern, const char *const dstdir, const int recurse, const int doGlob);
+int FTPPutFileFromMemory(const FTPCIPtr cip, const char *volatile dstfile, const char *volatile src, const size_t srcLen, const int appendflag);
 
 /* Private routines, or stuff for testing */
 char *FTPGetLocalCWD(char *buf, size_t size);

@@ -26,6 +26,12 @@
 /* Define if you have the <unistd.h> header file.  */
 /* #define HAVE_UNISTD_H 1 */
 
+/* Define if you have the snprintf function.  */
+#define HAVE_SNPRINTF 1
+
+/* Define if you have the vsnprintf function.  */
+#define HAVE_VSNPRINTF 1
+
 #define HAVE_LONG_LONG 1
 #define SCANF_LONG_LONG "%I64d"
 #define PRINTF_LONG_LONG "%I64d"

@@ -22,7 +22,9 @@ man page.
 
 Also included is a batch processing daemon, "ncftpbatch", which
 is invoked by the "bgget" command from "ncftp" and also the "-b" flag of
-"ncftpput" and "ncftpget".
+"ncftpput" and "ncftpget".  Along with "ncftpbatch", which is what we
+call a "personal FTP spooler", there is also "ncftpspooler" which can be
+used as a system-wide FTP spooler.
 
 Lastly, the "ncftpbookmarks" program is a full-screen utility program to
 manipulate user's FTP bookmarks.  Currently this is the only program which

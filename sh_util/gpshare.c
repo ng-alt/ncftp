@@ -473,11 +473,10 @@ AdditionalCmd(FTPCIPtr const cip, const char *const spec, const char *const arg)
 					}
 					src++;
 				} else if (*src == '\n') {
-					src++;
-					break;
+					src++;	/* skip */
+					break;	/* done with command */
 				} else if (*src != '\r') {
-					if (dst < dlim)
-						*dst++ = *src;
+					*dst++ = *src;
 				}
 			}
 			*dst = '\0';

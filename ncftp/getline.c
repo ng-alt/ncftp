@@ -141,6 +141,7 @@ char gl_buf[GL_BUF_SIZE];       /* input buffer */
 /******************** internal interface *********************************/
 
 
+static char     gl_killbuf[256];	/* killed text */
 static int      gl_init_done = -1;	/* terminal mode flag  */
 static int      gl_termw = 80;		/* actual terminal width */
 static int      gl_termh = 24;		/* actual terminal height */
@@ -149,7 +150,6 @@ static int      gl_width = 0;		/* net size available for input */
 static int      gl_extent = 0;		/* how far to redraw, 0 means all */
 static int      gl_overwrite = 0;	/* overwrite mode */
 static int      gl_pos = 0, gl_cnt = 0; /* position and size of input */
-static char     gl_killbuf[GL_BUF_SIZE]=""; /* killed text */
 static const char *gl_prompt;		/* to save the prompt string */
 static char     gl_intrc = 0;		/* keyboard SIGINT char */
 static char     gl_quitc = 0;		/* keyboard SIGQUIT char */
@@ -606,6 +606,16 @@ gl_setheight(int w)
 
 
 
+#ifdef SUNOS
+static void raise(int sig)
+{
+	kill(getpid(), sig);
+}	/* raise */
+#endif	/* SUNOS */
+
+
+
+
 char *
 getline(char *prompt)
 {
@@ -641,6 +651,7 @@ getline(char *prompt)
     gl_init();	
     gl_prompt = (prompt)? prompt : "";
     gl_buf[0] = 0;
+    gl_killbuf[0] = 0;
     if (gl_in_hook)
 	gl_in_hook(gl_buf);
     gl_fixup(gl_prompt, -2, GL_BUF_SIZE);
@@ -801,6 +812,7 @@ vi_break:
 	      case '\n': case '\r': 			/* newline */
 		gl_newline();
 		gl_cleanup();
+		gl_result = GL_OK;
 		return gl_buf;
 	      case '\001': gl_fixup(gl_prompt, -1, 0);		/* ^A */
 		break;
@@ -812,7 +824,7 @@ vi_break:
 		    gl_cleanup();
 		    gl_putc('\n');
 		    gl_result = GL_EOF;
-		    return gl_buf;
+		    return NULL;
 		} else {
 		    gl_del(0, 1);
 		}
@@ -967,7 +979,7 @@ ansi:
 #ifdef __unix__
 	            if (c == gl_suspc || c == gl_dsuspc) {
 #ifdef SIGTSTP
-			gl_result = GL_INTERRUPT;
+			gl_result = GL_SUSPEND;
 			gl_buf[0] = 0;
 			gl_cleanup();
 	                sig = SIGTSTP;
@@ -987,14 +999,16 @@ ansi:
 	if (c > 0)
 	    lastch = c;
     }
+    gl_result = GL_EOF;
     gl_buf[0] = 0;
     gl_cleanup();
-    return gl_buf;
-}
+    return NULL;
+}	/* getline */
+
+
 
 static void
 gl_addchar(int c)
-      
 /* adds the character c to the input buffer at current location */
 {
     int  i;
@@ -1115,7 +1129,7 @@ gl_kill(int pos)
         
 /* delete from pos to the end of line */
 {
-    if (pos < gl_cnt) {
+    if ((pos < gl_cnt) && (strlen(gl_buf + pos) < sizeof(gl_killbuf))) {
 	strcpy(gl_killbuf, gl_buf + pos);
 	gl_buf[pos] = '\0';
 	gl_fixup(gl_prompt, pos, pos);
@@ -1150,6 +1164,10 @@ gl_killword(int direction)
     	tmp = pos;
 	pos = startpos;
 	startpos = tmp;
+    }
+    if ((size_t) (pos - startpos) >= sizeof(gl_killbuf)) {
+	    gl_beep();
+	    return;
     }
     memcpy(gl_killbuf, gl_buf + startpos, (size_t) (pos - startpos));
     gl_killbuf[pos - startpos] = '\0';

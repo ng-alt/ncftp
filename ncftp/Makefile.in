@@ -5,24 +5,25 @@
 #-----------------------------------------------------------------------------
 
 CC=@CC@
-CFLAGS=@CFLAGS@
+CFLAGS=@CFLAGS@@NDEFS@
 #CC=gcc
 #CFLAGS=-O2 -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion
 VPATH=@srcdir@
-CPPFLAGS=@CPPFLAGS@ -I. -I../libncftp -I../Strn -I../sio
+CPPFLAGS=-I. -I../libncftp -I../Strn -I../sio @CPPFLAGS@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 BINDIR=@bindir@
-
-LIBS=@LIBS@
+SYSCONFDIR=@sysconfdir@
+SOCKS_LIBS=@SOCKS_LIBS@
+LIBS=@LIBS@ $(SOCKS_LIBS)
 STRIP=strip
 LDFLAGS=-L../libncftp -L../Strn -L../sio @LDFLAGS@
 
 # Any -D definitions:
 BETA=# -DBETA=20
-DEFS=-Dncftp $(BETA) -DBINDIR=\"$(BINDIR)\" @DEFS@
+DEFS=-Dncftp $(BETA) -DOS=\"@OS@\" -DBINDIR=\"$(BINDIR)\" -DSYSCONFDIR=\"$(SYSCONFDIR)\" @DEFS@
 
-OBJS=cmds.@OBJEXT@ cmdlist.@OBJEXT@ getopt.@OBJEXT@ ls.@OBJEXT@ main.@OBJEXT@ version.@OBJEXT@ shell.@OBJEXT@ util.@OBJEXT@ readln.@OBJEXT@ progress.@OBJEXT@ bookmark.@OBJEXT@ pref.@OBJEXT@ preffw.@OBJEXT@ trace.@OBJEXT@ spool.@OBJEXT@ log.@OBJEXT@ getline.@OBJEXT@
+OBJS=cmds.@OBJEXT@ cmdlist.@OBJEXT@ getopt.@OBJEXT@ ls.@OBJEXT@ main.@OBJEXT@ version.@OBJEXT@ shell.@OBJEXT@ util.@OBJEXT@ readln.@OBJEXT@ progress.@OBJEXT@ bookmark.@OBJEXT@ pref.@OBJEXT@ preffw.@OBJEXT@ trace.@OBJEXT@ spool.@OBJEXT@ spoolutil.@OBJEXT@ log.@OBJEXT@ getline.@OBJEXT@
 
 DPROGS=../bin/ncftp@EXEEXT@
 
@@ -51,7 +52,7 @@ PACKAGE=Makefile.in  bookmark.c   bookmark.h   cmdlist.c \
 	spool.c      spool.h	  syshdrs.h    trace.c \
 	trace.h      util.c	  util.h       version.c \
 	preffw.c     log.c        log.h        getline.c \
-	getline.h
+	getline.h    spoolutil.c
 
 TMPDIR=/tmp
 TARDIR=ncftp
@@ -82,7 +83,8 @@ readln.@OBJEXT@: readln.c syshdrs.h shell.h util.h bookmark.h cmds.h ls.h \
  readln.h getline.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 shell.@OBJEXT@: shell.c syshdrs.h shell.h util.h bookmark.h cmds.h readln.h \
  trace.h main.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
-spool.@OBJEXT@: spool.c syshdrs.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
+spool.@OBJEXT@: spool.c spool.h syshdrs.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
+spoolutil.@OBJEXT@: spoolutil.c spool.h syshdrs.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 trace.@OBJEXT@: trace.c syshdrs.h trace.h util.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 util.@OBJEXT@: util.c syshdrs.h shell.h trace.h util.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 log.@OBJEXT@: log.c syshdrs.h log.h util.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h

@@ -54,6 +54,12 @@
 #	ifndef unlink
 #		define unlink remove
 #	endif
+#	ifndef vsnprintf
+#		define vsnprintf _vsnprintf
+#	endif
+#	ifndef snprintf
+#		define snprintf _snprintf
+#	endif
 #	define NO_SIGNALS 1
 #	define USE_SIO 1
 #else	/* UNIX */
@@ -204,11 +210,11 @@
 	struct utimbuf { time_t actime, modtime; };
 #endif
 
-
-#ifdef HAVE_LIBSOCKS5
-#	define SOCKS 5
-#	include <socks.h>
-#endif
+#if (defined(SOCKS)) && (SOCKS >= 5)
+#	ifdef HAVE_SOCKS_H
+#		include <socks.h>
+#	endif
+#endif	/* SOCKS */
 
 #if 1 /* %config2% -- set by configure script -- do not modify */
 #	ifndef USE_SIO

@@ -47,6 +47,7 @@ extern int gNumPrefOpts;
 extern int gScreenColumns;
 extern int gIsTTYr;
 extern int gUid;
+extern int gServerUsesMSDOSPaths;
 
 
 
@@ -327,7 +328,7 @@ RemoteCompletionFunction(const char *text, int state, int fTypeFilter)
 			/* Special case when they do "get <TAB><TAB> " */
 			STRNCPY(rpath, gRemoteCWD);
 		} else {
-			PathCat(rpath, sizeof(rpath), gRemoteCWD, text);
+			PathCat(rpath, sizeof(rpath), gRemoteCWD, text, gServerUsesMSDOSPaths);
 			if (text[strlen(text) - 1] == '/') {
 				/* Special case when they do "get /dir1/dir2/<TAB><TAB>" */
 				STRNCAT(rpath, "/");
@@ -671,25 +672,40 @@ char *
 Readline(char *prompt)
 {
 	char *linecopy, *line, *cp;
-	char lbuf[256];
+	static char *lbuf = NULL;
 
-	if (gIsTTYr) {
-		line = getline(prompt);
-	} else {
-		line = fgets(lbuf, sizeof(lbuf) - 1, stdin);
-		if (line != NULL) {
-			cp = line + strlen(line) - 1;
-			if (*cp == '\n')
-				*cp = '\0';
+	forever {
+		if (gIsTTYr) {
+			line = getline(prompt);
+		} else {
+			if (lbuf == NULL) {
+				lbuf = calloc((size_t) 512, (size_t) 1);
+				if (lbuf == NULL)
+					return NULL;
+			}
+			line = fgets(lbuf, (size_t) (512 - 1), stdin);
+			if (line != NULL) {
+				cp = line + strlen(line) - 1;
+				if (*cp == '\n')
+					*cp = '\0';
+			}
 		}
+
+		if (line == NULL)
+			return NULL;	/* fgets EOF */
+
+		/* If we have a non-empty line, we're done. */
+		if (line[0] != '\0')
+			break;
+
+		if (gl_get_result() == GL_EOF)
+			return NULL;	/* getline EOF */
+
+		/* Otherwise a signal was received.  Start over. */
 	}
 
-	if (line != NULL) {
-		if (line[0] == '\0')
-			return NULL;	/* EOF */
-		linecopy = StrDup(line);
-		line = linecopy;
-	}
+	linecopy = StrDup(line);
+	line = linecopy;
 	return (line);
 }	/* Readline */
 

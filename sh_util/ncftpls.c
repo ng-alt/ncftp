@@ -166,15 +166,17 @@ main(int argc, char **argv)
 	volatile int i;
 	char lsflag[32] = "";
 	LineList cdlist;
-	LinePtr lp;
 	int rc;
 	volatile int ndirs;
 	int dfmode = 0;
 	ResponsePtr rp;
 	FILE *ofp;
-	char precmd[128], postcmd[128], perfilecmd[128];
+	char precmd[320], postcmd[320], perfilecmd[320];
 
 	InitWinsock();
+#if (defined(SOCKS)) && (SOCKS >= 5)
+	SOCKSinit(argv[0]);
+#endif	/* SOCKS */
 #ifdef SIGPOLL
 	NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
 #endif
@@ -275,13 +277,16 @@ main(int argc, char **argv)
 			dfmode++;
 			break;
 		case 'W':
-			STRNCPY(precmd, optarg);
+			STRNCAT(precmd, optarg);
+			STRNCAT(precmd, "\n");
 			break;
 		case 'X':
-			STRNCPY(perfilecmd, optarg);
+			STRNCAT(perfilecmd, optarg);
+			STRNCAT(perfilecmd, "\n");
 			break;
 		case 'Y':
-			STRNCPY(postcmd, optarg);
+			STRNCAT(postcmd, optarg);
+			STRNCAT(postcmd, "\n");
 			break;
 		default:
 			Usage();
@@ -374,13 +379,11 @@ main(int argc, char **argv)
 		
 		errstr = "could not change directory on remote host";
 		es = kExitChdirTimedOut;
-		for (lp = cdlist.first; lp != NULL; lp = lp->next) {
-			if (FTPChdir(&fi, lp->line) != 0) {
-				FTPPerror(&fi, fi.errNo, kErrCWDFailed, "ncftpls: Could not chdir to", lp->line);
-				es = kExitChdirFailed;
-				DisposeWinsock(0);
-				exit((int) es);
-			}
+		if ((FTPChdirList(&fi, &cdlist, NULL, 0, (kChdirFullPath|kChdirOneSubdirAtATime))) != 0) {
+			FTPPerror(&fi, fi.errNo, kErrCWDFailed, "ncftpls: Could not change directory", NULL);
+			es = kExitChdirFailed;
+			DisposeWinsock(0);
+			exit((int) es);
 		}
 		
 		if (ndirs > 1) {

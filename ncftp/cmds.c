@@ -40,6 +40,10 @@ char gPrevRemoteCWD[512];
 /* Another buffer we use just temporarily when switching directories. */
 char gScratchCWD[512];
 
+/* If true, the remote server is most likely Windows/DOS.
+ */
+int gServerUsesMSDOSPaths;
+
 /* The only reason we do this is to get gcc/lint to shut up
  * about unused parameters.
  */
@@ -472,7 +476,7 @@ nFTPChdirAndGetCWD(const FTPCIPtr cip, const char *cdCwd, const int quietMode)
 				if (foundcwd == 0) {
 					result = FTPGetCWD(cip, gRemoteCWD, sizeof(gRemoteCWD));
 					if (result != kNoErr) {
-						PathCat(gRemoteCWD, sizeof(gRemoteCWD), gScratchCWD, cdCwd);
+						PathCat(gRemoteCWD, sizeof(gRemoteCWD), gScratchCWD, cdCwd, gServerUsesMSDOSPaths);
 						result = kNoErr;
 					}
 				}
@@ -482,7 +486,7 @@ nFTPChdirAndGetCWD(const FTPCIPtr cip, const char *cdCwd, const int quietMode)
 				NcFTPCdResponseProc(cip, rp);
 				DoneWithResponse(cip, rp);
 				(void) STRNCPY(gScratchCWD, gRemoteCWD);
-				PathCat(gRemoteCWD, sizeof(gRemoteCWD), gScratchCWD, cdCwd);
+				PathCat(gRemoteCWD, sizeof(gRemoteCWD), gScratchCWD, cdCwd, gServerUsesMSDOSPaths);
 				result = kNoErr;
 #endif
 			} else if (result > 0) {
@@ -518,15 +522,13 @@ Chdirs(FTPCIPtr cip, const char *const cdCwd)
 		return result;
 	}
 	
-	if ((cdCwd[0] == '\0') || (strcmp(cdCwd, ".") == 0)) {
-		result = 0;
-		return (result);
-	}
+	if ((cdCwd[0] == '\0') || (strcmp(cdCwd, ".") == 0))
+		return (kNoErr);
 
 	cp = cip->buf;
 	cp[cip->bufSize - 2] = '\0';
 	if ((cdCwd[0] == '.') && (cdCwd[1] == '.') && ((cdCwd[2] == '\0') || IsLocalPathDelim(cdCwd[2]))) {
-		PathCat(cip->buf, cip->bufSize, gRemoteCWD, cdCwd);
+		PathCat(cip->buf, cip->bufSize, gRemoteCWD, cdCwd, gServerUsesMSDOSPaths);
 	} else {
 		(void) Strncpy(cip->buf, cdCwd, cip->bufSize);
 	}
@@ -534,6 +536,13 @@ Chdirs(FTPCIPtr cip, const char *const cdCwd)
 		return (kErrBadParameter);
 
 	StrRemoveTrailingLocalPathDelim(cp);
+
+	/* Try doing the whole path at once. */
+	result = nFTPChdirAndGetCWD(cip, cp, 1);
+	if (result == kNoErr)
+		return (result);
+
+	/* Try doing the path one subdir at a time. */
 	do {
 		startcp = cp;
 		cp = StrFindLocalPathDelim(cp + 0);
@@ -545,7 +554,7 @@ Chdirs(FTPCIPtr cip, const char *const cdCwd)
 		if (result < 0) {
 			cip->errNo = result;
 		}
-	} while ((!lastSubDir) && (result == 0));
+	} while ((!lastSubDir) && (result == kNoErr));
 
 	return (result);
 }	/* Chdirs */
@@ -757,7 +766,7 @@ NcFTPConfirmResumeDownloadProc(
 
 	tstr[sizeof(tstr) - 1] = '\0';
 	(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &localmtime)); 
-	(void) printf(
+	(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 		"\nThe local file \"%s\" already exists.\n\tLocal:  %12lld bytes, dated %s.\n",
 #elif defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_QD)
@@ -774,7 +783,7 @@ NcFTPConfirmResumeDownloadProc(
 
 	if ((remotemtime != kModTimeUnknown) && (remotesize != kSizeUnknown)) {
 		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &remotemtime)); 
-		(void) printf(
+		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tRemote: %12lld bytes, dated %s.\n",
 #elif defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_QD)
@@ -792,7 +801,7 @@ NcFTPConfirmResumeDownloadProc(
 			return (kConfirmResumeProcSaidSkip);
 		}
 	} else if (remotesize != kSizeUnknown) {
-		(void) printf(
+		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tRemote: %12lld bytes, date unknown.\n",
 #elif defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_QD)
@@ -2174,6 +2183,7 @@ DoOpen(void)
 	sigproc_t osigalrm;
 #endif
 	char prompt[256];
+	char *cp;
 
 	if (gConn.firewallType == kFirewallNotInUse) {
 		(void) STRNCPY(ohost, gConn.host);
@@ -2267,10 +2277,14 @@ DoOpen(void)
 		gConn.printResponseProc = 0;
 
 		/* Need to note what our "root" was before we change it. */
+		gServerUsesMSDOSPaths = 0;
 		if (gConn.startingWorkingDirectory == NULL) {
 			(void) STRNCPY(gRemoteCWD, "/");	/* Guess! */
 		} else {
-			(void) STRNCPY(gRemoteCWD, gConn.startingWorkingDirectory);
+			cp = gConn.startingWorkingDirectory;
+			(void) STRNCPY(gRemoteCWD, cp);
+			if ((strlen(cp) >= 2) && (isalpha(cp[0])) && (cp[1] == ':'))
+				gServerUsesMSDOSPaths = 1;
 		}
 		(void) STRNCPY(gStartDir, gRemoteCWD);
 
@@ -2589,7 +2603,7 @@ NcFTPConfirmResumeUploadProc(
 
 	if ((localmtime != kModTimeUnknown) && (localsize != kSizeUnknown)) {
 		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &localmtime)); 
-		(void) printf(
+		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tLocal:  %12lld bytes, dated %s.\n",
 #elif defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_QD)
@@ -2607,7 +2621,7 @@ NcFTPConfirmResumeUploadProc(
 			return (kConfirmResumeProcSaidSkip);
 		}
 	} else if (localsize != kSizeUnknown) {
-		(void) printf(
+		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tLocal:  %12lld bytes, date unknown.\n",
 #elif defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_QD)
@@ -2630,7 +2644,7 @@ NcFTPConfirmResumeUploadProc(
 	tstr[sizeof(tstr) - 1] = '\0';
 	if ((remotemtime != kModTimeUnknown) && (remotesize != kSizeUnknown)) {
 		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &remotemtime)); 
-		(void) printf(
+		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tRemote: %12lld bytes, dated %s.\n",
 #elif defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_QD)
@@ -2644,7 +2658,7 @@ NcFTPConfirmResumeUploadProc(
 			tstr
 		);
 	} else if (remotesize != kSizeUnknown) {
-		(void) printf(
+		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tRemote: %12lld bytes, date unknown.\n",
 #elif defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_QD)
@@ -3272,7 +3286,7 @@ BGStartCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
 		return;
 
 	if ((argc < 2) || ((n = atoi(argv[1])) < 2)) {
-		RunBatch(0, &gConn);
+		RunBatch();
 		(void) printf("Background process started.\n");
 #if defined(WIN32) || defined(_WINDOWS)
 #else
@@ -3280,7 +3294,7 @@ BGStartCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
 #endif
 	} else {
 		for (i=0; i<n; i++)
-			RunBatch(0, &gConn);
+			RunBatch();
 		(void) printf("Background processes started.\n");
 #if defined(WIN32) || defined(_WINDOWS)
 #else
@@ -3291,15 +3305,12 @@ BGStartCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
 
 
 
-
-/* This commands lets the user change the umask, if the server supports it. */
 /* (bgget) */
 void
 SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int opt;
 	int renameMode = 0;
-	int recurseFlag = kRecursiveNo;
 	int rc;
 	int i;
 	int xtype = gBm.xferType;
@@ -3322,7 +3333,7 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 	}
 
 	GetoptReset();
-	while ((opt = Getopt(argc, argv, "@:azfrRD")) >= 0) switch (opt) {
+	while ((opt = Getopt(argc, argv, "@:azfrD")) >= 0) switch (opt) {
 		case '@':
 			when = GetStartSpoolDate(gOptArg);
 			if ((when == (time_t) -1) || (when == (time_t) 0)) {
@@ -3340,13 +3351,6 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			 * remote file's basename.
 			 */
 			renameMode = 1;
-			break;
-		case 'r':
-		case 'R':
-			/* If the item is a directory, get the
-			 * directory and all its contents.
-			 */
-			recurseFlag = kRecursiveYes;
 			break;
 		case 'D':
 			/* You can delete the remote file after
@@ -3376,6 +3380,8 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			return;
 		}
 		rc = SpoolX(
+			NULL,
+			NULL,
 			"get",
 			argv[gOptInd],
 			gRemoteCWD,
@@ -3386,17 +3392,21 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			gConn.port,
 			gConn.user,
 			gConn.pass,
+			gConn.acct,
 			xtype,
-			recurseFlag,
+			kRecursiveNo,
 			deleteFlag,
 			gConn.dataPortMode,
 			NULL,
 			NULL,
 			NULL,
-			when
+			NULL,
+			NULL,
+			when,
+			0
 		);
 		if (rc == 0) {
-			Trace(-1, "  + Spooled: get %s as %s\n", argv[gOptInd], argv[gOptInd]);
+			Trace(-1, "  + Spooled: get %s as %s\n", argv[gOptInd], argv[gOptInd + 1]);
 		}
 	} else {
 		for (i=gOptInd; i<argc; i++) {
@@ -3407,36 +3417,40 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			if (rc < 0) {
 				FTPPerror(&gConn, rc, kErrGlobFailed, argv[0], pattern);
 			} else {
-				for (lp = ll.first; lp != NULL; lp = lp->next) {
-					if (lp->line != NULL) {
-						lname = strrchr(lp->line, '/');
-						if (lname == NULL)
-							lname = lp->line;
-						else
-							lname++;
-						rc = SpoolX(
-							"get",
-							lp->line,
-							gRemoteCWD,
-							lname,
-							ldir,
-							gConn.host,
-							gConn.ip,
-							gConn.port,
-							gConn.user,
-							gConn.pass,
-							xtype,
-							recurseFlag,
-							deleteFlag,
-							gConn.dataPortMode,
-							NULL,
-							NULL,
-							NULL,
-							when
-						);
-						if (rc == 0) {
-							Trace(-1, "  + Spooled: get %s\n", lp->line);
-						}
+				for (lp = ll.first; (lp != NULL) && (lp->line != NULL); lp = lp->next) {
+					lname = strrchr(lp->line, '/');
+					if (lname == NULL)
+						lname = lp->line;
+					else
+						lname++;
+					rc = SpoolX(
+						NULL,
+						NULL,
+						"get",
+						lp->line,
+						gRemoteCWD,
+						lname,
+						ldir,
+						gConn.host,
+						gConn.ip,
+						gConn.port,
+						gConn.user,
+						gConn.pass,
+						gConn.acct,
+						xtype,
+						kRecursiveNo,
+						deleteFlag,
+						gConn.dataPortMode,
+						NULL,
+						NULL,
+						NULL,
+						NULL,
+						NULL,
+						when,
+						0
+					);
+					if (rc == 0) {
+						Trace(-1, "  + Spooled: get %s\n", lp->line);
 					}
 				}
 			}
@@ -3448,14 +3462,12 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 
 
 
-/* This commands lets the user change the umask, if the server supports it. */
 /* (bgput) */
 void
 SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int opt;
 	int renameMode = 0;
-	int recurseFlag = kRecursiveNo;
 	int rc;
 	int i;
 	int xtype = gBm.xferType;
@@ -3478,7 +3490,7 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 	}
 
 	GetoptReset();
-	while ((opt = Getopt(argc, argv, "@:azrRD")) >= 0) switch (opt) {
+	while ((opt = Getopt(argc, argv, "@:azrD")) >= 0) switch (opt) {
 		case '@':
 			when = GetStartSpoolDate(gOptArg);
 			if ((when == (time_t) -1) || (when == (time_t) 0)) {
@@ -3496,13 +3508,6 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			 * remote file's basename.
 			 */
 			renameMode = 1;
-			break;
-		case 'r':
-		case 'R':
-			/* If the item is a directory, get the
-			 * directory and all its contents.
-			 */
-			recurseFlag = kRecursiveYes;
 			break;
 		case 'D':
 			/* You can delete the remote file after
@@ -3532,6 +3537,8 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			return;
 		}
 		rc = SpoolX(
+			NULL,
+			NULL,
 			"put",
 			argv[gOptInd + 1],
 			gRemoteCWD,
@@ -3542,17 +3549,21 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			gConn.port,
 			gConn.user,
 			gConn.pass,
+			gConn.acct,
 			xtype,
-			recurseFlag,
+			kRecursiveNo,
 			deleteFlag,
 			gConn.dataPortMode,
 			NULL,
 			NULL,
 			NULL,
-			when
+			NULL,
+			NULL,
+			when,
+			0
 		);
 		if (rc == 0) {
-			Trace(-1, "  + Spooled: put %s as %s\n", argv[gOptInd], argv[gOptInd]);
+			Trace(-1, "  + Spooled: put %s as %s\n", argv[gOptInd], argv[gOptInd + 1]);
 		}
 	} else {
 		for (i=gOptInd; i<argc; i++) {
@@ -3571,6 +3582,8 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 						else
 							rname++;
 						rc = SpoolX(
+							NULL,
+							NULL,
 							"put",
 							rname,
 							gRemoteCWD,
@@ -3581,14 +3594,18 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 							gConn.port,
 							gConn.user,
 							gConn.pass,
+							gConn.acct,
 							xtype,
-							recurseFlag,
+							kRecursiveNo,
 							deleteFlag,
 							gConn.dataPortMode,
 							NULL,
 							NULL,
 							NULL,
-							when
+							NULL,
+							NULL,
+							when,
+							0
 						);
 						if (rc == 0) {
 							Trace(-1, "  + Spooled: put %s\n", lp->line);
@@ -3604,7 +3621,7 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 
 
 
-/* This commands lets the user change the umask, if the server supports it. */
+/* This commands lets the user create symbolic links, if the server supports it. */
 void
 SymlinkCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {

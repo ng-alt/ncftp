@@ -30,11 +30,19 @@
 #		define FOPEN_READ_TEXT "rt"
 #		define FOPEN_WRITE_TEXT "wt"
 #		define FOPEN_APPEND_TEXT "at"
+#	endif
 #	ifndef S_ISREG
 #		define S_ISREG(m)      (((m) & _S_IFMT) == _S_IFREG)
 #		define S_ISDIR(m)      (((m) & _S_IFMT) == _S_IFDIR)
 #	endif
 #	define uid_t int
+#	define HAVE_SNPRINTF 1
+#	define HAVE_VSNPRINTF 1
+#	ifndef vsnprintf
+#		define vsnprintf _vsnprintf
+#	endif
+#	ifndef snprintf
+#		define snprintf _snprintf
 #	endif
 #else	/* UNIX */
 #	error "This version is for Windows only."

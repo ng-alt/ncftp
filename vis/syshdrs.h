@@ -59,6 +59,10 @@
 #	include <locale.h>
 #endif
 
+/* Tru64's curses.h uses an "OS" */
+#define XOS OS
+#undef OS
+
 #ifdef HAVE_NCURSES_H
 #	include <ncurses.h>
 #else
@@ -67,48 +71,65 @@
 #	endif
 #endif
 
-/* These next two sections are mostly for HP-UX. */
-#if defined(HAVE___GETMAXX) && !defined(HAVE_GETMAXX) && !defined(getmaxx)
-#	define HAVE_GETMAXX 1
-#	define getmaxx __getmaxx
-#endif
-#if defined(HAVE___GETMAXY) && !defined(HAVE_GETMAXY) && !defined(getmaxy)
-#	define HAVE_GETMAXY 1
-#	define getmaxy __getmaxy
-#endif
-#if defined(HAVE___GETMAXY) && defined(HAVE___GETMAXX) && !defined(HAVE_GETMAXYX) && !defined(getmaxyx)
-#	define HAVE_GETMAXYX 1
-#	define getmaxyx(__win,__y,__x) { WINDOW *__wi; __wi = __win; ((__y) = __getmaxy(__wi), (__x) = __getmaxx(__wi)); }
+#define OS XOS
+#undef XOS
+
+/* These next three sections are mostly for HP-UX 10. */
+#if defined(HAVE___GETCURX) && defined(HAVE___GETCURY)
+#	ifndef HAVE_GETYX
+#		define HAVE_GETYX 1
+#	endif
+#	undef getyx
+#	define getyx(w,y,x) (y) = __getcury((w)); (x) = __getcurx((w))
 #endif
 
-#if defined(HAVE___GETBEGX) && !defined(HAVE_GETBEGX) && !defined(getbegx)
+#if defined(HAVE___GETMAXX) && !defined(HAVE_GETMAXX)
+#	define HAVE_GETMAXX 1
+#	undef getmaxx
+#	define getmaxx __getmaxx
+#endif
+#if defined(HAVE___GETMAXY) && !defined(HAVE_GETMAXY)
+#	define HAVE_GETMAXY 1
+#	undef getmaxy
+#	define getmaxy __getmaxy
+#endif
+#if defined(HAVE___GETMAXY) && defined(HAVE___GETMAXX) && !defined(HAVE_GETMAXYX)
+#	define HAVE_GETMAXYX 1
+#	undef getmaxyx
+#	define getmaxyx(w,y,x) (y) = __getmaxy((w)); (x) = __getmaxx((w))
+#endif
+
+#if defined(HAVE___GETBEGX) && !defined(HAVE_GETBEGX)
 #	define HAVE_GETBEGX 1
+#	undef getbegx
 #	define getbegx __getbegx
 #endif
-#if defined(HAVE___GETBEGY) && !defined(HAVE_GETBEGY) && !defined(getbegy)
+#if defined(HAVE___GETBEGY) && !defined(HAVE_GETBEGY)
 #	define HAVE_GETBEGY 1
+#	undef getbegy
 #	define getbegy __getbegy
 #endif
-#if defined(HAVE___GETBEGY) && defined(HAVE___GETBEGX) && !defined(HAVE_GETBEGYX) && !defined(getbegyx)
+#if defined(HAVE___GETBEGY) && defined(HAVE___GETBEGX) && !defined(HAVE_GETBEGYX)
 #	define HAVE_GETBEGYX 1
-#	define getbegyx(__win,__y,__x) { WINDOW *__wi; __wi = __win; ((__y) = __getbegy(__wi), (__x) = __getbegx(__wi)); }
+#	undef getbegyx
+#	define getbegyx(w,y,x) (y) = __getbegy((w)); (x) = __getbegx((w))
 #endif
 
 /* Otherwise, try accessing the structure directly. */
 #ifndef HAVE_GETMAXYX
 #	ifdef HAVE__MAXX
 #		ifndef getmaxyx
-#			define getmaxyx(w,y,x) y = w->_maxy;  x = w->_maxx;
+#			define getmaxyx(w,y,x) y = w->_maxy;  x = w->_maxx
 #		endif
 #		ifndef getbegyx
-#			define getbegyx(w,y,x) y = w->_begy;  x = w->_begx;
+#			define getbegyx(w,y,x) y = w->_begy;  x = w->_begx
 #		endif
 #	else
 #		ifndef getmaxyx
-#			define getmaxyx(w,y,x) y = w->maxy;  x = w->maxx;
+#			define getmaxyx(w,y,x) y = w->maxy;  x = w->maxx
 #		endif
 #		ifndef getbegyx
-#			define getbegyx(w,y,x) y = w->begy;  x = w->begx;
+#			define getbegyx(w,y,x) y = w->begy;  x = w->begx
 #		endif
 #	endif
 #endif
@@ -238,6 +259,12 @@
 #else
 #	define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #endif
+
+#if (defined(SOCKS)) && (SOCKS >= 5)
+#	ifdef HAVE_SOCKS_H
+#		include <socks.h>
+#	endif
+#endif	/* SOCKS */
 
 #include <Strn.h>			/* Library header. */
 #include <ncftp.h>			/* Mostly for utility routines it has. */

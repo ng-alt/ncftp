@@ -18,17 +18,18 @@
 	HINSTANCE ghInstance = 0;
 	HWND gMainWnd = 0;
 	HWND gStaticCtrl = 0;
-	int gQuitRequested = 0;
 
 	__inline void DisposeWinsock(int aUNUSED) { if (wsaInit > 0) WSACleanup(); wsaInit--; }
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\pref.h"
+#	include "..\ncftp\spool.h"
 #	include "resource.h"
 #	include "gpshare.h"
 #else
 #	define YieldUI(a)
 #	include "../ncftp/util.h"
 #	include "../ncftp/pref.h"
+#	include "../ncftp/spool.h"
 #	include "gpshare.h"
 #endif
 
@@ -36,18 +37,24 @@
 
 #define kSpoolDir "spool"
 #if defined(WIN32) || defined(_WINDOWS)
-#	define kSpoolLog "batchlog.txt"
+#	define kSpoolLog "log.txt"
 #else
-#	define kSpoolLog "batchlog"
+#	define kSpoolLog "log"
+#	define kGlobalSpoolDir "/var/spool/ncftp"
 #endif
+#define NEW_SLEEP_VAL(s) ((unsigned int) (((0.1 * (rand() % 15)) + 1.2) * (s))) 
 
+int gQuitRequested = 0;
+int gGlobalSpooler = 0;
+long gMaxLogSize = 200000L;
+unsigned int gDelayBetweenPasses = 0;
 int gGotSig = 0;
 FTPLibraryInfo gLib;
 FTPConnectionInfo gConn;
 int gIsTTY;
-int gSpoolSerial = 0;
 int gSpooled = 0;
 char gSpoolDir[256];
+char gLogFileName[256];
 extern int gFirewallType;
 extern char gFirewallHost[64];
 extern char gFirewallUser[32];
@@ -56,16 +63,24 @@ extern char gFirewallExceptionList[256];
 extern unsigned int gFirewallPort;
 int gItemInUse = 0;
 char gItemPath[256];
+char *gItemContents = NULL;
+size_t gItemContentsAllocSize = 0;
+size_t gItemContentsSize = 0;
 char gMyItemPath[256];
 int gOperation;
+char gOperationStr[16];
+unsigned int gDelaySinceLastFailure;
 char gHost[64];
 char gHostIP[32];
 unsigned int gPort;
-char gRUser[32];
+char gRUser[128];
 char gRPass[128];
-char gPreCommand[128];
-char gPerFileCommand[128];
-char gPostCommand[128];
+char gRAcct[128];
+char gPreFTPCommand[128];
+char gPerFileFTPCommand[128];
+char gPostFTPCommand[128];
+char gPreShellCommand[256];
+char gPostShellCommand[256];
 int gXtype;
 int gRecursive;
 int gDelete;
@@ -76,16 +91,17 @@ char gRFile[256];
 char gLFile[256];
 char gRStartDir[256];
 
-/* Writes logging data to a ~/.ncftp/batchlog file.
+/* Writes logging data to a ~/.ncftp/spool/log file.
  * This is nice for me when I need to diagnose problems.
  */
-time_t gLogTime;
 FILE *gLogFile = NULL;
+time_t gLogTime;
 char gLogLBuf[256];
 unsigned int gMyPID;
 const char *gLogOpenMode = FOPEN_APPEND_TEXT;
 int gUnused;
 int gMayCancelJmp = 0;
+int gMaySigExit = 1;
 
 #if defined(WIN32) || defined(_WINDOWS)
 char gStatusText[512];
@@ -99,6 +115,7 @@ jmp_buf gCancelJmp;
 
 extern char gOurDirectoryPath[256];
 extern int FTPRebuildConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip);
+extern void CloseControlConnection(const FTPCIPtr);
 extern char *optarg;
 extern int optind;
 extern char gFirewallExceptionList[256];
@@ -269,17 +286,17 @@ Log(
 		if (ltp != NULL) {
 			(void) fprintf(gLogFile,
 #if defined(WIN32) || defined(_WINDOWS)
-				"$%08x %04d-%02d-%02d %02d:%02d:%02d | ",
+				"%04d-%02d-%02d %02d:%02d:%02d [$%08x] | ",
 #else
-				"%06u %04d-%02d-%02d %02d:%02d:%02d | ",
+				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
 #endif
-				gMyPID,
 				ltp->tm_year + 1900,
 				ltp->tm_mon + 1,
 				ltp->tm_mday,
 				ltp->tm_hour,
 				ltp->tm_min,
-				ltp->tm_sec
+				ltp->tm_sec,
+				gMyPID
 			);
 		}
 		va_start(ap, fmt);
@@ -326,17 +343,17 @@ LogPerror(const char *const fmt, ...)
 		if (ltp != NULL) {
 			(void) fprintf(gLogFile,
 #if defined(WIN32) || defined(_WINDOWS)
-				"$%08x %04d-%02d-%02d %02d:%02d:%02d | ",
+				"%04d-%02d-%02d %02d:%02d:%02d [$%08x] | ",
 #else
-				"%06u %04d-%02d-%02d %02d:%02d:%02d | ",
+				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
 #endif
-				gMyPID,
 				ltp->tm_year + 1900,
 				ltp->tm_mon + 1,
 				ltp->tm_mday,
 				ltp->tm_hour,
 				ltp->tm_min,
-				ltp->tm_sec
+				ltp->tm_sec,
+				gMyPID
 			);
 		}
 		va_start(ap, fmt);
@@ -385,7 +402,7 @@ static void
 DebugHook(const FTPCIPtr cipUnused, char *msg)
 {
 	gUnused = (int) cipUnused;			/* shut up gcc */
-	Log(0, "%s", msg);
+	Log(0, "  %s", msg);
 }	/* DebugHook */
 
 
@@ -403,24 +420,24 @@ CloseLog(void)
 
 
 
-static void
+static int
 OpenLog(void)
 {
 	FILE *fp;
-	char pathName[256];
 	struct Stat st;
 	const char *openMode;
 
 	CloseLog();
-	(void) OurDirectoryPath(pathName, sizeof(pathName), kSpoolLog);
+	if ((gLogFileName[0] == '\0') || (strcasecmp(gLogFileName, "/dev/null") == 0))
+		return (0);
 
 	openMode = gLogOpenMode;
-	if ((Stat(pathName, &st) == 0) && (st.st_size > 200000L)) {
+	if ((Stat(gLogFileName, &st) == 0) && (st.st_size > gMaxLogSize)) {
 		/* Prevent the log file from growing forever. */
 		openMode = FOPEN_WRITE_TEXT;
 	}
 
-	fp = fopen(pathName, openMode);
+	fp = fopen(gLogFileName, openMode);
 	if (fp != NULL) {
 #ifdef HAVE_SETVBUF
 		(void) setvbuf(fp, gLogLBuf, _IOLBF, sizeof(gLogLBuf));
@@ -428,7 +445,9 @@ OpenLog(void)
 		(void) time(&gLogTime);
 		gLogFile = fp;
 		gMyPID = (unsigned int) getpid();
+		return (0);
 	}
+	return (-1);
 }	/* OpenLog */
 
 
@@ -471,10 +490,13 @@ SigAlrm(int sigNum)
 static void
 SigExit(int sigNum)
 {
-	ExitStuff();
-	Log(0, "-----caught signal %d, exiting-----\n", sigNum);
-	DisposeWinsock(0);
-	exit(0);
+	gQuitRequested = sigNum;
+	if (gMaySigExit != 0) {
+		ExitStuff();
+		Log(0, "-----caught signal %d, exiting-----\n", sigNum);
+		DisposeWinsock(0);
+		exit(0);
+	}
 }	/* SigExit */
 
 
@@ -509,13 +531,16 @@ FTPInit(void)
  * options.
  */
 static void
-PreInit(void)
+PreInit(const char *const prog)
 {
+	const char *cp;
+
 #if defined(WIN32) || defined(_WINDOWS)
 	gIsTTY = 0;
 	ZeroMemory(gStatusText, sizeof(gStatusText));
 #else
 	gIsTTY = ((isatty(2) != 0) && (getppid() > 1)) ? 1 : 0;
+	umask(077);
 #endif
 #ifdef SIGPOLL
 	NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
@@ -525,8 +550,18 @@ PreInit(void)
 	FTPInit();
 	LoadFirewallPrefs(0);
 	srand((unsigned int) getpid());
+	gLogFileName[0] = '\0';
 
-	(void) OurDirectoryPath(gSpoolDir, sizeof(gSpoolDir), kSpoolDir);
+	cp = strrchr(prog, '/');
+	if (cp == NULL)
+		cp = strrchr(prog, '\\');
+	if (cp == NULL)
+		cp = prog;
+	else
+		cp++;
+	if (strncasecmp(cp, "ncftpspool", 10) == 0)
+		gGlobalSpooler = 1;
+
 	(void) signal(SIGINT, SigExit);
 	(void) signal(SIGTERM, SigExit);
 #if defined(WIN32) || defined(_WINDOWS)
@@ -535,7 +570,7 @@ PreInit(void)
 	(void) signal(SIGBUS, SigExit);
 	(void) signal(SIGFPE, SigExit);
 	(void) signal(SIGILL, SigExit);
-#if SIGIOT != SIGABRT
+#if defined(SIGIOT) && (SIGIOT != SIGABRT)
 	(void) signal(SIGIOT, SigExit);
 #endif
 #ifdef SIGEMT
@@ -552,6 +587,35 @@ PreInit(void)
 
 
 
+static void
+PostInit(void)
+{
+	/* These things are done after parsing the command-line options. */
+
+	if (gGlobalSpooler != 0) {
+#if defined(WIN32) || defined(_WINDOWS)
+#else
+		if (gSpoolDir[0] == '\0')
+			STRNCPY(gSpoolDir, "/var/spool/ncftp");
+		if ((chdir(gSpoolDir) < 0) && (mkdir(gSpoolDir, 00775) < 0)) {
+			perror(gSpoolDir);
+			exit(1);
+		}
+		(void) chdir("/");
+#endif
+		if (gDelayBetweenPasses == 0)
+			gDelayBetweenPasses = 120;
+	} else {
+		if (gSpoolDir[0] == '\0')
+			(void) OurDirectoryPath(gSpoolDir, sizeof(gSpoolDir), kSpoolDir);
+	}
+
+	if (gLogFileName[0] == '\0')
+		(void) Path(gLogFileName, sizeof(gLogFileName), gSpoolDir, kSpoolLog);
+}	/* PostInit */
+
+
+
 
 /* These things are just before the program exits. */
 static void
@@ -564,23 +628,69 @@ PostShell(void)
 
 
 static int
-PrePrintItem(void)
+LoadCurrentSpoolFileContents(int logErrors)
 {
 	FILE *fp;
 	char line[256];
-	char *tok1, *tok2;
+	char *cp, *tok1, *tok2;
+	struct stat st;
 	
-	fp = fopen(gMyItemPath, FOPEN_READ_TEXT);
-	if (fp == NULL) {
+#if defined(WIN32) || defined(_WINDOWS)
+	/* gItemContents is not used on Win32 */
+#else
+	if ((stat(gMyItemPath, &st) < 0) || ((fp = fopen(gMyItemPath, FOPEN_READ_BINARY)) == NULL)) {
 		/* Could have been renamed already. */
+		if (logErrors != 0)
+			LogPerror(gMyItemPath);
 		return (-1);
 	}
 
+	/* Make sure our global buffer to contain the contents of
+	 * the current spool file is ready to use.
+	 */
+	if ((size_t) st.st_size > gItemContentsAllocSize) {
+		gItemContentsAllocSize = (size_t) (st.st_size + (4096 - (st.st_size % 4096)));
+		if (gItemContentsAllocSize == 0) {
+			cp = malloc(gItemContentsAllocSize);
+		} else {
+			cp = realloc(gItemContents, gItemContentsAllocSize);
+		}
+		if (cp == NULL) {
+			if (logErrors != 0)
+				LogPerror("malloc");
+			return (-1);
+		}
+		memset(cp, 0, gItemContentsAllocSize);
+		gItemContents = cp;
+	} else {
+		cp = gItemContents;
+	}
+
+	/* Load the entire image of the spool file. */
+	gItemContentsSize = (size_t) st.st_size;
+	if (fread(cp, (size_t) 1, gItemContentsSize, fp) != gItemContentsSize) {
+		LogPerror("fread from %s", gMyItemPath);
+		fclose(fp);
+		return (-1);
+	}
+	memset(cp + gItemContentsSize, 0, gItemContentsAllocSize - gItemContentsSize);
+
+	/* Rewind it since we have to re-read it for parsing. */
+	if (fseek(fp, 0L, SEEK_SET) != 0L) {
+		LogPerror("rewind %s", gMyItemPath);
+		fclose(fp);
+		return (-1);
+	}
+#endif /* UNIX */
+
 	gOperation = '?';
+	STRNCPY(gOperationStr, "?");
 	gHost[0] = '\0';
 	gHostIP[0] = '\0';
+	gPort = kDefaultFTPPort;
 	gRUser[0] = '\0';
 	gRPass[0] = '\0';
+	gRAcct[0] = '\0';
 	gXtype = 'I';
 	gRecursive = 0;
 	gDelete = 0;
@@ -591,9 +701,12 @@ PrePrintItem(void)
 	gLDir[0] = '\0';
 	gRFile[0] = '\0';
 	gLFile[0] = '\0';
-	gPreCommand[0] = '\0';
-	gPerFileCommand[0] = '\0';
-	gPostCommand[0] = '\0';
+	gPreFTPCommand[0] = '\0';
+	gPerFileFTPCommand[0] = '\0';
+	gPostFTPCommand[0] = '\0';
+	gPreShellCommand[0] = '\0';
+	gPostShellCommand[0] = '\0';
+	gDelaySinceLastFailure = 0;
 
 	line[sizeof(line) - 1] = '\0';
 	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
@@ -606,6 +719,9 @@ PrePrintItem(void)
 
 		if (strcmp(tok1, "op") == 0) {
 			gOperation = tok2[0];
+			STRNCPY(gOperationStr, tok2);
+		} else if (strcmp(tok1, "delay-since-last-failure") == 0) {
+			gDelaySinceLastFailure = (unsigned int) atoi(tok2);
 		} else if (strcmp(tok1, "hostname") == 0) {
 			(void) STRNCPY(gHost, tok2);
 		} else if (strcmp(tok1, "host-ip") == 0) {
@@ -613,23 +729,27 @@ PrePrintItem(void)
 			 * only used if the host is not set.
 			 */
 			(void) STRNCPY(gHostIP, tok2);
-		} else if (strcmp(tok1, "user") == 0) {
+		} else if (strcmp(tok1, "port") == 0) {
+			gPort = atoi(tok2);
+		} else if (strcmp(tok1, "passive") == 0) {
+			if (isdigit((int) tok2[0]))
+				gPassive = atoi(tok2);
+			else
+				gPassive = StrToBool(tok2);
+		} else if (strncmp(tok1, "user", 4) == 0) {
 			(void) STRNCPY(gRUser, tok2);
-		} else if (strcmp(tok1, "pass") == 0) {
+		} else if (strncmp(tok1, "pass", 4) == 0) {
 			(void) STRNCPY(gRPass, tok2);
 		} else if (strcmp(tok1, "anon-pass") == 0) {
 			(void) STRNCPY(gLib.defaultAnonPassword, tok2);
+		} else if (strncmp(tok1, "acc", 3) == 0) {
+			(void) STRNCPY(gRAcct, tok2);
 		} else if (strcmp(tok1, "xtype") == 0) {
 			gXtype = tok2[0];
 		} else if (strcmp(tok1, "recursive") == 0) {
 			gRecursive = StrToBool(tok2);
 		} else if (strcmp(tok1, "delete") == 0) {
 			gDelete = StrToBool(tok2);
-		} else if (strcmp(tok1, "passive") == 0) {
-			if (isdigit((int) tok2[0]))
-				gPassive = atoi(tok2);
-			else
-				gPassive = StrToBool(tok2);
 		} else if (strcmp(tok1, "remote-dir") == 0) {
 			(void) STRNCPY(gRDir, tok2);
 		} else if (strcmp(tok1, "local-dir") == 0) {
@@ -638,13 +758,24 @@ PrePrintItem(void)
 			(void) STRNCPY(gRFile, tok2);
 		} else if (strcmp(tok1, "local-file") == 0) {
 			(void) STRNCPY(gLFile, tok2);
-		} else if (strcmp(tok1, "pre-command") == 0) {
-			(void) STRNCPY(gPreCommand, tok2);
-		} else if (strcmp(tok1, "per-file-command") == 0) {
-			(void) STRNCPY(gPerFileCommand, tok2);
-		} else if (strcmp(tok1, "post-command") == 0) {
-			(void) STRNCPY(gPostCommand, tok2);
-		}	/* else, unknown command. */
+		} else if (strcmp(tok1, "pre-ftp-command") == 0) {
+			(void) STRNCPY(gPreFTPCommand, tok2);
+		} else if (strcmp(tok1, "per-file-ftp-command") == 0) {
+			(void) STRNCPY(gPerFileFTPCommand, tok2);
+		} else if (strcmp(tok1, "post-ftp-command") == 0) {
+			(void) STRNCPY(gPostFTPCommand, tok2);
+		} else if (strcmp(tok1, "pre-shell-command") == 0) {
+			(void) STRNCPY(gPreShellCommand, tok2);
+		} else if (strcmp(tok1, "post-shell-command") == 0) {
+			(void) STRNCPY(gPostShellCommand, tok2);
+		} else if (strcmp(tok1, "job-name") == 0) {
+			/* ignore */
+		} else {
+			/* else, unknown option which is OK. */
+			if (logErrors != 0) {
+				Log(0, "Ignoring unknown parameter \"%s\" in %s.\n", tok1, gMyItemPath);
+			}
+		}
 	}
 	(void) fclose(fp);
 
@@ -655,6 +786,8 @@ PrePrintItem(void)
 		if (gHostIP[0] != '\0') {
 			(void) STRNCPY(gHost, gHostIP);
 		} else {
+			if (logErrors != 0)
+				Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "host");
 			return (-1);
 		}
 	}
@@ -662,209 +795,231 @@ PrePrintItem(void)
 	if (gOperation == 'G') {
 		if (gRecursive != 0) {
 			if (gRFile[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "remote-file");
 				return (-1);
 			}
 			if (gLDir[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "local-dir");
 				return (-1);
 			}
 		} else {
 			if (gRFile[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "remote-file");
 				return (-1);
 			}
 			if (gLFile[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "local-file");
 				return (-1);
 			}
 		}
 	} else if (gOperation == 'P') {
 		if (gRecursive != 0) {
 			if (gLFile[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "local-file");
 				return (-1);
 			}
 			if (gRDir[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "remote-dir");
 				return (-1);
 			}
 		} else {
 			if (gLFile[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "local-file");
 				return (-1);
 			}
 			if (gRFile[0] == '\0') {
+				if (logErrors != 0)
+					Log(0, "Spool file %s missing required parameter: %s.\n", gMyItemPath, "remote-file");
 				return (-1);
 			}
 		}
 	} else {
+		if (logErrors != 0)
+			Log(0, "Invalid spool file operation: %c.\n", gOperation);
 		return (-1);
 	}
 
 	if (gRUser[0] == '\0')
 		(void) STRNCPY(gRUser, "anonymous");
+	if ((gRPass[0] != '\0') && (strcmp(gRUser, "anonymous") == 0))
+		(void) STRNCPY(gLib.defaultAnonPassword, gRPass);
 
 	return (0);
-}	/* PrePrintItem */
+}	/* LoadCurrentSpoolFileContents */
+
+
+
+
+#if defined(WIN32) || defined(_WINDOWS)
+#else
+static int
+PWrite(int sfd, const char *const buf0, size_t size)
+{
+	int nleft;
+	const char *buf = buf0;
+	int nwrote;
+
+	nleft = (int) size;
+	for (;;) {
+		nwrote = (int) write(sfd, buf, nleft);
+		if (nwrote < 0) {
+			if (errno != EINTR) {
+				nwrote = (int) size - nleft;
+				if (nwrote == 0)
+					nwrote = -1;
+				return (nwrote);
+			} else {
+				errno = 0;
+				nwrote = 0;
+				/* Try again. */
+			}
+		}
+		nleft -= nwrote;
+		if (nleft <= 0)
+			break;
+		buf += nwrote;
+	}
+	nwrote = (int) size - nleft;
+	return (nwrote);
+}	/* PWrite */
+#endif	/* UNIX */
+
+
+
+static int
+RunShellCommandWithSpoolItemData(const char *const cmd, const char *const addstr)
+{
+#if defined(WIN32) || defined(_WINDOWS)
+	return (-1);
+#else	/* UNIX */
+	int pfd[2];
+	char *argv[8];
+	pid_t pid = 0;
+	int oerrno;
+
+	if ((cmd == NULL) || (cmd[0] == '\0'))
+		return (-1);
+
+	if (access(cmd, X_OK) < 0) {
+		LogPerror("Cannot run program \"%s\"", cmd);
+		return (-1);
+	}
+
+	if (pipe(pfd) < 0) {
+		LogPerror("pipe");
+	}
+
+	pid = fork();
+	if (pid < 0) {
+		(void) close(pfd[0]);
+		(void) close(pfd[1]);
+		LogPerror("fork");
+	} else if (pid == 0) {
+		(void) close(pfd[1]);	/* Child closes write end. */
+		if (pfd[0] != 0) {
+			(void) dup2(pfd[0], 0);
+			(void) close(pfd[0]);
+		}
+		argv[0] = (char *) cmd;
+		argv[1] = NULL;
+
+		/* Avoid sharing other resources with the shell
+		 * command, such as our FTP session descriptors.
+		 */
+		CloseControlConnection(&gConn);
+		gMyPID = getpid();
+		CloseLog();
+
+		(void) execv(cmd, argv);
+		oerrno = errno;
+		(void) OpenLog();
+		errno = oerrno;
+		LogPerror("Could not run program \"%s\"", cmd);
+		exit(1);
+	}
+	(void) close(pfd[0]);	/* Parent closes read end. */
+	(void) PWrite(pfd[1], (const char *) gItemContents, gItemContentsSize);
+	if ((addstr != NULL) && (addstr[0] != '\0'))
+		(void) PWrite(pfd[1], (const char *) addstr, strlen(addstr));
+	(void) close(pfd[1]);	/* Parent closes write end. */
+
+	if (pid > 1) {
+#ifdef HAVE_WAITPID
+		(void) waitpid(pid, NULL, 0);
+#else
+		(void) wait(NULL);
+#endif	/* HAVE_WAITPID */
+	}
+#endif	/* UNIX */
+	return (0);
+}	/* RunShellCommandWithSpoolItemData */
+
+
+
+
+/*VARARGS*/
+static void
+LogEndItemResult(int uiShow, const char *const fmt, ...)
+{
+	va_list ap;
+	char buf[512];
+
+	strcpy(buf, "\nresult=");
+
+	va_start(ap, fmt);
+#ifdef HAVE_VNSPRINTF
+	(void) vsnprintf(buf + 8, sizeof(buf) - 8, fmt, ap);
+#else
+	(void) vsprintf(buf + 8, fmt, ap);
+#endif
+	va_end(ap);
+
+	Log(uiShow, "%s", buf + 8);
+	(void) RunShellCommandWithSpoolItemData(gPostShellCommand, buf);
+}	/* LogEndItemResult */
 
 
 
 
 static int
-DoItem(int iType)
+DoItem(void)
 {
-	FILE *fp;
 	char line[256];
-	char *tok1, *tok2;
 	int needOpen;
 	int result;
-	int n;
 	int cdflags;
-	
-	fp = fopen(gMyItemPath, FOPEN_READ_TEXT);
-	if (fp == NULL) {
-		LogPerror(gMyItemPath);
-		return (-1);
+
+	if (LoadCurrentSpoolFileContents(1) < 0)
+		return (0);	/* remove invalid spool file */
+
+	if (RunShellCommandWithSpoolItemData(gPreShellCommand, NULL) == 0) {
+		/* Ran the pre-command, now reload the spool file in
+		 * case they modified it.
+		 */
+		if (LoadCurrentSpoolFileContents(1) < 0)
+			return (0);	/* remove invalid spool file */
 	}
 
-	gOperation = iType;
-	gHost[0] = '\0';
-	gHostIP[0] = '\0';
-	gPort = kDefaultFTPPort;
-	gRUser[0] = '\0';
-	gRPass[0] = '\0';
-	gXtype = 'I';
-	gRecursive = 0;
-	gDelete = 0;
-	gPassive = 2;
-	gRDir[0] = '\0';
-	gLDir[0] = '\0';
-	gRFile[0] = '\0';
-	gLFile[0] = '\0';
-	gPreCommand[0] = '\0';
-	gPerFileCommand[0] = '\0';
-	gPostCommand[0] = '\0';
-
-	line[sizeof(line) - 1] = '\0';
-	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
-		tok1 = strtok(line, " =\t\r\n");
-		if ((tok1 == NULL) || (tok1[0] == '#'))
-			continue;
-		tok2 = strtok(NULL, "\r\n");
-		if (tok2 == NULL)
-			continue;
-
-		if (strcmp(tok1, "op") == 0) {
-			gOperation = tok2[0];
-		} else if (strcmp(tok1, "hostname") == 0) {
-			(void) STRNCPY(gHost, tok2);
-		} else if (strcmp(tok1, "host-ip") == 0) {
-			(void) STRNCPY(gHostIP, tok2);
-		} else if (strcmp(tok1, "port") == 0) {
-			n = atoi(tok2);
-			if (n > 0)
-				gPort = (unsigned int) n;
-		} else if (strcmp(tok1, "user") == 0) {
-			(void) STRNCPY(gRUser, tok2);
-		} else if (strcmp(tok1, "pass") == 0) {
-			(void) STRNCPY(gRPass, tok2);
-		} else if (strcmp(tok1, "anon-pass") == 0) {
-			(void) STRNCPY(gLib.defaultAnonPassword, tok2);
-		} else if (strcmp(tok1, "xtype") == 0) {
-			gXtype = tok2[0];
-		} else if (strcmp(tok1, "recursive") == 0) {
-			gRecursive = StrToBool(tok2);
-		} else if (strcmp(tok1, "delete") == 0) {
-			gDelete = StrToBool(tok2);
-		} else if (strcmp(tok1, "passive") == 0) {
-			if (isdigit((int) tok2[0]))
-				gPassive = atoi(tok2);
-			else
-				gPassive = StrToBool(tok2);
-		} else if (strcmp(tok1, "remote-dir") == 0) {
-			(void) STRNCPY(gRDir, tok2);
-		} else if (strcmp(tok1, "local-dir") == 0) {
-			(void) STRNCPY(gLDir, tok2);
-		} else if (strcmp(tok1, "remote-file") == 0) {
-			(void) STRNCPY(gRFile, tok2);
-		} else if (strcmp(tok1, "local-file") == 0) {
-			(void) STRNCPY(gLFile, tok2);
-		} else if (strcmp(tok1, "pre-command") == 0) {
-			(void) STRNCPY(gPreCommand, tok2);
-		} else if (strcmp(tok1, "per-file-command") == 0) {
-			(void) STRNCPY(gPerFileCommand, tok2);
-		} else if (strcmp(tok1, "post-command") == 0) {
-			(void) STRNCPY(gPostCommand, tok2);
-		}	/* else, unknown command. */
-	}
-	(void) fclose(fp);
-
-	if (islower(gOperation))
-		gOperation = toupper(gOperation);
-
-	/* First, check if the parameters from the batch file
-	 * are valid.  If not, return successfully so the file
-	 * gets removed.
-	 */
-	if (gHost[0] == '\0') {
-		if (gHostIP[0] != '\0') {
-			(void) STRNCPY(gHost, gHostIP);
-		} else {
-			Log(0, "batch file parameter missing: %s.\n", "host");
-			return (0);
-		}
-	}
-
-	cdflags = kChdirOneSubdirAtATime;
-	if (gOperation == 'G') {
-		if (gRecursive != 0) {
-			if (gRFile[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "remote-file");
-				return (0);
-			}
-			if (gLDir[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "local-dir");
-				return (0);
-			}
-		} else {
-			if (gRFile[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "remote-file");
-				return (0);
-			}
-			if (gLFile[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "local-file");
-				return (0);
-			}
-		}
-	} else if (gOperation == 'P') {
-		cdflags = kChdirOneSubdirAtATime|kChdirAndMkdir;
-		if (gRecursive != 0) {
-			if (gLFile[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "local-file");
-				return (0);
-			}
-			if (gRDir[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "remote-dir");
-				return (0);
-			}
-		} else {
-			if (gLFile[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "local-file");
-				return (0);
-			}
-			if (gRFile[0] == '\0') {
-				Log(0, "batch file parameter missing: %s.\n", "remote-file");
-				return (0);
-			}
-		}
-	} else {
-		Log(0, "Invalid batch operation: %c.\n", gOperation);
-		return (0);
-	}
+	cdflags = kChdirFullPath|kChdirOneSubdirAtATime;
+	if (gOperation == 'P')
+		cdflags = kChdirFullPath|kChdirOneSubdirAtATime|kChdirAndMkdir;
 
 	if (gLDir[0] != '\0') {
 		if (chdir(gLDir) < 0) {
-			LogPerror("Could not cd to local-dir=%s", gLDir);
-			return (0);
+			LogEndItemResult(1, "Could not cd to local-dir=%s: %s\n", gLDir, strerror(errno));
+			return (0);	/* remove spool file */
 #if defined(WIN32) || defined(_WINDOWS)
 #else
 		} else if ((gOperation == 'G') && (access(gLDir, W_OK) < 0)) {
-			LogPerror("Could not write to local-dir=%s", gLDir);
-			return (0);
+			LogEndItemResult(1, "Could not write to local-dir=%s: %s\n", gLDir, strerror(errno));
+			return (0);	/* remove spool file */
 #endif
 		}
 	}
@@ -898,11 +1053,11 @@ DoItem(int iType)
 	}
 
 	if (needOpen != 0) {
-		(void) AdditionalCmd(&gConn, gPostCommand, NULL);
+		(void) AdditionalCmd(&gConn, gPostFTPCommand, NULL);
 		(void) FTPCloseHost(&gConn);
 		if (FTPInitConnectionInfo(&gLib, &gConn, kDefaultFTPBufSize) < 0) {
 			/* Highly unlikely... */
-			Log(0, "init connection info failed!\n");
+			LogEndItemResult(1, "init connection info failed!\n");
 			ExitStuff();
 			DisposeWinsock(0);
 			exit(1);
@@ -916,6 +1071,7 @@ DoItem(int iType)
 		gConn.port = gPort;
 		(void) STRNCPY(gConn.user, gRUser);
 		(void) STRNCPY(gConn.pass, gRPass);
+		(void) STRNCPY(gConn.acct, gRAcct);
 		gConn.maxDials = 1;
 		gConn.dataPortMode = gPassive;
 #if defined(WIN32) || defined(_WINDOWS)
@@ -936,22 +1092,27 @@ DoItem(int iType)
 		Log(1, "Opening %s:%u as user %s...\n", gHost, gPort, gRUser);
 		result = FTPOpenHost(&gConn);
 		if (result < 0) {
-			Log(1, "Couldn't open %s, will try again next time.\n", gHost);
+			LogEndItemResult(1, "Couldn't open %s, will try again next time.\n", gHost);
 			(void) FTPCloseHost(&gConn);
 			return (-1);	/* Try again next time. */
 		}
 		if (FTPGetCWD(&gConn, gRStartDir, sizeof(gRStartDir)) < 0) {
-			Log(1, "Couldn't get start directory on %s, will try again next time.\n", gHost);
-			(void) AdditionalCmd(&gConn, gPostCommand, NULL);
+			LogEndItemResult(1, "Couldn't get start directory on %s, will try again next time.\n", gHost);
+			(void) AdditionalCmd(&gConn, gPostFTPCommand, NULL);
 			(void) FTPCloseHost(&gConn);
 			return (-1);	/* Try again next time. */
 		}
-		if (gConn.hasCLNT != kCommandNotAvailable)
-			(void) FTPCmd(&gConn, "CLNT NcFTPBatch %.5s %s", gVersion + 11, gOS);
-		(void) AdditionalCmd(&gConn, gPreCommand, NULL);
+		if (gConn.hasCLNT != kCommandNotAvailable) {
+			(void) FTPCmd(&gConn, "CLNT %s %.5s %s",
+				(gGlobalSpooler != 0) ? "NcFTPSpooler" : "NcFTPBatch",
+				gVersion + 11,
+				gOS
+			);
+		}
+		(void) AdditionalCmd(&gConn, gPreFTPCommand, NULL);
 
 		if (FTPChdir3(&gConn, gRDir, NULL, 0, cdflags) < 0) {
-			Log(1, "Could not remote cd to %s.\n", gRDir);
+			LogEndItemResult(1, "Could not remote cd to %s.\n", gRDir);
 
 			/* Leave open, but unspool.
 			 *
@@ -966,12 +1127,12 @@ DoItem(int iType)
 		 * to root, so go back to it.
 		 */
 		if (FTPChdir(&gConn, gRStartDir) < 0) {
-			Log(1, "Could not remote cd back to %s.\n", gRStartDir);
+			LogEndItemResult(1, "Could not remote cd back to %s.\n", gRStartDir);
 			return (-1);	/* Try again next time, in case conn dropped. */
 		}
 
 		if (FTPChdir3(&gConn, gRDir, NULL, 0, cdflags) < 0) {
-			Log(1, "Could not remote cd to %s.\n", gRDir);
+			LogEndItemResult(1, "Could not remote cd to %s.\n", gRDir);
 			return (-1);	/* Try again next time, in case conn dropped. */
 		}
 	}
@@ -989,14 +1150,16 @@ DoItem(int iType)
 			result = FTPGetOneFile3(&gConn, gRFile, gLFile, gXtype, (-1), kResumeYes, kAppendNo, gDelete, NoConfirmResumeDownloadProc, 0);
 		}
 		if (result == kErrCouldNotStartDataTransfer) {
-			Log(1, "Remote item %s is no longer retrievable.\n", gRFile);
+			LogEndItemResult(1, "Remote item %s is no longer retrievable.\n", gRFile);
 			result = 0;	/* file no longer on host */
 		} else if (result == kErrLocalSameAsRemote) {
-			Log(1, "Remote item %s is already present locally.\n", gRFile);
+			LogEndItemResult(1, "Remote item %s is already present locally.\n", gRFile);
 			result = 0;
+		} else if (result == kNoErr) {
+			(void) AdditionalCmd(&gConn, gPerFileFTPCommand, gRFile);
+			LogEndItemResult(1, "Succeeded downloading %s.\n", gRFile);
 		} else {
-			(void) AdditionalCmd(&gConn, gPerFileCommand, gRFile);
-			Log(1, "Done with %s.\n", gRFile);
+			LogEndItemResult(1, "Error (%d) occurred on %s: %s\n", result, gRFile, FTPStrError(result));
 		}
 	} else /* if (gOperation == 'P') */ {
 		if (gRecursive != 0) {
@@ -1011,14 +1174,16 @@ DoItem(int iType)
 			result = FTPPutOneFile3(&gConn, gLFile, gRFile, gXtype, (-1), kAppendNo, NULL, NULL, kResumeYes, gDelete, NoConfirmResumeUploadProc, 0);
 		}
 		if (result == kErrCouldNotStartDataTransfer) {
-			Log(1, "Remote item %s is no longer sendable.  Perhaps permission denied on destination?\n", gRFile);
+			LogEndItemResult(1, "Remote item %s is no longer sendable.  Perhaps permission denied on destination?\n", gRFile);
 			result = 0;	/* file no longer on host */
 		} else if (result == kErrLocalSameAsRemote) {
-			Log(1, "Local item %s is already present on remote host.\n", gLFile);
+			LogEndItemResult(1, "Local item %s is already present on remote host.\n", gLFile);
 			result = 0;
+		} else if (result == kNoErr) {
+			(void) AdditionalCmd(&gConn, gPerFileFTPCommand, gLFile);
+			LogEndItemResult(1, "Succeeded uploading %s.\n", gLFile);
 		} else {
-			(void) AdditionalCmd(&gConn, gPerFileCommand, gRFile);
-			Log(1, "Done with %s.\n", gLFile);
+			LogEndItemResult(1, "Error (%d) occurred on %s: %s\n", result, gLFile, FTPStrError(result));
 		}
 	}
 	return (result);
@@ -1035,25 +1200,48 @@ DecodeName(const char *const src, int *yyyymmdd, int *hhmmss)
 	int t;
 	int valid = -1;
 
+	/* Format is:
+	 *
+	 * X-YYYYMMDD-hhmmss
+	 *
+	 * Where X is the entry type (G or P, for Get or Put)
+	 *       YYYYMMMDD is the 4-digit year, month, month day
+	 *       hhmmss is the hour minute second
+	 *
+	 * The names are also allowed to have additional fields
+	 * appended after the hhmmss field, to make it easier
+	 * to create unique spool file names.  For example, NcFTP Client
+	 * uses X-YYYYMMDD-hhmmss-PPPPPPPPPP-JJJJ, with the PID
+	 * and job sequence number appended.
+	 */
 	(void) STRNCPY(itemName, src);
 	for (t = 0, ps = itemName; ((tok = strtok(ps, "-")) != NULL); ps = NULL) {
 		t++;
 		switch (t) {
-			case 4:
+			case 1:
+				/* Verify that entry is a G or P */
+				if (strchr("GgPp", (int) tok[0]) == NULL)
+					goto fail;
+				break;
+			case 2:
+				/* Quick sanity check */
+				if (isdigit(tok[0]) == 0)
+					goto fail;
 				*yyyymmdd = atoi(tok);
 				break;
-			case 5:
+			case 3:
+				if (isdigit(tok[0]) == 0)
+					goto fail;
 				*hhmmss = atoi(tok);
 				valid = 0;
-				break;
-			case 6:
-				valid = -1;
 				break;
 		}
 	}
 	if (valid < 0) {
+fail:
 		*yyyymmdd = 0;
 		*hhmmss = 0;
+		return (-1);
 	}
 	return (valid);
 }	/* DecodeName */
@@ -1089,10 +1277,14 @@ Now(int *yyyymmdd, int *hhmmss)
 static void
 EventShell(volatile unsigned int sleepval)
 {
-	int nItems;
+	volatile int nItems;
+	int nProcessed, nFinished;
+	unsigned int minDSLF;
 	struct dirent *direntp;
 	struct Stat st;
 	char *cp;
+	char tstr[32];
+	time_t tnext;
 	int iType;
 	int iyyyymmdd, ihhmmss, nyyyymmdd, nhhmmss;
 	DIR *volatile DIRp;
@@ -1104,7 +1296,7 @@ EventShell(volatile unsigned int sleepval)
 #endif
 
 	DIRp = NULL;
-	OpenLog();
+	(void) OpenLog();
 	Log(0, "-----started-----\n");
 
 #if defined(WIN32) || defined(_WINDOWS)
@@ -1127,27 +1319,50 @@ EventShell(volatile unsigned int sleepval)
 	gMayCancelJmp = 1;
 #endif
 
-	for (passes = 0; ; ) {
+	passes = 0;
+	nProcessed = 0;
+	nFinished = 0;
+	minDSLF = 0;
+
+	for ( ; ; ) {
 		passes++;
 		if ((passes > 1) || ((passes == 1) && (sleepval > 0))) {
-			if (sleepval == 0) {
-				sleepval = 3;
-			} else if (sleepval > 900) {
-				/* If sleep duration got so large it got past 15 minutes,
-				 * start over again.
-				 */
-				sleepval = 60;
-			} else {
-				sleepval = (unsigned int) (((0.1 * (rand() % 15)) + 1.2) * sleepval); 
+			/* Don't wait between passes if we just
+			 * processed an item.  We only wait between
+			 * passes if we didn't do anything on the
+			 * previous pass.
+			 */
+			if ((nProcessed == 0) || (nItems == nFinished)) {
+				if (minDSLF != 0) {
+					sleepval = minDSLF + 1;
+					if ((gDelayBetweenPasses != 0) && (gDelayBetweenPasses < minDSLF))
+						sleepval = gDelayBetweenPasses;
+					minDSLF = 0;
+				} else if (gDelayBetweenPasses != 0) {
+					sleepval = gDelayBetweenPasses;
+				} else if (sleepval == 0) {
+					sleepval = 3;
+				} else if (sleepval > 900) {
+					/* If sleep duration got so large it got past 15 minutes,
+					 * start over again.
+					 */
+					sleepval = 60;
+				} else {
+					sleepval = NEW_SLEEP_VAL(sleepval);
+				}
+
+				(void) FTPCloseHost(&gConn);
+				Log(0, "Sleeping %u seconds before starting pass %d.\n", sleepval, passes);
+				(void) sleep(sleepval);
 			}
+			YieldUI(1);
 
 			/* Re-open it, in case they deleted the log
-			 * while this process was running.
+			 * while this process was running.  This also
+			 * gives us an opportunity to create a new log
+			 * if the existing log grew too large.
 			 */
-			OpenLog();
-			Log(0, "Sleeping %u seconds before starting pass %d.\n", sleepval, passes);
-			YieldUI(1);
-			(void) sleep(sleepval);
+			(void) OpenLog();
 		}
 
 		if ((DIRp = opendir(gSpoolDir)) == NULL) {
@@ -1157,7 +1372,7 @@ EventShell(volatile unsigned int sleepval)
 		}
 
 		Log(0, "Starting pass %d.\n", passes);
-		for (nItems = 0; ; ) {
+		for (nItems = 0, nProcessed = 0; ; ) {
 			direntp = readdir(DIRp);
 			if (direntp == NULL)
 				break;
@@ -1188,6 +1403,8 @@ EventShell(volatile unsigned int sleepval)
 			cp++;
 
 			iType = (int) *cp;
+			if (isupper(iType))
+				iType = islower(iType);
 			if ((iType != 'g') && (iType != 'p')) {
 				/* No more items waiting for processing. */
 				continue;
@@ -1212,19 +1429,61 @@ EventShell(volatile unsigned int sleepval)
 			 * successfully.
 			 */
 			if (rename(gItemPath, gMyItemPath) == 0) {
-				Log(0, "Processing path: %s\n", gMyItemPath);
 				gItemInUse = 1;
-				if (DoItem(iType) < 0) {
-					/* rename it back, so it will
-					 * get reprocessed.
-					 */
-					if (rename(gMyItemPath, gItemPath) != 0) {
+				Log(0, "Processing path: %s\n", gItemPath);
+				nProcessed++;
+				if (DoItem() < 0) {
+					if (gDelaySinceLastFailure == 0)
+						gDelaySinceLastFailure = 5;
+					else
+						gDelaySinceLastFailure = NEW_SLEEP_VAL(gDelaySinceLastFailure);
+					tnext = time(NULL) + gDelaySinceLastFailure;
+					strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S", localtime(&tnext));
+
+					gMaySigExit = 0;
+					if (SpoolX(
+						NULL,
+						gSpoolDir,
+						gOperationStr,
+						gRFile,
+						gRDir,
+						gLFile,
+						gLDir,
+						gHost,
+						gHostIP,
+						gPort,
+						gRUser,
+						gRPass,
+						gRAcct,
+						gXtype,
+						gRecursive,
+						gDelete,
+						gPassive,
+						gPreFTPCommand,
+						gPerFileFTPCommand,
+						gPostFTPCommand,
+						gPreShellCommand,
+						gPostShellCommand,
+						tnext,
+						gDelaySinceLastFailure
+					) < 0) {
 						/* quit now */
 						Log(0, "Could not rename job %s!\n", gMyItemPath);
 						return;
 					}
-					Log(0, "Re-queueing %s.\n", gItemPath);
+					if (unlink(gMyItemPath) != 0) {
+						/* quit now */
+						Log(0, "Could not delete old copy of job %s!\n", gMyItemPath);
+						return;
+					}
+					Log(0, "Rescheduled %s for %s.\n", gItemPath, tstr);
+
+					gMaySigExit = 1;
+
+					if ((minDSLF == 0) || (minDSLF > gDelaySinceLastFailure))
+						minDSLF = gDelaySinceLastFailure;
 				} else {
+					nFinished++;
 					Log(0, "Done with %s.\n", gItemPath);
 					if (unlink(gMyItemPath) != 0) {
 						/* quit now */
@@ -1238,26 +1497,36 @@ EventShell(volatile unsigned int sleepval)
 				sleep(1);
 #endif
 			}
-#if defined(WIN32) || defined(_WINDOWS)
 			if (gQuitRequested != 0) {
 				(void) closedir(DIRp);
+#if defined(WIN32) || defined(_WINDOWS)
 				Log(0, "User requested close.\n");
-				(void) AdditionalCmd(&gConn, gPostCommand, NULL);
+#else
+				if (gQuitRequested == 1)
+					Log(0, "User requested close.\n");
+				else
+					Log(0, "-----processing delayed signal %d, exiting-----\n", gQuitRequested);
+#endif
+				(void) AdditionalCmd(&gConn, gPostFTPCommand, NULL);
 				(void) FTPCloseHost(&gConn);
 				gMayCancelJmp = 0;
 				Log(0, "-----done-----\n");
 				return;
 			}
-#endif
 		}
 		(void) closedir(DIRp);
-		if (nItems == 0) {
+		if ((nItems == nFinished) && (nFinished > 0)) {
+			Log(0, "The spool directory %s is now empty.\n", gSpoolDir);
+		} else if (nItems == 0) {
+			Log(0, "The spool directory %s is empty.\n", gSpoolDir);
+		}
+		if (nItems == nFinished) {
 			/* Spool directory is empty, done. */
-			Log(0, "The spool directory is now empty.\n");
-			break;
+			if (gGlobalSpooler == 0)
+				break;
 		}
 	}
-	(void) AdditionalCmd(&gConn, gPostCommand, NULL);
+	(void) AdditionalCmd(&gConn, gPostFTPCommand, NULL);
 	(void) FTPCloseHost(&gConn);
 	gMayCancelJmp = 0;
 	Log(0, "-----done-----\n");
@@ -1317,7 +1586,7 @@ ListQueue(void)
 		cp++;
 
 		(void) STRNCPY(gMyItemPath, gItemPath);
-		if (PrePrintItem() == 0) {
+		if (LoadCurrentSpoolFileContents(0) == 0) {
 			nItems++;
 			if (nItems == 1) {
 				(void) printf("---Scheduled-For-----Host----------------------------Command--------------------\n");
@@ -1355,7 +1624,9 @@ ListQueue(void)
 	(void) closedir(DIRp);
 	if (nItems == 0) {
 		/* Spool directory is empty, done. */
-		(void) printf("Your \"%s\" directory is empty.\n", gSpoolDir);
+		(void) printf("%s \"%s\" directory is empty.\n",
+			(gGlobalSpooler != 0) ? "The" : "Your",
+			gSpoolDir);
 	}
 }	/* ListQueue */
 
@@ -1656,7 +1927,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance_unused, PSTR sz
 	ShowWindow(gMainWnd, SW_SHOWNORMAL);
 	// Here we go!
 	//
-	PreInit();
+	PreInit("ncftpbatch.exe");
 	EventShell(0);
 	PostShell();
 
@@ -1665,7 +1936,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance_unused, PSTR sz
 #pragma warning(default : 4100)		// warning C4100: unreferenced formal parameter
 
 
-#else
+#else	/* UNIX */
 
 static int
 PRead(int sfd, char *const buf0, size_t size, int retry)
@@ -1830,8 +2101,13 @@ static void
 Usage(void)
 {
 	(void) fprintf(stderr, "Usages:\n");
-	(void) fprintf(stderr, "\tncftpbatch -d | -D\t\t\t(start NcFTP batch processing)\n");
-	(void) fprintf(stderr, "\tncftpbatch -l\t\t\t\t(list spooled jobs)\n");
+	if (gGlobalSpooler == 0) {
+		(void) fprintf(stderr, "\tncftpbatch -d | -D\t\t\t(start NcFTP batch processing)\n");
+		(void) fprintf(stderr, "\tncftpbatch -l\t\t\t\t(list spooled jobs)\n");
+	} else {
+		(void) fprintf(stderr, "\tncftpspooler -d [-q spool-dir] [-o log-file] [-s delay]\n");
+		(void) fprintf(stderr, "\tncftpspooler -l\t\t\t\t(list spooled jobs)\n");
+	}
 	(void) fprintf(stderr, "\nLibrary version: %s.\n", gLibNcFTPVersion + 5);
 	(void) fprintf(stderr, "This is a freeware program by Mike Gleason (mgleason@probe.net).\n");
 	DisposeWinsock(0);
@@ -1850,52 +2126,110 @@ main(int argc, const char **const argv)
 	int listonly = -1;
 	int readcore = -1;
 
-	PreInit();
-	while ((c = getopt(argc, (char **) argv, "|:XDdlSs:w")) > 0) switch(c) {
-		case 'd':
-			runAsDaemon = 1;
-			break;
-		case 'D':
-			runAsDaemon = 0;
-			break;
-		case 'l':
-			listonly = 1;
-			break;
-		case 'S':
-			sleep(15);
-			break;
-		case 's':
-			sleepval = (unsigned int) atoi(optarg);
-			break;
-		case 'w':
-			gLogOpenMode = FOPEN_WRITE_TEXT;
-			break;
-		case '|':
-			readcore = atoi(optarg);
-			break;
-		case 'X':
-			/* Yes, I do exist. */
-			DisposeWinsock(0);
-			exit(0);
-		default:
+	PreInit(argv[0]);
+#if (defined(SOCKS)) && (SOCKS >= 5)
+	SOCKSinit(argv[0]);
+#endif	/* SOCKS */
+
+	if (gGlobalSpooler != 0) {
+		runAsDaemon = -1;
+		while ((c = getopt(argc, (char **) argv, "Ddls:q:o:")) > 0) switch(c) {
+			case 'd':
+				runAsDaemon = 1;
+				break;
+			case 'D':
+				runAsDaemon = 0;
+				break;
+			case 'l':
+				listonly = 1;
+				break;
+			case 's':
+				if (atoi(optarg) > 0)
+					gDelayBetweenPasses = (unsigned int) atoi(optarg);
+				break;
+			case 'q':
+				STRNCPY(gSpoolDir, optarg);
+				break;
+			case 'o':
+				STRNCPY(gLogFileName, optarg);
+				break;
+			default:
+				Usage();
+		}
+
+		/* Require that they use the "-d" option,
+		 * since otherwise a ncftpspooler process
+		 * would be launched into the background
+		 * unbeknownst to the user.  It is common
+		 * for a user to run a program with no
+		 * arguments in hopes of seeing a usage
+		 * screen.
+		 */
+		if ((listonly < 0) && (runAsDaemon < 0)) {
+			/* Must specify either -l or -d/-D */
 			Usage();
+		}
+	} else {
+		/* User Spooler */
+		while ((c = getopt(argc, (char **) argv, "|:XDdlS:Z:s:w")) > 0) switch(c) {
+			case 'd':
+				runAsDaemon = 1;
+				break;
+			case 'D':
+				runAsDaemon = 0;
+				break;
+			case 'l':
+				listonly = 1;
+				break;
+			case 'Z':
+				if (atoi(optarg) > 0)
+					sleep((unsigned int) atoi(optarg));
+				break;
+			case 'S':
+				if (atoi(optarg) > 0)
+					sleepval = (unsigned int) atoi(optarg);
+				break;
+			case 's':
+				if (atoi(optarg) > 0)
+					gDelayBetweenPasses = (unsigned int) atoi(optarg);
+				break;
+			case 'w':
+				gLogOpenMode = FOPEN_WRITE_TEXT;
+				break;
+			case '|':
+				readcore = atoi(optarg);
+				break;
+			case 'X':
+				/* Yes, I do exist. */
+				DisposeWinsock(0);
+				exit(0);
+			default:
+				Usage();
+		}
+
+		if ((listonly < 0) && (runAsDaemon < 0)) {
+			/* Must specify either -l or -d/-D */
+			Usage();
+		}
 	}
 
-	if ((listonly < 0) && (runAsDaemon < 0)) {
-		/* Must specify either -l or -d/-D */
-		Usage();
-	}
-
+	PostInit();
 	if (listonly > 0) {
 		ListQueue();
 	} else {
-		if (readcore >= 0) {
-			/* Inherit current live FTP session
-			 * from ncftp!
-			 */
-			ReadCore(readcore);
+		if (gGlobalSpooler == 0) {
+			if (readcore >= 0) {
+				/* Inherit current live FTP session
+				 * from ncftp!
+				 */
+				ReadCore(readcore);
+			}
 		}
 		if (runAsDaemon > 0) {
+			if (OpenLog() < 0) {
+				perror(gLogFileName);
+				exit(1);
+			}
 			Daemon();
 			gIsTTY = 0;
 		}
@@ -1907,7 +2241,7 @@ main(int argc, const char **const argv)
 	exit(0);
 }	/* main */
 
-#endif
+#endif	/* UNIX */
 
 
 #else	/* HAVE_LONG_FILE_NAMES */

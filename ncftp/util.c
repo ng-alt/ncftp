@@ -243,6 +243,8 @@ GetHostEntry(const char *host, struct in_addr *ip_address)
  * "$PWD/../tmp////./../xx/", it would be converted to
  * "/usr/spool/xx".
  */
+
+
 void
 CompressPath(char *const dst, const char *const src, const size_t dsize)
 {
@@ -251,6 +253,7 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 	char *d, *lim;
 	char *a, *b;
 
+#define isslash(c) ((c == '/') || (c == '\\'))
 	if (src[0] == '\0') {
 		*dst = '\0';
 		return;
@@ -262,9 +265,9 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 	for (;;) {
 		c = *s;
 		if (c == '.') {
-			if (((s == src) || (s[-1] == '/')) && ((s[1] == '/') || (s[1] == '\0'))) {
+			if (((s == src) || isslash(s[-1])) && (isslash(s[1]) || (s[1] == '\0'))) {
 				/* Don't copy "./" */
-				if (s[1] == '/')
+				if (isslash(s[1]))
 					++s;
 				++s;
 			} else if (d < lim) {
@@ -272,7 +275,7 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 			} else {
 				++s;
 			}
-		} else if (c == '/') {
+		} else if (isslash(c)) {
 			/* Don't copy multiple slashes. */
 			if (d < lim)
 				*d++ = *s++;
@@ -280,12 +283,12 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 				++s;
 			for (;;) {
 				c = *s;
-				if (c == '/') {
+				if (isslash(c)) {
 					/* Don't copy multiple slashes. */
 					++s;
 				} else if (c == '.') {
 					c = s[1];
-					if (c == '/') {
+					if (isslash(c)) {
 						/* Skip "./" */
 						s += 2;
 					} else if (c == '\0') {
@@ -300,7 +303,7 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 			}
 		} else if (c == '\0') {
 			/* Remove trailing slash. */
-			if ((d[-1] == '/') && (d > (dst + 1)))
+			if (isslash(d[-1]) && (d > (dst + 1)))
 				d[-1] = '\0';
 			*d = '\0';
 			break;
@@ -323,14 +326,14 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 			/* Get the next node in the path. */
 			if (*a == '\0')
 				return;
-			if (*a == '/') {
+			if (isslash(*a)) {
 				++a;
 				break;
 			}
 			++a;
 		}
 		if ((b[0] == '.') && (b[1] == '.')) {
-			if (b[2] == '/') {
+			if (isslash(b[2])) {
 				/* We don't know what the parent of this
 				 * node would be.
 				 */
@@ -338,16 +341,16 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 			}
 		}
 		if ((a[0] == '.') && (a[1] == '.')) {
-			if (a[2] == '/') {
+			if (isslash(a[2])) {
 				/* Remove the .. node and the one before it. */
-				if ((b == dst) && (*dst == '/'))
+				if ((b == dst) && (isslash(*dst)))
 					(void) memmove(b + 1, a + 3, strlen(a + 3) + 1);
 				else
 					(void) memmove(b, a + 3, strlen(a + 3) + 1);
 				a = dst;	/* Start over. */
 			} else if (a[2] == '\0') {
 				/* Remove a trailing .. like:  /aaa/bbb/.. */
-				if ((b <= dst + 1) && (*dst == '/'))
+				if ((b <= dst + 1) && isslash(*dst))
 					dst[1] = '\0';
 				else
 					b[-1] = '\0';
@@ -360,22 +363,37 @@ CompressPath(char *const dst, const char *const src, const size_t dsize)
 			}
 		}
 	}
+#undef isslash
 }	/* CompressPath */
 
 
 
 void
-PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *const src)
+PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *const src, int dosCompat)
 {
 	char *cp;
 	char tmp[512];
 
-	if (src[0] == '/') {
+	if (dosCompat != 0) {
+		if ((isalpha(cwd[0])) && (cwd[1] == ':')) {
+			/* A new fully-qualified DOS path was requested. */
+			CompressPath(dst, src, dsize);
+			return;
+		}
+	} else if (src[0] == '/') {
+		/* A new fully-qualified UNIX path was requested. */
 		CompressPath(dst, src, dsize);
 		return;
 	}
 	cp = Strnpcpy(tmp, (char *) cwd, sizeof(tmp) - 1);
-	*cp++ = '/';
+	if (dosCompat) {
+		if ((dst[1] != ':') || (dst[2] == '/'))
+			*cp++ = '/';
+		else
+			*cp++ = '\\';
+	} else {
+		*cp++ = '/';
+	}
 	*cp = '\0';
 	(void) Strnpcat(cp, (char *) src, sizeof(tmp) - (cp - tmp));
 	CompressPath(dst, tmp, dsize);
@@ -414,7 +432,7 @@ FileToURL(char *url, size_t urlsize, const char *const fn, const char *const rcw
 	ulen = strlen(url);
 	dst = url + ulen;
 	dsize = urlsize - ulen;
-	PathCat(dst, dsize, rcwd, fn);
+	PathCat(dst, dsize, rcwd, fn, 0);
 	if ((startdir != NULL) && (startdir[0] != '\0') && (startdir[1] /* i.e. not "/" */ != '\0')) {
 		if (strncmp(dst, startdir, strlen(startdir)) == 0) {
 			/* Form relative URL. */
@@ -573,6 +591,8 @@ InitOurDirectory(void)
 			cp = strrchr(gOurDirectoryPath, '"');
 			if ((cp != NULL) && (cp[1] == '\0'))
 				*cp = '\0';
+			(void) STRNCAT(gOurDirectoryPath, "\\");
+			(void) STRNCAT(gOurDirectoryPath, kOurDirectoryName);
 		} else {
 			STRNCPY(gOurDirectoryPath, gOurInstallationPath);
 			if (gUser[0] == '\0') {

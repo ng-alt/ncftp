@@ -1,4 +1,3 @@
-# Generated automatically from Makefile.bin.in by configure.
 #-----------------------------------------------------------------------------
 #
 # NcFTP binary distribution makefile 
@@ -6,8 +5,8 @@
 #-----------------------------------------------------------------------------
 
 SHELL=/bin/sh
-prefix=/usr/local
-mandir=${prefix}/man
+prefix=@prefix@
+mandir=@mandir@
 
 all:
 	-@echo "Try \"make install\" to install the package into the $(prefix) hierarchy."

@@ -613,6 +613,17 @@ UnLslR(FileInfoListPtr filp, LineListPtr llp, int serverType)
 				hadblankline = 1;
 				continue;
 			}
+			if (serverType == kServerTypeMicrosoftFTP) {
+				/* IIS runs on WinNT only, and NT
+				 * can use / as a separator rather
+				 * that \.  We will convert them
+				 * here.
+				 */
+				for (cp = line; *cp != '\0'; cp++) {
+					if (*cp == '\\')
+						*cp = '/';
+				}
+			}
 		}
 
 		if ((hadblankline != 0) && (line[len - 1] == ':')) {

@@ -143,6 +143,10 @@ SOURCE=.\spool.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\spoolutil.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\trace.c
 # End Source File
 # Begin Source File

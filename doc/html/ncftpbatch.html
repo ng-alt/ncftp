@@ -1,6 +1,6 @@
 <HTML>
 <HEAD>
-<TITLE>man page(1) manual page</TITLE>
+<TITLE>ncftpbatch(1) manual page</TITLE>
 </HEAD>
 <BODY bgcolor=white>
 
@@ -71,14 +71,18 @@ instance of <I>ncftpbatch</I> is run.
 <P>
 <I>ncftpget</I> and <I>ncftpput</I> can also be used to submit jobs for
 batch processing, using those utilities' <B>-b</B> command-line
-flag. If desired, you can also manually create the spool
-files although this procedure is not documented here.
+flag.
+If desired, you can also manually create the spool files
+although this procedure is not documented here (see the manual
+page for
+<i>ncftpspooler</i>
+for more information on how to do that).
 
 <H2><B>Diagnostics</B></H2>
 
 <P>
 <I>ncftpbatch</I>    writes    to its own log file, the
-<tt>$HOME/.ncftp/batchlog</tt> file. This file should be examined
+<tt>$HOME/.ncftp/spool/log</tt> file. This file should be examined
 to determine if any <I>ncftpbatch</I> processes are actively
 working on jobs.
 

@@ -10,7 +10,6 @@ for f in \
 	if [ -f "$f" ] ; then
 		dir=`dirname "$f"`
 		echo "----- $dir -----"
-		dir="$HOME/src/ncftpd/$dir"
 		cd "$dir"
 		autoheader
 		autoconf

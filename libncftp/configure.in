@@ -3,10 +3,9 @@ AC_INIT(rcmd.c)
 AC_PREREQ(2.4)
 AC_CONFIG_HEADER(config.h)
 
-nc_cv_socks5=no
 no_signals=yes
 
-AC_ARG_ENABLE(socks5,[  --enable-socks5        try to find and use the socks5 library],nc_cv_socks5=yes,nc_cv_socks5=no)
+wi_ARG_ENABLE_SOCKS5
 AC_ARG_ENABLE(signals,[  --enable-signals       allow use of signal handling],[no_signals=no])
 
 
@@ -114,25 +113,7 @@ dnl wi_EXTRA_DIRS(yes, /usr/local /usr/ccs, -)
 
 dnl For the sample programs.
 wi_NET_LIBS
-
-if test "$nc_cv_socks5" = yes ; then
-# Look for the "SOCKS" library for use with Firewalls/Gateways.
-savelibs="$LIBS"
-AC_CHECK_LIB(db,          main)
-AC_CHECK_LIB(isode,       main)
-AC_CHECK_LIB(com_err,     main)
-AC_CHECK_LIB(crypto,      main)
-AC_CHECK_LIB(krb5,        main)
-AC_CHECK_LIB(gssapi_krb5, main)
-AC_CHECK_LIB(socks5,SOCKSinit)
-      if test "$ac_cv_lib_socks5" = yes ; then
-              nc_cv_socks=no
-      else
-              LIBS="$savelibs"
-      fi
-else
-ac_cv_lib_socks5=no
-fi
+wi_LIB_SOCKS5
 
 
 dnl Checks for header files.
@@ -149,6 +130,7 @@ AC_TYPE_PID_T
 AC_TYPE_UID_T
 wi__RES_DEFDNAME
 wi_USE_LONG_LONG
+wi_STRUCT_STAT64
 
 dnl Checks for library functions.
 if test "$SYS" != sunos ; then
@@ -180,7 +162,7 @@ if test -f ../Strn/Strn.h ; then
 	LIBS="$LIBS -lStrn"
 fi
 
-if test $ac_cv_func_getcwd = no && test $ac_cv_func_getwd = no ; then
+if test "$ac_cv_func_getcwd" = no && test "$ac_cv_func_getwd" = no ; then
 AC_WARN(This system does not have either getwd or getcwd?)
 AC_WARN(I find that a little hard to believe.)
 AC_WARN(You may want to try -DHAVE_GETWD anyway.)

@@ -13,6 +13,7 @@ AC_ARG_ENABLE(ncurses,[  --disable-ncurses       do not try to find and use the 
 dnl AC_ARG_ENABLE(readline,[  --disable-readline      do not try to find and use the readline library],nc_cv_readline=$enableval)
 AC_ARG_ENABLE(signals,[  --disable-select        use alarm() for timeout handling rather than select()],[no_signals=no])
 AC_ARG_ENABLE(extra-dirs,[  --disable-extra-dirs    do not look for extra -I/include and -L/lib dirs],nc_cv_extra_dirs=$enableval)
+wi_ARG_ENABLE_SOCKS5
 
 wi_OS_VAR
 
@@ -121,6 +122,7 @@ if test "$nc_cv_extra_dirs" = yes ; then
 fi
 
 wi_NET_LIBS
+wi_LIB_SOCKS5
 
 if test "$nc_cv_curses" = yes ; then
 	wi_LIB_CURSES
@@ -168,6 +170,7 @@ AC_TYPE_MODE_T
 AC_TYPE_PID_T
 AC_TYPE_UID_T
 wi_TYPE_SIG_ATOMIC_T
+wi_STRUCT_STAT64
 wi_USE_LONG_LONG
 wi__RES_DEFDNAME
 dnl wi_TYPE_SIGJMP_BUF
@@ -176,6 +179,7 @@ AC_SYS_LONG_FILE_NAMES
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 wi_PROG_TAR
+wi_CREATE_TAR_FILES
 
 if test "$LONGEST_INT" = "long long" ; then
 	if sed 's/^#define longest_int.*/#define longest_int long long/;
@@ -282,11 +286,11 @@ if test "x$mandir" = 'x${prefix}/man' ; then
 	# $prefix is probably set to NONE.
 	#
 	p=`cd / ; cd $prefix 2>/dev/null ; pwd`
-	if test "x$p" != "x/" ; then
+	if test "x$p" = "x/" ; then
 		p="/usr/local"
 	fi
 	if test -d "$p/share/man" ; then
-		mandir='${prefix}/share/man'
+		mandir="$p/share/man"
 	fi
 fi
 
@@ -297,4 +301,4 @@ CFLAGS=`echo "$CFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
 DEFS=`echo "$DEFS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
 
 AC_OUTPUT_COMMANDS([/bin/rm -f ./ncftp/readln.o])
-AC_OUTPUT(Makefile ncftp/Makefile libncftp/Makefile Strn/Makefile sio/Makefile sh_util/Makefile vis/Makefile)
+AC_OUTPUT(Makefile Makefile.bin ncftp/Makefile libncftp/Makefile Strn/Makefile sio/Makefile sh_util/Makefile vis/Makefile)

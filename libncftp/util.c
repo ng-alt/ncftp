@@ -491,10 +491,17 @@ time_t UnMDTMDate(char *dstr)
 	struct tm ut, *t;
 	time_t mt, now;
 	time_t result = kModTimeUnknown;
+	char y2fix[64];
 
-	if (strncmp(dstr, "19100", 5) == 0) {
+	if (strncmp(dstr, "1910", 4) == 0) {
 		/* Server Y2K bug! */
-		return (result);
+		memset(y2fix, 0, sizeof(y2fix));
+		y2fix[0] = '2';
+		y2fix[1] = '0';
+		y2fix[2] = dstr[3];
+		y2fix[3] = dstr[4];
+		strncpy(y2fix + 4, dstr + 5, sizeof(y2fix) - 6);
+		dstr = y2fix;
 	}
 
 	(void) time(&now);
@@ -540,7 +547,7 @@ GetSockBufSize(int sockfd, size_t *rsize, size_t *ssize)
 
 	if (ssize != NULL) {
 		opt = 0;
-		optsize = sizeof(opt);
+		optsize = (int) sizeof(opt);
 		rc = getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *) &opt, &optsize);
 		if (rc == 0)
 			*ssize = (size_t) opt;
@@ -549,7 +556,7 @@ GetSockBufSize(int sockfd, size_t *rsize, size_t *ssize)
 	}
 	if (rsize != NULL) {
 		opt = 0;
-		optsize = sizeof(opt);
+		optsize = (int) sizeof(opt);
 		rc = getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *) &opt, &optsize);
 		if (rc == 0)
 			*rsize = (size_t) opt;
@@ -580,19 +587,19 @@ SetSockBufSize(int sockfd, size_t rsize, size_t ssize)
 	/* This is an AIX-specific socket option to do RFC1323 large windows */
 	if (ssize > 0 || rsize > 0) {
 		opt = 1;
-		optsize = sizeof(opt);
+		optsize = (int) sizeof(opt);
 		rc = setsockopt(sockfd, IPPROTO_TCP, TCP_RFC1323, &opt, optsize);
 	}
 #endif
 
 	if (ssize > 0) {
 		opt = (int) ssize;
-		optsize = sizeof(opt);
+		optsize = (int) sizeof(opt);
 		rc = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char *) &opt, optsize);
 	}
 	if (rsize > 0) {
 		opt = (int) rsize;
-		optsize = sizeof(opt);
+		optsize = (int) sizeof(opt);
 		rc = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char *) &opt, optsize);
 	}
 	return (rc);

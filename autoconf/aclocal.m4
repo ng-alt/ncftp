@@ -1,3 +1,40 @@
+AC_DEFUN(wi_ARG_ENABLE_SOCKS5, [
+	nc_cv_socks5=no
+	AC_ARG_ENABLE(socks5,[  --enable-socks5         try to find and use the socks5 library],nc_cv_socks5=yes,nc_cv_socks5=no)
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_LIB_SOCKS5, [
+	ac_cv_lib_socks5_SOCKSinit=no
+	if test "$nc_cv_socks5" = yes ; then
+		# Look for the "SOCKS" library for use with Firewalls/Gateways.
+		savelibs="$LIBS"
+		LIBS=''
+		AC_CHECK_LIB(db,main)
+		AC_CHECK_LIB(isode,main)
+		AC_CHECK_LIB(com_err,main)
+		AC_CHECK_LIB(crypto,main)
+		AC_CHECK_LIB(krb5,main)
+		AC_CHECK_LIB(gssapi_krb5,main)
+		AC_CHECK_LIB(socks5,SOCKSinit)
+		AC_CHECK_HEADERS(socks.h)
+		if test "$ac_cv_lib_socks5_SOCKSinit" != yes ; then
+			ac_cv_lib_socks5_SOCKSinit=no
+			SOCKS_LIBS="$LIBS"
+			AC_SUBST(SOCKS_LIBS)
+			AC_DEFINE(SOCKS,5)
+		fi
+		LIBS="$savelibs"
+	fi
+	AC_MSG_CHECKING([if SOCKS5 will be used])
+	AC_MSG_RESULT([$ac_cv_lib_socks5_SOCKSinit])
+])
+dnl
+dnl
+dnl
+dnl
 AC_DEFUN(wi_ARG_ENABLE_DEBUG, [
 # if DEBUGBUILD is yes, other macros try to set up a compilation environment
 # with debugging symbols enabled.  Example macros which are affected are
@@ -306,20 +343,49 @@ changequote([, ])dnl
 dnl
 dnl
 dnl
+AC_DEFUN(wi_HPUX_GCC___STDC_EXT__, [
+AC_MSG_CHECKING([if -D__STDC_EXT__ is needed with GCC on HP-UX])
+AC_TRY_RUN([
+#include <stdio.h>
+ 
+main()
+{
+#ifdef __STDC_EXT__
+	if (__STDC_EXT__ == 0)
+		exit(1);		/* have __STDC_EXT__=0 */
+	exit(0);			/* have __STDC_EXT__=1 */
+#else
+	exit(1);			/* do not have __STDC_EXT__ */
+#endif
+}],[
+	# action if true
+	#
+	# Already have it defined.
+	#
+	AC_MSG_RESULT(no)
+],[
+	# action if false
+	#
+	# Not defined -- we need to define it then.
+	# This is required for the extended
+	# namespace symbols for Large Files.
+	#
+	CFLAGS="-D__STDC_EXT__ $CFLAGS"
+	AC_MSG_RESULT(yes)
+],[
+	# action if cross-compiling, guess
+	CFLAGS="-D__STDC_EXT__ $CFLAGS"
+	AC_MSG_RESULT(yes)
+])
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_CFLAGS_LFS64, [AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE([wi_OS_VAR])
 wi_CFLAGS
 if test "os_${os}_gcc_${ac_cv_prog_gcc}" = os_hp-ux_gcc_yes ; then
-	case "$CFLAGS" in
-		*__STDC_EXT__*)
-			;;
-		*)
-			# This is required for the extended
-			# namespace symbols for Large Files.
-			#
-			CFLAGS="-D__STDC_EXT__ $CFLAGS"
-			;;
-	esac
+	wi_HPUX_GCC___STDC_EXT__
 fi
 case "$CFLAGS" in
 	*-D_LARGEFILE64_SOURCE*)
@@ -397,6 +463,7 @@ if test "$ac_cv_func_snprintf" = "no" ; then
 	AC_CHECK_LIB(snprintf,snprintf)
 	if test "$ac_cv_lib_snprintf_snprintf" = yes ; then
 		unset ac_cv_func_snprintf
+		AC_CHECK_HEADERS(snprintf.h)
 		AC_CHECK_FUNCS(snprintf)
 	fi
 fi
@@ -430,12 +497,12 @@ main()
 }
 ],[
 	# action if true
-	wi_cv_snprintf_terminates=no
+	wi_cv_snprintf_terminates=yes
 	AC_DEFINE(SNPRINTF_TERMINATES)
 	x="yes";
 ],[
 	# action if false
-  	wi_cv_snprintf_terminates=yes
+  	wi_cv_snprintf_terminates=no
 	x="no";
 ],[
 	# action if cross compiling
@@ -456,8 +523,6 @@ unset ac_cv_func_vsnprintf
 
 AC_CHECK_FUNCS(snprintf vsnprintf)
 wi_SNPRINTF_TERMINATES
-
-AC_CHECK_HEADERS(snprintf.h)
 wi_LIB_SNPRINTF
 ])
 dnl
@@ -632,11 +697,11 @@ wi_LIB_44BSD
 wi_LIB_SOCKET
 
 if test "$SYS" = unixware ; then
-	# So far, only UnixWare needs this.
-	AC_CHECK_LIB(gen,syslog)
-
 	case "$OS" in
 		unixware2*)
+			# So far, only UnixWare needs this.
+			AC_CHECK_LIB(gen,syslog)
+
 			if test -f /usr/ucblib/libucb.a ; then
 				LDFLAGS="$LDFLAGS -L/usr/ucblib"
 				LIBS="$LIBS -lucb"
@@ -1668,8 +1733,12 @@ else
 		#
 		wi_cv_printf_long_long="%qd"
 	fi
+	wi_cv_printf_ulong_long=`echo "$wi_cv_printf_long_long" | sed 's/d$/u/;'`
+	wi_cv_scanf_ulong_long=`echo "$wi_cv_scanf_long_long" | sed 's/d$/u/;'`
 	AC_DEFINE_UNQUOTED(PRINTF_LONG_LONG, "$wi_cv_printf_long_long")
 	AC_DEFINE_UNQUOTED(SCANF_LONG_LONG , "$wi_cv_scanf_long_long")
+	AC_DEFINE_UNQUOTED(PRINTF_ULONG_LONG, "$wi_cv_printf_ulong_long")
+	AC_DEFINE_UNQUOTED(SCANF_ULONG_LONG , "$wi_cv_scanf_ulong_long")
 	if test "$wi_cv_printf_long_long" = "%qd" ; then
 		AC_DEFINE(PRINTF_LONG_LONG_QD)
 	else
@@ -1690,12 +1759,12 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_CREATE_TAR_FILES, [
+AC_PATH_PROG(TAR, "gtar", "tar")
+if test "$TAR" = "tar" ; then
+	AC_PATH_PROG(TAR, "tar", "tar")
+fi
 AC_MSG_CHECKING([how to create TAR files])
 changequote(<<, >>)dnl
-TAR=/usr/bin/tar
-if [ ! -f /usr/bin/tar ] && [ -f /bin/tar ] ; then
-	TAR=/bin/tar
-fi
 x=""
 if [ -x /usr/bin/what ] ; then
 	x=`/usr/bin/what "$TAR" 2>&1 | sed -n 's/.*pax.*/pax/g;/pax/p'`
@@ -1714,13 +1783,6 @@ case "$x" in
 		;;
 	*)
 		TARFLAGS="cvf"
-		x2=`gtar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
-		case "$x2" in
-			*owner=NAME*)
-				TARFLAGS="-c --owner=root --group=bin --verbose -f"
-				TAR=gtar
-				;;
-		esac
 		;;
 esac
 changequote([, ])dnl
@@ -1866,10 +1928,10 @@ AC_DEFINE(HAVE__MAXX)
 AC_MSG_RESULT([_maxx])
 ])
 
-	AC_CHECK_FUNCS(__getmaxx __getmaxy __getbegx __getbegy)
+	AC_CHECK_FUNCS(__getcurx __getcury __getmaxx __getmaxy __getbegx __getbegy)
 
-	# getbegx
-	AC_MSG_CHECKING([for getbegx() functionality in curses library])
+	# getcurx
+	AC_MSG_CHECKING([for getcurx() functionality in curses library])
 	AC_TRY_LINK([
 	/* includes */
 #ifdef HAVE_UNISTD_H
@@ -1891,15 +1953,46 @@ AC_MSG_RESULT([_maxx])
 	WINDOW *junk = 0;
 	int mx = 0;
 
-	mx = getbegx(junk);
+	mx = getcurx(junk);
 	exit(0);
 ],[
-	AC_DEFINE(HAVE_GETBEGX)
+	AC_DEFINE(HAVE_GETCURX)
 	AC_MSG_RESULT([yes])
 ],[
 	AC_MSG_RESULT([no])
 ])
 
+	# getyx
+	AC_MSG_CHECKING([for getyx() functionality in curses library])
+	AC_TRY_LINK([
+	/* includes */
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#ifdef HAVE_NCURSES_H
+#	include <ncurses.h>
+#else
+#	include <curses.h>
+#endif
+
+],[
+	/* function-body */
+	WINDOW *junk = 0;
+	int mx = 0, my = 0;
+
+	getyx(junk, my, mx);
+	exit(0);
+],[
+	AC_DEFINE(HAVE_GETYX)
+	AC_MSG_RESULT([yes])
+],[
+	AC_MSG_RESULT([no])
+])
 
 	# getmaxx
 	AC_MSG_CHECKING([for getmaxx() functionality in curses library])
@@ -1958,6 +2051,69 @@ AC_MSG_RESULT([_maxx])
 	exit(my < 0 ? my : 0);
 ],[
 	AC_DEFINE(HAVE_GETMAXYX)
+	AC_MSG_RESULT([yes])
+],[
+	AC_MSG_RESULT([no])
+])
+
+	# getbegx
+	AC_MSG_CHECKING([for getbegx() functionality in curses library])
+	AC_TRY_LINK([
+	/* includes */
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#ifdef HAVE_NCURSES_H
+#	include <ncurses.h>
+#else
+#	include <curses.h>
+#endif
+
+],[
+	/* function-body */
+	WINDOW *junk = 0;
+	int mx = 0;
+
+	mx = getbegx(junk);
+	exit(0);
+],[
+	AC_DEFINE(HAVE_GETBEGX)
+	AC_MSG_RESULT([yes])
+],[
+	AC_MSG_RESULT([no])
+])
+
+	# getbegyx
+	AC_MSG_CHECKING([for getbegyx() functionality in curses library])
+	AC_TRY_LINK([
+	/* includes */
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#ifdef HAVE_NCURSES_H
+#	include <ncurses.h>
+#else
+#	include <curses.h>
+#endif
+],[
+	/* function-body */
+	WINDOW *junk = 0;
+	int mx = 0, my = 0;
+
+	getbegyx(junk, my, mx);
+	exit(my < 0 ? my : 0);
+],[
+	AC_DEFINE(HAVE_GETBEGYX)
 	AC_MSG_RESULT([yes])
 ],[
 	AC_MSG_RESULT([no])
@@ -2031,13 +2187,26 @@ dnl
 AC_DEFUN(wi_SHADOW_FUNCS, [
 AC_CHECK_FUNCS(md5_crypt md5crypt bcrypt getspnam)
 
-# UnixWare 7
 if test "$ac_cv_func_getspnam" = no ; then
 	unset ac_cv_func_getspnam
 	AC_CHECK_LIB(gen,getspnam)
 	if test "$ac_cv_lib_gen_getspnam" = yes ; then
 		AC_CHECK_FUNCS(getspnam)
 	fi
+elif test "$ac_cv_func_getspnam" = yes ; then
+	# Special hack to be sure UnixWare 7.1 uses -lgen for getspnam.
+	# The reason we do this is so that the binary can be used on
+	# SCO 5.0.6 with the UDK compatibility libraries installed,
+	# For some reason, on UW7.1 getspnam is in the standard library and
+	# libgen, but on SCO/UDK it is only in libgen.
+	#
+	case "$OS" in
+		unixware2*)
+			;;
+		unixware*)
+			AC_CHECK_LIB(gen,getspnam)
+			;;
+	esac
 fi
 
 # AIX
@@ -2139,8 +2308,8 @@ fi
 host=`uname -n 2>/dev/null | tr '[A-Z]' '[a-z]'`
 os=`uname -s 2>/dev/null | tr '[A-Z]' '[a-z]'`
 dnl work around inability to use $1
-os_v=`uname -v 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.]*$//;s/pre.*//;s/test.*//' | awk '-F[-/: ]' '{n = 1; print $n; }'`
-os_r=`uname -r 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.]*$//;s/pre.*//;s/test.*//' | awk '-F[-/: ]' '{n = 1; print $n; }'`
+os_v=`uname -v 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.].*$//;' | awk '-F[-/: ]' '{n = 1; print $n; }'`
+os_r=`uname -r 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.].*$//;' | awk '-F[-/: ]' '{n = 1; print $n; }'`
 os_r1=`echo "${os_r}" | cut -c1`
 arch=`uname -m 2>/dev/null | tr '[A-Z]' '[a-z]'`
 archp=`uname -p 2>/dev/null | tr '[A-Z]' '[a-z]'`
@@ -2220,7 +2389,19 @@ case "$os" in
 	sco*)
 		OS=scosv
 		SYS=sco
-		NDEFS="$NDEFS -DSCO=$os_r1"
+		os_v1=`echo "$os_v" | cut -d. -f1`
+		case "$os_v1" in
+			[1-9])
+				os_v2=`echo "$os_v" | cut -d. -f2`
+				os_v3=`echo "$os_v" | cut -d. -f3`
+				if [ "$os_v3" = "" ] ; then os_v3=0 ; fi
+				os_int=`expr "$os_v1" '*' 100 + "$os_v2" '*' 10 + "$os_v3"`
+				NDEFS="$NDEFS -DSCO=$os_int"
+				;;
+			*)
+				NDEFS="$NDEFS -DSCO=1"
+				;;
+		esac
 		;;
 	dynix*)
 		OS="dynixptx${os_v}"
@@ -2331,9 +2512,22 @@ EOF
 		OS="ultrix-$arch"
 		SYS=ultrix
 		;;
-	unixware|eeyore)
+	unixware)
 		OS="unixware${os_v}"
 		SYS=unixware
+		os_v1=`echo "$os_v" | cut -d. -f1`
+		case "$os_v1" in
+			[1-9])
+				os_v2=`echo "$os_v" | cut -d. -f2`
+				os_v3=`echo "$os_v" | cut -d. -f3`
+				if [ "$os_v3" = "" ] ; then os_v3=0 ; fi
+				os_int=`expr "$os_v1" '*' 100 + "$os_v2" '*' 10 + "$os_v3"`
+				NDEFS="$NDEFS -DUNIXWARE=$os_int"
+				;;
+			*)
+				NDEFS="$NDEFS -DUNIXWARE=1"
+				;;
+		esac
 		;;
 	macos*|darwin|rhapsody)
 		OS="macosx"

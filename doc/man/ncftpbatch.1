@@ -1,6 +1,6 @@
 .TH ncftpbatch 1 NcFTP Software
 .SH NAME
-ncftpbatch - Batch FTP job processor daemon
+ncftpbatch - Individual batch FTP job processor
 .SH "SYNOPSIS"
 .PP
 .B ncftpbatch
@@ -59,14 +59,17 @@ those utilities'
 .B \-b
 command-line flag.
 If desired, you can also manually create the spool files
-although this procedure is not documented here.
+although this procedure is not documented here (see the manual
+page for
+.I ncftpspooler
+for more information on how to do that).
 .\"-------
 .SH "DIAGNOSTICS"
 .\"-------
 .PP
 .I ncftpbatch
 writes to its own log file, the 
-$HOME/.ncftp/batchlog file.
+$HOME/.ncftp/spool/log file.
 This file should be examined to determine if any
 .I ncftpbatch
 processes are actively working on jobs.

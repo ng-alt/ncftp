@@ -17,6 +17,8 @@
 /* Define if you have sigsetjmp and siglongjmp. */
 #undef HAVE_SIGSETJMP
 
+#undef HAVE_STRUCT_STAT64
+
 /* Define to `int' if <sys/types.h> doesn't define.  */
 #undef mode_t
 
@@ -35,6 +37,9 @@
 /* Define if printing a "long long" with "%qd" works . */
 #undef PRINTF_LONG_LONG_QD
 
+/* Format string for the printf() family for 64 bit unsigned integers. */
+#undef PRINTF_ULONG_LONG
+
 /* Format string for the scanf() family for 64 bit integers. */
 #undef SCANF_LONG_LONG
 
@@ -43,6 +48,9 @@
 
 /* Define if scanning a "long long" with "%qd" works. */
 #undef SCANF_LONG_LONG_QD
+
+/* Format string for the scanf() family for 64 bit unsigned integers. */
+#undef SCANF_ULONG_LONG
 
   
 /* Define to the type of arg1 for select(). */
@@ -61,6 +69,9 @@
 
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
+
+/* If SOCKS library is being used, define the major version (i.e. 5) */
+#undef SOCKS
 
 /* Define if you have the ANSI C header files.  */
 #undef STDC_HEADERS
@@ -157,6 +168,9 @@
 
 /* Define if you have the <resolv.h> header file.  */
 #undef HAVE_RESOLV_H
+
+/* Define if you have the <socks.h> header file.  */
+#undef HAVE_SOCKS_H
 
 /* Define if you have the <sys/select.h> header file.  */
 #undef HAVE_SYS_SELECT_H

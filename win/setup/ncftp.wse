@@ -1,7 +1,7 @@
 Document Type: WSE
 item: Global
-  Version=8.13
-  Title=NcFTP 3.0.3 Installation
+  Version=8.14
+  Title=NcFTP 3.0.4 Installation
   Flags=00010100
   Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
   Copy Default=1
@@ -21,13 +21,13 @@ item: Global
   Patch Flags=0000000000000001
   Patch Threshold=85
   Patch Memory=4000
-  EXE Filename=ncftp-3.0.3-win32.exe
+  EXE Filename=ncftp-3.0.4-win32.exe
   FTP Cluster Size=20
   Per-User Version ID=1
   Dialogs Version=7
   Crystal Format=01111101101100000010001001001001
   Crystal Destination=00000000000000000000000000001011
-  Distribute Path=t:\
+  Distribute Path=\\redwing\tmp
   Distribute Type=1
   Step View=Properties
   Variable Name1=_SYS_
@@ -37,7 +37,7 @@ item: Global
   Variable Default2=C:\WINDOWS
   Variable Flags2=00001000
   Variable Name3=_WISE_
-  Variable Default3=D:\Program Files\Wise InstallMaster 8.0
+  Variable Default3=C:\PROGRAM FILES\WISE INSTALLMASTER 8.0
   Variable Flags3=00001000
   Variable Name4=_ALIASNAME_
   Variable Flags4=00001000
@@ -49,7 +49,7 @@ item: Global
   Variable Default7=D:\WINNT\System32
   Variable Flags7=00001000
   Variable Name8=_ODBC32_
-  Variable Default8=D:\PROGRA~1\WISEIN~1.0\Runtime\ODBC30
+  Variable Default8=C:\PROGRA~1\WISEIN~1.0\RUNTIME\ODBC30
   Variable Flags8=00001000
 end
 item: Get Temporary Filename
@@ -115,7 +115,7 @@ item: Remark
 end
 item: Set Variable
   Variable=APPTITLE
-  Value=NcFTP 3.0.3
+  Value=NcFTP 3.0.4
   Flags=10000000
 end
 item: Remark
@@ -1332,6 +1332,13 @@ item: If/While Statement
   Flags=00001010
 end
 item: Install File
+  Source=d:\src\win\ncftp\doc\html\ncftpspooler.html
+  Destination=%MAINDIR%\doc\html\ncftpspooler.html
+  Flags=0000000010000010
+  File Size=13542
+  File Date=20011020 115410
+end
+item: Install File
   Source=d:\src\win\ncftp\doc\html\index.html
   Destination=%MAINDIR%\doc\html\index.html
   Flags=0000000010000010
@@ -1379,6 +1386,13 @@ item: If/While Statement
   Variable=COMPONENTS
   Value=F
   Flags=00001010
+end
+item: Install File
+  Source=d:\src\win\ncftp\doc\man\ncftpspooler.1
+  Destination=%MAINDIR%\doc\man\ncftpspooler.1
+  Flags=0000000010000010
+  File Size=12338
+  File Date=20011020 103738
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\man\ncftpput.1

@@ -71,6 +71,14 @@
 #	ifndef unlink
 #		define unlink remove
 #	endif
+#	define HAVE_SNPRINTF 1
+#	define HAVE_VSNPRINTF 1
+#	ifndef vsnprintf
+#		define vsnprintf _vsnprintf
+#	endif
+#	ifndef snprintf
+#		define snprintf _snprintf
+#	endif
 #	define uid_t int
 #	define NO_SIGNALS 1
 #	define USE_SIO 1
@@ -78,6 +86,11 @@
 #		define FOPEN_READ_TEXT "rt"
 #		define FOPEN_WRITE_TEXT "wt"
 #		define FOPEN_APPEND_TEXT "at"
+#	endif
+#	ifndef FOPEN_READ_BINARY
+#		define FOPEN_READ_BINARY "rb"
+#		define FOPEN_WRITE_BINARY "wb"
+#		define FOPEN_APPEND_BINARY "ab"
 #	endif
 #	pragma warning( pop )
 #else	/* UNIX */
@@ -138,6 +151,11 @@
 #		define FOPEN_WRITE_TEXT "w"
 #		define FOPEN_APPEND_TEXT "a"
 #	endif
+#	ifndef FOPEN_READ_BINARY
+#		define FOPEN_READ_BINARY "r"
+#		define FOPEN_WRITE_BINARY "w"
+#		define FOPEN_APPEND_BINARY "a"
+#	endif
 #	define DisposeWinsock(a) sleep(1)
 #endif	/* UNIX */
 
@@ -189,6 +207,11 @@
 #	define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #endif
 
+#if (defined(SOCKS)) && (SOCKS >= 5)
+#	ifdef HAVE_SOCKS_H
+#		include <socks.h>
+#	endif
+#endif	/* SOCKS */
 
 #include <Strn.h>			/* Library header. */
 #include <ncftp.h>			/* Library header. */

@@ -80,6 +80,12 @@
 /* Define if your curses library has this functionality. */
 #undef HAVE_GETBEGX
 
+/* Define if your curses library has this functionality. */
+#undef HAVE_GETBEGYX
+
+/* Define if your curses library has this functionality. */
+#undef HAVE_GETCURX
+
 /* Define if your system has its own `getloadavg' function.  */
 #undef HAVE_GETLOADAVG
 
@@ -91,6 +97,9 @@
 
 /* Define if you have the getmntent function.  */
 #undef HAVE_GETMNTENT
+
+/* Define if your curses library has this functionality. */
+#undef HAVE_GETYX
 
 /* Define if you have <hpsecurity.h>.  */
 #undef HAVE_HPSECURITY_H
@@ -272,6 +281,9 @@
 /* Define if printing a "long long" with "%qd" works . */
 #undef PRINTF_LONG_LONG_QD
 
+/* Format string for the printf() family for 64 bit unsigned integers. */
+#undef PRINTF_ULONG_LONG
+
 /* Define if your C compiler supports ANSI C function prototyping. */
 #undef PROTOTYPES
 
@@ -286,6 +298,9 @@
 
 /* Define if scanning a "long long" with "%qd" works. */
 #undef SCANF_LONG_LONG_QD
+
+/* Format string for the scanf() family for 64 bit unsigned integers. */
+#undef SCANF_ULONG_LONG
   
 /* Define to the type of arg1 for select(). */
 #undef SELECT_TYPE_ARG1
@@ -309,6 +324,9 @@
 
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
+
+/* If SOCKS library is being used, define the major version (i.e. 5) */
+#undef SOCKS
 
 #undef SNPRINTF_TERMINATES
 

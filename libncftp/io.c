@@ -407,6 +407,10 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const LineListPt
 			dcp = lsflags1;
 			lim = lsflags1 + sizeof(lsflags1) - 2;
 			for (; *scp != '\0'; scp++) {
+				if (isspace(*scp))
+					continue;
+				if (*scp == '-')
+					continue;
 				if (*scp == 'l') {
 					/* do not add the 'l' */
 					command = "LIST";
@@ -577,6 +581,58 @@ AutomaticallyUseASCIIModeDependingOnExtension(const FTPCIPtr cip, const char *co
 
 
 
+static void
+FTPCheckForRestartModeAvailability(const FTPCIPtr cip)
+{
+	if (cip->hasREST == kCommandAvailabilityUnknown) {
+		(void) FTPSetTransferType(cip, kTypeBinary);
+		if (SetStartOffset(cip, (longest_int) 1) == kNoErr) {
+			/* Now revert -- we still may not end up
+			 * doing it.
+			 */
+			SetStartOffset(cip, (longest_int) -1);
+		}
+	}
+}	/* FTPCheckForRestartModeAvailability */
+
+
+
+
+static void
+FTPSetUploadSocketBufferSize(const FTPCIPtr cip)
+{
+	/* If dataSocketSBufSize is non-zero, it means you
+	 * want to explicitly try to set the size of the
+	 * socket's I/O buffer.
+	 *
+	 * If it is zero, it means you want to just use the
+	 * TCP stack's default value, which is typically
+	 * between 8 and 64 kB.
+	 *
+	 * If you try to set the buffer larger than 64 kB,
+	 * the TCP stack should try to use RFC 1323 to
+	 * negotiate "TCP Large Windows" which may yield
+	 * significant performance gains.
+	 */
+	if ((cip->numUploads == 0) && (cip->dataSocketSBufSize > 0)) {
+		if (cip->hasSTORBUFSIZE == kCommandAvailable)
+			(void) FTPCmd(cip, "SITE STORBUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
+		else if (cip->hasSBUFSIZ == kCommandAvailable)
+			(void) FTPCmd(cip, "SITE SBUFSIZ %lu", (unsigned long) cip->dataSocketSBufSize);
+		else if (cip->hasSBUFSZ == kCommandAvailable)
+			(void) FTPCmd(cip, "SITE SBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
+		/* At least one server implemenation has RBUFSZ but not
+		 * SBUFSZ and instead uses RBUFSZ for both.
+		 */
+		else if ((cip->hasSBUFSZ != kCommandAvailable) && (cip->hasRBUFSZ == kCommandAvailable))
+			(void) FTPCmd(cip, "SITE RBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
+		else if (cip->hasBUFSIZE == kCommandAvailable)
+			(void) FTPCmd(cip, "SITE BUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
+	}
+}	/* FTPSetUploadSocketBufferSize */
+
+
+
 
 /* The purpose of this is to provide updates for the progress meters
  * during lags.  Return zero if the operation timed-out.
@@ -718,14 +774,8 @@ FTPPutOneF(
 	/* For Put, we can't recover very well if it turns out restart
 	 * didn't work, so check beforehand.
 	 */
-	if (cip->hasREST == kCommandAvailabilityUnknown) {
-		(void) FTPSetTransferType(cip, kTypeBinary);
-		if (SetStartOffset(cip, (longest_int) 1) == kNoErr) {
-			/* Now revert -- we still may not end up
-			 * doing it.
-			 */
-			SetStartOffset(cip, (longest_int) -1);
-		}
+	if ((resumeflag == kResumeYes) || (resumeProc != NoConfirmResumeUploadProc)) {
+		FTPCheckForRestartModeAvailability(cip); 
 	}
 
 	if (fdtouse < 0) {
@@ -837,34 +887,7 @@ FTPPutOneF(
 		}
 	}
 
-	if ((cip->numUploads == 0) && (cip->dataSocketSBufSize > 0)) {
-		/* If dataSocketSBufSize is non-zero, it means you
-		 * want to explicitly try to set the size of the
-		 * socket's I/O buffer.
-		 *
-		 * If it is zero, it means you want to just use the
-		 * TCP stack's default value, which is typically
-		 * between 8 and 64 kB.
-		 *
-		 * If you try to set the buffer larger than 64 kB,
-		 * the TCP stack should try to use RFC 1323 to
-		 * negotiate "TCP Large Windows" which may yield
-		 * significant performance gains.
-		 */
-		if (cip->hasSTORBUFSIZE == kCommandAvailable)
-			(void) FTPCmd(cip, "SITE STORBUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
-		else if (cip->hasSBUFSIZ == kCommandAvailable)
-			(void) FTPCmd(cip, "SITE SBUFSIZ %lu", (unsigned long) cip->dataSocketSBufSize);
-		else if (cip->hasSBUFSZ == kCommandAvailable)
-			(void) FTPCmd(cip, "SITE SBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
-		/* At least one server implemenation has RBUFSZ but not
-		 * SBUFSZ and instead uses RBUFSZ for both.
-		 */
-		else if ((cip->hasSBUFSZ != kCommandAvailable) && (cip->hasRBUFSZ == kCommandAvailable))
-			(void) FTPCmd(cip, "SITE RBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
-		else if (cip->hasBUFSIZE == kCommandAvailable)
-			(void) FTPCmd(cip, "SITE BUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
-	}
+	FTPSetUploadSocketBufferSize(cip);
 
 #ifdef NO_SIGNALS
 	vzaction = zaction;
@@ -1242,7 +1265,7 @@ brk:
 				Error(cip, kDontPerror, "Could not preserve times for %s: %s.\n", odstfile, FTPStrError(cip->errNo));
 		}
 
-		if (deleteflag == kDeleteYes) {
+		if ((result == kNoErr) && (deleteflag == kDeleteYes)) {
 			if (unlink(file) < 0) {
 				result = cip->errNo = kErrLocalDeleteFailed;
 			}
@@ -1413,6 +1436,220 @@ FTPPutFiles3(
 		cip->errNo = batchResult;
 	return (batchResult);
 }	/* FTPPutFiles3 */
+
+
+
+int
+FTPPutFileFromMemory(
+	const FTPCIPtr cip,
+	const char *volatile dstfile,
+	const char *volatile src,
+	const size_t srcLen,
+	const int appendflag)
+{
+	char *buf, *cp;
+	const char *cmd;
+	int tmpResult, result;
+	int nread, nwrote;
+	size_t bufSize;
+	const char *srcLim;
+	const char *volatile srcp;
+#if !defined(NO_SIGNALS)
+	int sj;
+	volatile FTPSigProc osigpipe;
+	volatile FTPCIPtr vcip;
+#endif	/* NO_SIGNALS */
+
+	if (cip->buf == NULL) {
+		Error(cip, kDoPerror, "Transfer buffer not allocated.\n");
+		cip->errNo = kErrNoBuf;
+		return (cip->errNo);
+	}
+
+	cip->usingTAR = 0;
+
+	/* For Put, we can't recover very well if it turns out restart
+	 * didn't work, so check beforehand.
+	 */
+	FTPCheckForRestartModeAvailability(cip); 
+
+	FTPSetUploadSocketBufferSize(cip);
+
+#ifdef NO_SIGNALS
+#else	/* NO_SIGNALS */
+	vcip = cip;
+	osigpipe = (volatile FTPSigProc) signal(SIGPIPE, BrokenData);
+
+	gGotBrokenData = 0;
+	gCanBrokenDataJmp = 0;
+
+#ifdef HAVE_SIGSETJMP
+	sj = sigsetjmp(gBrokenDataJmp, 1);
+#else
+	sj = setjmp(gBrokenDataJmp);
+#endif	/* HAVE_SIGSETJMP */
+
+	if (sj != 0) {
+		(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
+		FTPShutdownHost(vcip);
+		vcip->errNo = kErrRemoteHostClosedConnection;
+		return(vcip->errNo);
+	}
+	gCanBrokenDataJmp = 1;
+#endif	/* NO_SIGNALS */
+
+	cmd = appendflag == kAppendYes ? "APPE" : "STOR";
+	tmpResult = FTPStartDataCmd(
+		cip,
+		kNetWriting,
+		kTypeBinary,
+		(longest_int) 0,
+		"%s %s",
+		cmd,
+		dstfile
+	);
+
+	if (tmpResult < 0) {
+		cip->errNo = tmpResult;
+#if !defined(NO_SIGNALS)
+		(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
+#endif	/* NO_SIGNALS */
+		return (cip->errNo);
+	}
+
+	result = kNoErr;
+	buf = cip->buf;
+	bufSize = cip->bufSize;
+
+	FTPInitIOTimer(cip);
+	cip->expectedSize = srcLen;
+	cip->lname = NULL;	/* could be NULL */
+	cip->rname = dstfile;
+	srcp = src;
+	srcLim = src + srcLen;
+	FTPStartIOTimer(cip);
+	{
+		/* binary */
+		for (;;) {
+#if !defined(NO_SIGNALS)
+			gCanBrokenDataJmp = 0;
+#endif	/* NO_SIGNALS */
+			nread = bufSize;
+			if ((size_t) (srcLim - srcp) < bufSize) {
+				nread = (int) (srcLim - srcp);
+				if (nread == 0) {
+					result = kNoErr;
+					break;
+				}
+			}
+			cip->bytesTransferred += (longest_int) nread;
+			cp = srcp;
+			srcp += nread;
+
+#if !defined(NO_SIGNALS)
+			gCanBrokenDataJmp = 1;
+			if (cip->xferTimeout > 0)
+				(void) alarm(cip->xferTimeout);
+#endif	/* NO_SIGNALS */
+			do {
+				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
+					cip->errNo = result = kErrDataTimedOut;
+					Error(cip, kDontPerror, "Remote write timed out.\n");
+					goto brk;
+				}
+				if (cip->cancelXfer > 0) {
+					FTPAbortDataTransfer(cip);
+					result = cip->errNo = kErrDataTransferAborted;
+					goto brk;
+				}
+
+#ifdef NO_SIGNALS
+				nwrote = SWrite(cip->dataSocket, cp, (size_t) nread, (int) cip->xferTimeout, kNoFirstSelect);
+				if (nwrote < 0) {
+					if (nwrote == kTimeoutErr) {
+						cip->errNo = result = kErrDataTimedOut;
+						Error(cip, kDontPerror, "Remote write timed out.\n");
+					} else if ((gGotBrokenData != 0) || (errno == EPIPE)) {
+						cip->errNo = result = kErrSocketWriteFailed;
+						errno = EPIPE;
+						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+					} else if (errno == EINTR) {
+						continue;
+					} else {
+						cip->errNo = result = kErrSocketWriteFailed;
+						Error(cip, kDoPerror, "Remote write failed.\n");
+					}
+					(void) shutdown(cip->dataSocket, 2);
+					cip->dataSocket = -1;
+					goto brk;
+				}
+#else	/* NO_SIGNALS */
+				nwrote = write(cip->dataSocket, cp, nread);
+				if (nwrote < 0) {
+					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
+						cip->errNo = result = kErrSocketWriteFailed;
+						errno = EPIPE;
+						Error(cip, kDoPerror, "Lost data connection to remote host.\n");
+					} else if (errno == EINTR) {
+						continue;
+					} else {
+						cip->errNo = result = kErrSocketWriteFailed;
+						Error(cip, kDoPerror, "Remote write failed.\n");
+					}
+					(void) shutdown(cip->dataSocket, 2);
+					cip->dataSocket = -1;
+					goto brk;
+				}
+#endif	/* NO_SIGNALS */
+				cp += nwrote;
+				nread -= nwrote;
+			} while (nread > 0);
+			FTPUpdateIOTimer(cip);
+		}
+	}
+brk:
+	if (shutdown(cip->dataSocket, 1) == 0) {
+		/* This looks very bizarre, since
+		 * we will be checking the socket
+		 * for readability here!
+		 *
+		 * The reason for this is that we
+		 * want to be able to timeout a
+		 * small put.  So, we close the
+		 * write end of the socket first,
+		 * which tells the server we're
+		 * done writing.  We then wait
+		 * for the server to close down
+		 * the whole socket, which tells
+		 * us that the file was completed.
+		 */
+		(void) WaitForRemoteInput(cip);	/* Close could block. */
+	}
+
+#if !defined(NO_SIGNALS)
+	gCanBrokenDataJmp = 0;
+	if (cip->xferTimeout > 0)
+		(void) alarm(0);
+#endif	/* NO_SIGNALS */
+	tmpResult = FTPEndDataCmd(cip, 1);
+	if ((tmpResult < 0) && (result == kNoErr)) {
+		cip->errNo = result = kErrSTORFailed;
+	}
+	FTPStopIOTimer(cip);
+
+	if (result == kNoErr) {
+		/* The store succeeded;  If we were
+		 * uploading to a temporary file,
+		 * move the new file to the new name.
+		 */
+		cip->numUploads++;
+	}
+
+#if !defined(NO_SIGNALS)
+	(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
+#endif	/* NO_SIGNALS */
+	return (result);
+}	/* FTPPutFileFromMemory */
 
 
 
@@ -1888,15 +2125,7 @@ FTPGetOneF(
 		 * didn't work, so check beforehand.
 		 */
 		if ((resumeflag == kResumeYes) || (resumeProc != NoConfirmResumeDownloadProc)) {
-			if (cip->hasREST == kCommandAvailabilityUnknown) {
-				(void) FTPSetTransferType(cip, kTypeBinary);
-				if (SetStartOffset(cip, (longest_int) 1) == kNoErr) {
-					/* Now revert -- we still may not end up
-					 * doing it.
-					 */
-					SetStartOffset(cip, (longest_int) -1);
-				}
-			}
+			FTPCheckForRestartModeAvailability(cip); 
 		}
 
 		if (appendflag == kAppendYes) {

@@ -8,10 +8,10 @@
 #define _libncftp_ftp_c_
 #include "syshdrs.h"
 
-char gLibNcFTPVersion[64] = kLibraryVersion;
+const char gLibNcFTPVersion[64] = kLibraryVersion;
 
 #ifdef NO_SIGNALS
-static char gNoSignalsMarker[] = "@(#) LibNcFTP - NO_SIGNALS";
+static const char gNoSignalsMarker[] = "@(#) LibNcFTP - NO_SIGNALS";
 #else
 
 static int gGotSig = 0;
@@ -25,7 +25,7 @@ static jmp_buf gCancelConnectJmp;
 
 
 #ifndef lint
-static char gCopyright[] = "@(#) LibNcFTP Copyright 1995-2000, by Mike Gleason.  All rights reserved.";
+static const char gCopyright[] = "@(#) LibNcFTP Copyright 1995-2001, by Mike Gleason.  All rights reserved.";
 #endif
 
 #ifdef HAVE_LIBSOCKS5
@@ -1029,7 +1029,7 @@ BindToEphemeralPortNumber(int sockfd, struct sockaddr_in *addrp, int ephemLo, in
 		result = 0;
 		for (i=0; i<10; i++) {
 			port = (unsigned short) (((int) rand() % rangesize) + (int) ephemLo);
-			addrp->sin_port = port;
+			addrp->sin_port = htons(port);
 
 			result = bind(sockfd, (struct sockaddr *) addrp, sizeof(struct sockaddr_in));
 			if (result == 0)
