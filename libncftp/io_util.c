@@ -64,7 +64,7 @@ FTPUpdateIOTimer(const FTPCIPtr cip)
 	time_t now;
 
 	(void) time(&now);
-	if (now < cip->nextProgressUpdate)
+	if ((now < cip->nextProgressUpdate) && (cip->canceling == 0))
 		return;
 	now += 1;
 	cip->nextProgressUpdate = now;
@@ -145,6 +145,11 @@ WaitForRemoteInput(const FTPCIPtr cip)
 	if (fd < 0)
 		return (1);
 
+	if (cip->dataTimedOut > 0) {
+		cip->dataTimedOut++;
+		return (0);	/* already timed-out */
+	}
+
 	ocancelXfer = cip->cancelXfer;
 	wsecs = 0;
 	cip->stalled = 0;
@@ -172,10 +177,9 @@ WaitForRemoteInput(const FTPCIPtr cip)
 			cip->stalled = 0;
 			return (1);
 		} else if (result < 0) {
-			if (result != EINTR) {
-				perror("select");
+			if (errno != EINTR) {
 				cip->stalled = 0;
-				return (1);
+				return (1);	/* Ready to read error */
 			}
 		} else {
 			wsecs++;
@@ -191,7 +195,7 @@ WaitForRemoteInput(const FTPCIPtr cip)
 	(void) kill(getpid(), SIGALRM);
 #endif	/* NO_SIGNALS */
 
-	cip->dataTimedOut = 1;
+	cip->dataTimedOut++;
 	return (0);	/* timed-out */
 }	/* WaitForRemoteInput */
 
@@ -219,6 +223,11 @@ WaitForRemoteOutput(const FTPCIPtr cip)
 	fd = cip->dataSocket;
 	if (fd < 0)
 		return (1);
+
+	if (cip->dataTimedOut > 0) {
+		cip->dataTimedOut++;
+		return (0);	/* already timed-out */
+	}
 
 	ocancelXfer = cip->cancelXfer;
 	wsecs = 0;
@@ -248,9 +257,8 @@ WaitForRemoteOutput(const FTPCIPtr cip)
 			return (1);
 		} else if (result < 0) {
 			if (errno != EINTR) {
-				perror("select");
 				cip->stalled = 0;
-				return (1);
+				return (1);	/* Ready to read error */
 			}
 		} else {
 			wsecs++;
@@ -266,7 +274,7 @@ WaitForRemoteOutput(const FTPCIPtr cip)
 	(void) kill(getpid(), SIGALRM);
 #endif	/* NO_SIGNALS */
 
-	cip->dataTimedOut = 1;
+	cip->dataTimedOut++;
 	return (0);	/* timed-out */
 }	/* WaitForRemoteOutput */
 

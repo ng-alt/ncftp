@@ -11,7 +11,8 @@
 #endif
 
 /* Cheezy, but somewhat portable way to get GMT offset. */
-time_t GetUTCOffset(const int mon, const int mday)
+time_t
+GetUTCOffset2(const int year, const int mon, const int mday, const int hour, const int min)
 {
 #ifdef HAVE_MKTIME
 	struct tm local_tm, utc_tm, *utc_tmptr;
@@ -21,10 +22,11 @@ time_t GetUTCOffset(const int mon, const int mday)
 	ZERO(utc_tm);
 	utcOffset = 0;
 	
-	local_tm.tm_year = 94;	/* Doesn't really matter. */
+	local_tm.tm_year = year;
 	local_tm.tm_mon = mon - 1;
 	local_tm.tm_mday = mday;
-	local_tm.tm_hour = 12;
+	local_tm.tm_hour = hour;
+	local_tm.tm_min = min;
 	local_tm.tm_isdst = -1;
 	local_t = mktime(&local_tm);
 	
@@ -34,6 +36,7 @@ time_t GetUTCOffset(const int mon, const int mday)
 		utc_tm.tm_mon = utc_tmptr->tm_mon;
 		utc_tm.tm_mday = utc_tmptr->tm_mday;
 		utc_tm.tm_hour = utc_tmptr->tm_hour;
+		utc_tm.tm_min = utc_tmptr->tm_min;
 		utc_tm.tm_isdst = -1;
 		utc_t = mktime(&utc_tm);
 
@@ -44,4 +47,13 @@ time_t GetUTCOffset(const int mon, const int mday)
 #else
 	return ((time_t) -1);
 #endif	/* HAVE_MKTIME */
+}	/* GetUTCOffset2 */
+
+
+
+
+time_t
+GetUTCOffset(const int mon, const int mday)
+{
+	return (GetUTCOffset2(2000, mon, mday, 12, 0));
 }	/* GetUTCOffset */

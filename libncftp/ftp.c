@@ -590,10 +590,14 @@ CloseDataConnection(const FTPCIPtr cip)
 	if (cip->dataSocket != kClosedFileDescriptor) {
 #ifdef NO_SIGNALS
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-		/* This could block if we were uploading, but only if
-		 * linger mode was set.
-		 */
-		SClose(cip->dataSocket, cip->xferTimeout);
+		if (cip->dataSocketConnected != 0) {
+			/* This could block if we were uploading, but only if
+			 * linger mode was set.
+			 */
+			SClose(cip->dataSocket, cip->xferTimeout);
+		} else {
+			DisposeSocket(cip->dataSocket);
+		}
 #else
 		/* This could block, but only if
 		 * linger mode was set.
@@ -609,6 +613,7 @@ CloseDataConnection(const FTPCIPtr cip)
 #endif	/* NO_SIGNALS */
 		cip->dataSocket = kClosedFileDescriptor;
 	}
+	cip->dataSocketConnected = 0;
 	memset(&cip->ourDataAddr, 0, sizeof(cip->ourDataAddr));
 	memset(&cip->servDataAddr, 0, sizeof(cip->servDataAddr));
 }	/* CloseDataConnection */
@@ -823,6 +828,8 @@ OpenDataConnection(const FTPCIPtr cip, int mode)
 	int dataSocket;
 	int weirdPort;
 	int result;
+	int setsbufs;
+	size_t rbs, sbs;
 
 	/* Before we can transfer any data, and before we even ask the
 	 * remote server to start transferring via RETR/NLST/etc, we have
@@ -842,12 +849,25 @@ tryPort2:
 		return result;
 	}
 
-	/* This doesn't do anything if you left these
-	 * at their defaults (zero).  Otherwise it
-	 * tries to set the buffer size to the
-	 * size specified.
-	 */
-	(void) SetSocketBufSize(dataSocket, cip->dataSocketRBufSize, cip->dataSocketSBufSize);
+	if ((cip->dataSocketRBufSize != 0) || (cip->dataSocketRBufSize != 0)) {
+		(void) SetSocketBufSize(dataSocket, cip->dataSocketRBufSize, cip->dataSocketSBufSize);
+	} else if (GetSocketBufSize(dataSocket, &rbs, &sbs) == 0) {
+		/* Use maximum size buffers that qualify for TCP Small Windows
+		 * for file transfers.
+		 */
+		setsbufs = 0;
+		if (rbs < 65536) {
+			rbs = 65536;
+			setsbufs++;
+		}
+		if (sbs < 65536) {
+			sbs = 65536;
+			setsbufs++;
+		}
+		if (setsbufs > 0) {
+		        (void) SetSocketBufSize(dataSocket, rbs, sbs);
+		}
+	}
 
 	if ((cip->hasPASV == kCommandNotAvailable) || (mode == kSendPortMode)) {
 tryPort:

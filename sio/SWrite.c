@@ -49,7 +49,7 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
 			nwrote = (write_return_t) size - (write_return_t) nleft;
 			if (nwrote == 0) {
@@ -100,15 +100,15 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 	time_t done, now;
 	fd_set ss;
 	struct timeval tv;
-	int result, firstWrite;
+	int result, firstSelect;
 
 	nleft = (write_size_t) size;
 	time(&now);
 	done = now + tlen;
-	firstWrite = 1;
+	firstSelect = 1;
 
 	forever {
-		tleft = (int) (done - now);
+		tleft = (done > now) ? ((int) (done - now)) : 0;
 		if (tleft < 1) {
 			nwrote = (write_return_t) size - (write_return_t) nleft;
 			if (nwrote == 0) {
@@ -126,7 +126,7 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 		 * blocked after breaking this loop and starting
 		 * the write.
 		 */
-		if (!firstWrite || ((swopts & kNoFirstSelect) == 0)) {
+		if (!firstSelect || ((swopts & kNoFirstSelect) == 0)) {
 			forever {
 				errno = 0;
 				MY_FD_ZERO(&ss);
@@ -156,7 +156,7 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 					return (-1);
 				}
 			}
-			firstWrite = 0;
+			firstSelect = 0;
 		}
 		
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)

@@ -18,6 +18,9 @@ FilenameExtensionIndicatesASCII(const char *const pathName, const char *const ex
 	int c;
 	char extnPattern[16];
 
+	if ((pathName == NULL) || (pathName[0] == '\0'))
+		return (0);
+
 	extn = pathName + strlen(pathName) - 1;
 	forever {
 		if (extn <= pathName)

@@ -20,10 +20,10 @@ from "ncftp" and also the "-b" flag of "ncftpput" and
 Lastly, the "ncftpbookmarks" program is a utility
 program to manipulate user's FTP bookmarks.
 
-As always, your feedback and input is welcome.  Send it
-to ncftp@ncftp.com.  Unfortunately I can't guarantee
+As always, your feedback and input is welcome; Visit
+http://www.ncftp.com/support/ .  Unfortunately I can't guarantee
 a response due to the volume of mail, so I thank you
 in advance.
 
 Mike Gleason
-ncftp@ncftp.com
+http://www.ncftp.com

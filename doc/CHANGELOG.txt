@@ -1,7 +1,59 @@
 NcFTP Change Log:
 ================
 
+3.1.6, 2003-08-25
+
+  + Fixed an important bug that was causing socket leaks on Windows.
+
+  + Added support for GCC 3.4 precompiled headers.
+
+  + Aborting transfers is now more robust.
+
+  + Re-fixed a problem where high ASCII characters at the NcFTP prompt
+    could cause it to exit.
+
+  + Bug fixed where timeouts may not have worked.
+
+  + To the improved ASCII handling from 3.1.5, added another case where we
+    workaround files sent by a buggy FTP server implementation whose
+    files have CR+CR+LF end-of-lines.
+
+  + More fixes related to the above, as well as few other fixes from
+    Martin Storsj√.
+
+  + Bug fixed where an upload filename could have been limited to 127
+    characters.
+
+  + Firewall exception hosts are no longer case sensitive.
+
+  + Bug fixed in ncftpput's "-c" option so it works with the "-f" option
+    (Thanks, ITO Tsuyoshi).
+
+  + Ncftpbatch will now try to temporarily skip a failing host in the
+  current run (Thanks, Eric Engstrom).
+
+  + Bug fixed where a several minute delay would be incurred if you
+    tried to transfer a file that did not exist.
+
+  + For the malicious server problem that was addressed in 3.1.5, enhanced
+    the fix for better compatibility with Serv-U and WS_FTP servers.
+
+
 3.1.5, 2002-10-13
+
+  + Problem fixed where a malicious or trojaned FTP server could send back
+    pathnames with directories different from the directory requested.
+    For example, if you did:
+      cd /pub
+      get *.zip
+    the malicious server could
+    send back a pathname like ../../../some/other/dir/filename.here
+    rather than pathnames such as filename.zip and trick NcFTP into writing
+    into a different local pathname if your user privileges had permission
+    to write it.
+
+    For details, see the CERT Vulnerability Note, at
+      http://www.kb.cert.org/vuls/id/210409
 
  + Bug fixed where cd messages from remote server were not being displayed.
 

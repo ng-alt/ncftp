@@ -75,8 +75,8 @@ Usage(void)
   ncftpls -x \"-lrt\" ftp://ftp.wustl.edu/pub/\n");
 
 	(void) fprintf(fp, "\nLibrary version: %s.\n", gLibNcFTPVersion + 5);
-	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (mgleason@ncftp.com).\n");
-	(void) fprintf(fp, "This was built using LibNcFTP (http://www.ncftp.com/libncftp).\n");
+	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (http://www.ncftp.com).\n");
+	(void) fprintf(fp, "This was built using LibNcFTP (http://www.ncftp.com/libncftp/).\n");
 
 	ClosePager(fp);
 	DisposeWinsock();

@@ -62,7 +62,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 
 	time(&now);
 	done = now + tlen;
-	tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+	tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 	forever {
 		(void) alarm(tleft);
 		nread = recvmsg(sfd, (struct msghdr *) msg, fl);
@@ -73,7 +73,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = kTimeoutErr;
 			errno = ETIMEDOUT;
@@ -110,7 +110,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 
 	time(&now);
 	done = now + tlen;
-	tleft = (int) (done - now);
+	tleft = (done > now) ? ((int) (done - now)) : 0;
 	forever {
 				
 		for (;;) {
@@ -148,7 +148,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (int) (done - now);
+		tleft = (done > now) ? ((int) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = kTimeoutErr;
 			errno = ETIMEDOUT;

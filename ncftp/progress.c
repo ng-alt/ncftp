@@ -1,6 +1,6 @@
 /* progress.c
  *
- * Copyright (c) 1992-2002 by Mike Gleason.
+ * Copyright (c) 1992-2003 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -254,14 +254,16 @@ PrStatBar(const FTPCIPtr cip, int mode)
 				(void) STRNCAT(localName, ":");
 			}
 
-			if (cip->stalled < 2)
+			if (cip->canceling > 0)
+				stall = "X";
+			else if (cip->stalled < 2)
 				stall = " ";
 			else if (cip->stalled < 15)
 				stall = "-";
 			else
 				stall = "=";
 
-			(void) sprintf(line, "%-32s   ETA: %3d:%02d  %6.2f/%6.2f %.2s  %6.2f %.2s/s %.1s",
+			(void) sprintf(line, "%-32s  ETA: %3d:%02d  %6.2f/%6.2f %.2s  %6.2f %.2s/s %s ",
 				localName,
 				minLeft,
 				secLeft,

@@ -85,70 +85,100 @@ dnl
 dnl
 dnl
 dnl
+AC_DEFUN(wi_ARG_DISABLE_PRECOMP, [
+AC_ARG_ENABLE(ccdv,[  --disable-precomp       disable use of precompiled header files],use_precomp="$enableval",use_precomp=yes)
+])
+dnl
+dnl
+dnl
+dnl
 AC_DEFUN(wi_CC_PRECOMP, [
 AC_CACHE_CHECK([if the C compiler can use precompiled headers], [wi_cv_cc_precomp], [
 	result="no"
-	wi_cv_cc_precomp_type="unknown"
-	/bin/rm -f pchtest.h pchtest.p pchtest.o
-	cat <<EOF > pchtest.h
+	if test "${use_precomp-yes}" != no ; then
+		wi_cv_cc_precomp_type="unknown"
+		/bin/rm -f pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch pchtest.h.gch
+		cat <<EOF > pchtest.h
+/* pchtest.h */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #define FOOBAR 33	/* Make sure it can compile custom headers too */
 EOF
-	cat <<EOF > pchtest.c
+		cat <<EOF > pchtest.c
+/* pchtest.c */
 #include "pchtest.h"
 
-main() { exit(0); }
+main()
+{
+	if (FOOBAR == 33)
+		exit(0);
+	exit(1);
+}
 EOF
-	echo ${CC-cc} $CPPFLAGS -precomp pchtest.h -o pchtest.p >&5 
-	${CC-cc} $CPPFLAGS -precomp pchtest.h -o pchtest.p >&5 2>&5
-	if test -s pchtest.p ; then
-		AC_TRY_COMPILE([#include "pchtest.h"],[if (FOOBAR == 33) exit(0)],[result="yes" ; wi_cv_cc_precomp_type="gcc_dash_precomp"],[result="no"])
-	fi
-	if test "${result}_${SYS-aix}_${ac_cv_prog_gcc}" = "no_aix_no" ; then
-		#
-		# AIX xlc
-		#
-		echo ${CC-cc} $CPPFLAGS -qusepcomp -qgenpcomp pchtest.c -o pchtest >&5
-		${CC-cc} $CPPFLAGS -qusepcomp -qgenpcomp pchtest.c -o pchtest >&5 2>&5
-		if test -s pchtest ; then
-			result="yes"
-			wi_cv_cc_precomp_type="xlc"
-			wi_CFLAGS_TO_ADD_LATER="$wi_CFLAGS_TO_ADD_LATER -qusepcomp -qgenpcomp"
-		fi
-#	elif test "${result}_${SYS-irix}_${ac_cv_prog_gcc}" = "no_irix_no" ; then
-#		#
-#		# Note: IRIX 6.5/MIPSpro C doesn't seem to handle -pch right
-#		#
-#		:
-	else
-		#
-		# IRIX, Compaq C
-		#
-		cat <<EOF > pchtest.c
+		if test "$GCC" = yes ; then
+			#
+			# Try gcc 3.4's built-in implementation first
+			#
+			echo ${CC-cc} $CPPFLAGS pchtest.h -c >&5
+			${CC-cc} $CPPFLAGS pchtest.h -c >&5 2>&5
+			if test -f pchtest.h.gch ; then
+				#
+				# Good, the .gch file was created.
+				# Odds are we're good to go.
+				#
+				echo "Successfully compiled pchtest.h into the precompiled header file pchtest.h.gch." >&5
+				AC_TRY_COMPILE([#include "pchtest.h"],[if (FOOBAR == 33) exit(0)],[result="yes" ; wi_cv_cc_precomp_type="gcc_gch_files"],[result="no"])
+			else
+				echo "This version of GCC did not compile pchtest.h into the precompiled header file pchtest.h.gch." >&5
+				#
+				# See if Apple's implementation works.
+				#
+				echo ${CC-cc} $CPPFLAGS -precomp pchtest.h -o pchtest.p >&5 
+				${CC-cc} $CPPFLAGS -precomp pchtest.h -o pchtest.p >&5 2>&5
+				if test -s pchtest.p ; then
+					AC_TRY_COMPILE([#include "pchtest.h"],[if (FOOBAR == 33) exit(0)],[result="yes" ; wi_cv_cc_precomp_type="gcc_dash_precomp"],[result="no"])
+				fi
+			fi
+		elif test "${result}_${SYS-aix}_${GCC}" = "no_aix_no" ; then
+			#
+			# AIX xlc
+			#
+			echo ${CC-cc} $CPPFLAGS -qusepcomp -qgenpcomp pchtest.c -o pchtest >&5
+			${CC-cc} $CPPFLAGS -qusepcomp -qgenpcomp pchtest.c -o pchtest >&5 2>&5
+			if test -s pchtest ; then
+				result="yes"
+				wi_cv_cc_precomp_type="xlc"
+				wi_CFLAGS_TO_ADD_LATER="$wi_CFLAGS_TO_ADD_LATER -qusepcomp -qgenpcomp"
+			fi
+		else
+			#
+			# IRIX, Compaq C
+			#
+			cat <<EOF > pchtest.c
 #include "pchtest.h"
 #pragma hdrstop
 #include <stdarg.h>
 
 main() { exit(0); }
 EOF
-		for pchflags in "-pch -no_pch_messages" "-pch" "-LANG:pch"
-		do
-			/bin/rm -f pchtest.pch
-			echo ${CC-cc} $CPPFLAGS $pchflags pchtest.c -o pchtest >&5
-			${CC-cc} $CPPFLAGS $pchflags pchtest.c -o pchtest >&5 2>&5
-			if test -f pchtest.pch ; then
-				result="yes"
-				wi_cv_cc_precomp_type="ccc"
-				wi_CFLAGS_TO_ADD_LATER="$wi_CFLAGS_TO_ADD_LATER $pchflags"
-				AC_DEFINE(PRAGMA_HDRSTOP)
-				break
-			fi
-		done
-		unset pchflags
+			for pchflags in "-pch -no_pch_messages" "-pch" "-LANG:pch"
+			do
+				/bin/rm -f pchtest.pch
+				echo ${CC-cc} $CPPFLAGS $pchflags pchtest.c -o pchtest >&5
+				${CC-cc} $CPPFLAGS $pchflags pchtest.c -o pchtest >&5 2>&5
+				if test -f pchtest.pch ; then
+					result="yes"
+					wi_cv_cc_precomp_type="ccc"
+					wi_CFLAGS_TO_ADD_LATER="$wi_CFLAGS_TO_ADD_LATER $pchflags"
+					AC_DEFINE(PRAGMA_HDRSTOP)
+					break
+				fi
+			done
+			unset pchflags
+		fi
+		/bin/rm -f pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch pchtest.h.gch
 	fi
-	/bin/rm -f pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch
 	wi_cv_cc_precomp="$result"
 ])
 ])
@@ -372,7 +402,7 @@ AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE([wi_OS_VAR])
 ac_cv_hpux_flags=no
 if test "$os" = hp-ux ; then
-	if test "$ac_cv_prog_gcc" = yes ; then
+	if test "$GCC" = yes ; then
 		if test "$CFLAGS" != "" ; then
 			# Shouldn't be in there.
 changequote(<<, >>)dnl
@@ -470,7 +500,7 @@ case "$CFLAGS" in
 esac
 
 if test "$wi_os_default_cflags" = yes ; then
-	if test "$ac_cv_prog_gcc" = yes ; then
+	if test "$GCC" = yes ; then
 		#
 		# gcc
 		#
@@ -613,7 +643,7 @@ dnl
 dnl
 AC_DEFUN(wi_PROG_SUN_WORKSHOP_CC_VERSION, [
 AC_REQUIRE([AC_PROG_CC])
-if test "${SYS}_${ac_cv_prog_gcc}" != solaris_no ; then
+if test "${SYS}_${GCC}" != solaris_no ; then
 	wi_cv_cc_is_sunwspro_cc="no"
 	wi_cv_sunwspro_cc_version="0"
 	wi_cv_sunwspro_cc_version2="0"
@@ -656,7 +686,7 @@ dnl
 dnl
 AC_DEFUN(wi_PROG_GCC_VERSION, [
 AC_REQUIRE([AC_PROG_CC])
-if test "$ac_cv_prog_gcc" = yes ; then
+if test "$GCC" = yes ; then
 	AC_CACHE_CHECK([the version of GCC],[wi_cv_gcc_version], [
 changequote(<<, >>)dnl
 	wi_cv_gcc_version=`$CC -v 2>&1 | sed -n '/gcc version/{s/^.*gcc version//;s/^[^1-9]*//;s/\ .*//;p;q;}'`
@@ -711,14 +741,28 @@ AC_DEFUN(wi_CFLAGS, [AC_REQUIRE([AC_PROG_CC])
 	wi_PROG_SUN_WORKSHOP_CC_VERSION
 	wi_OS_DEFAULT_CFLAGS
 	wi_CFLAGS_NO_Y2K_WARNINGS
-	if test "$NOOPTCFLAGS" = "" ; then
 changequote(<<, >>)dnl
+	add_O0="no"
+	if [ "$NOOPTCFLAGS" = "" ] ; then
 		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[0-9A-Za-z]*//g;s/-xO[0-9]//g;s/-Wc,-O3//g;s/-IPA//g;s/-xipo//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
-changequote([, ])dnl
+		if [ "$GCC" = "yes" ] ; then
+			add_O0="yes"
+		else
+			case "$CC" in
+				ccc|*/ccc)
+					# Compaq CC
+					add_O0="yes"
+					;;
+			esac
+		fi
 	fi
-	if test "$DEBUGCFLAGS" = "" ; then
+	if [ "$DEBUGCFLAGS" = "" ] ; then
 		DEBUGCFLAGS="-g $NOOPTCFLAGS"
 	fi
+	if [ "$add_O0" = yes ] ; then
+		NOOPTCFLAGS="-O0 $NOOPTCFLAGS"
+	fi
+changequote([, ])dnl
 	#
 	# Was it ./configure --enable-debug ?
 	#
@@ -803,7 +847,7 @@ dnl
 AC_DEFUN(wi_CFLAGS_LFS64, [AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE([wi_OS_VAR])
 wi_CFLAGS
-if test "os_${os}_gcc_${ac_cv_prog_gcc}" = os_hp-ux_gcc_yes ; then
+if test "os_${os}_gcc_${GCC}" = os_hp-ux_gcc_yes ; then
 	wi_HPUX_GCC___STDC_EXT__
 fi
 case "$CFLAGS" in
@@ -811,6 +855,8 @@ case "$CFLAGS" in
 		;;
 	*)
 		CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"
+		DEBUGCFLAGS="-D_LARGEFILE64_SOURCE $DEBUGCFLAGS"
+		NOOPTCFLAGS="-D_LARGEFILE64_SOURCE $NOOPTCFLAGS"
 		;;
 esac
 AC_MSG_CHECKING([if we should add to CFLAGS for LFS64 support])
@@ -955,7 +1001,7 @@ dnl
 AC_DEFUN(wi_VOID_MAIN_RETURN_TYPE, [
 AC_CACHE_CHECK([what type main() should return],[wi_cv_main_void_return_t], [
 wi_cv_main_void_return_t="int"
-case "${ac_cv_prog_gcc}_${SYS}" in
+case "${GCC}_${SYS}" in
 	no_irix*|no_hpux)
 		wi_cv_main_void_return_t="void"
 		;;
@@ -1073,9 +1119,9 @@ AC_DEFUN(wi_LIB_SNPRINTF, [
 if test "$ac_cv_func_snprintf" = "no" ; then
 	AC_CHECK_LIB(snprintf,snprintf)
 	if test "$ac_cv_lib_snprintf_snprintf" = yes ; then
-		unset ac_cv_func_snprintf
+		unset ac_cv_func_snprintf ac_cv_func_vsnprintf
 		AC_CHECK_HEADERS(snprintf.h)
-		AC_CHECK_FUNCS(snprintf)
+		AC_CHECK_FUNCS(snprintf vsnprintf)
 	fi
 fi
 ])
@@ -1428,7 +1474,7 @@ dnl
 AC_DEFUN(wi_DEFINE_UNAME, [
 # Get first 127 chars of all uname information.  Some folks have
 # way too much stuff there, so grab only the first 127.
-unam=`uname -a 2>/dev/null | cut -c1-127`
+unam=`uname -a 2>/dev/null | cut -c1-127 | sed 's-"-\\"-g'`
 if test "$unam" != "" ; then
 	AC_DEFINE_UNQUOTED(UNAME, "$unam")
 fi
@@ -2523,7 +2569,7 @@ changequote(<<, >>)dnl
 		#
 		remove_cpp_warning=no
 	fi
-	if [ "$ac_cv_prog_gcc" = yes ] ; then
+	if [ "$GCC" = yes ] ; then
 		#
 		# GCC accepts #warning
 		#
@@ -2976,7 +3022,7 @@ unsigned long
 long
 			}
 			q
-}'
+}' | sed 's/int int/int/g'
 EOF
 chmod 755 "$wi_tmpdir/sed.sh"
 
@@ -3259,7 +3305,7 @@ if test "x$CCDV" = "x" ; then
 	cat > ccdv.c << 'EOF'
 /* ccdv.c
  *
- * Copyright (C) 2002, by Mike Gleason, NcFTP Software.
+ * Copyright (C) 2002-2003, by Mike Gleason, NcFTP Software.
  * All Rights Reserved.
  *
  * Licensed under the GNU Public License.
@@ -3531,7 +3577,7 @@ Usage(void)
 	fprintf(stderr, "\nRewrite your rule so it looks like:\n\n");
 	fprintf(stderr, "\t.c.o:\n");
 	fprintf(stderr, "\t\t@ccdv $(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) $< -c\n\n");
-	fprintf(stderr, "ccdv 1.0.0 is Free under the GNU Public License.  Enjoy!\n");
+	fprintf(stderr, "ccdv 1.1.0 is Free under the GNU Public License.  Enjoy!\n");
 	fprintf(stderr, "  -- Mike Gleason, NcFTP Software <http://www.ncftp.com>\n");
 	exit(96);
 }	/* Usage */
@@ -3547,7 +3593,7 @@ main(int argc, char **argv)
 	int fd;
 	int nread;
 	int i;
-	int cc = 0;
+	int cc = 0, pch = 0;
 	const char *quote;
 
 	if (argc < 2)
@@ -3568,6 +3614,9 @@ main(int argc, char **argv)
 		} else if (strncasecmp(Extension(argv[i]), ".c", 2) == 0) {
 			cc++;
 			snprintf(gTarget, sizeof(gTarget), "%s", Basename(argv[i]));
+		} else if ((strncasecmp(Extension(argv[i]), ".h", 2) == 0) && (cc == 0)) {
+			pch++;
+			snprintf(gTarget, sizeof(gTarget), "%s", Basename(argv[i]));
 		} else if ((i == 1) && (strcmp(Basename(argv[i]), "ar") == 0)) {
 			snprintf(gAr, sizeof(gAr), "%s", Basename(argv[i]));
 		} else if ((gArLibraryTarget[0] == '\0') && (strcasecmp(Extension(argv[i]), ".a") == 0)) {
@@ -3577,6 +3626,8 @@ main(int argc, char **argv)
 	if ((gAr[0] != '\0') && (gArLibraryTarget[0] != '\0')) {
 		strcpy(gAction, "Creating library");
 		snprintf(gTarget, sizeof(gTarget), "%s", gArLibraryTarget);
+	} else if (pch > 0) {
+		strcpy(gAction, "Precompiling");
 	} else if (cc > 0) {
 		strcpy(gAction, "Compiling");
 	}
@@ -4172,7 +4223,7 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_SHADOW_FUNCS, [
-AC_CHECK_FUNCS(md5_crypt md5crypt bcrypt getspnam)
+AC_CHECK_FUNCS(md5_crypt md5crypt bcrypt getspnam crypt_set_format)
 
 if test "$ac_cv_func_getspnam" = no ; then
 	unset ac_cv_func_getspnam
@@ -4299,6 +4350,7 @@ if [ -x "$HOME/bin/OS" ] ; then
 fi
 host=`uname -n 2>/dev/null | tr '[A-Z]' '[a-z]'`
 os=`uname -s 2>/dev/null | tr '[A-Z]' '[a-z]'`
+if [ "$os" = "TvoPT" ] ; then os="sunos" ; fi
 dnl work around inability to use $1
 os_v=`uname -v 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.].*$//;' | awk '-F[-/: ]' '{n = 1; print $n; }'`
 os_r=`uname -r 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.].*$//;' | awk '-F[-/: ]' '{n = 1; print $n; }'`

@@ -62,7 +62,7 @@ so: $(LIBSO)
 
 $(LIBSO): $(SOBJS)
 	/bin/rm -f "$(LIBSO)" "$(LIBSOS)"
-	gcc -shared "-Wl,-soname,$(LIBSO)" -o "$(LIBSO)" $(SOBJS)
+	$(CC) -shared "-Wl,-soname,$(LIBSO)" -o "$(LIBSO)" $(SOBJS)
 	/bin/ln -s "$(LIBSO)" "$(LIBSOS)"
 	-@/bin/ls -l "$(LIBSOS)" "$(LIBSO)"
 
@@ -85,6 +85,7 @@ install_min:
 	if test ! -d $(prefix)/include ; then mkdir -p "$(prefix)/include" ; fi
 	if test ! -d $(prefix)/lib ; then mkdir -p "$(prefix)/lib" ; fi
 	cp "$(LIB)" "$(prefix)/lib"
+	-@@RANLIB@ "$(prefix)/lib/$(LIB)"
 	cp Strn.h "$(prefix)/include/Strn.h"
 	-chmod 664 "$(prefix)/include/Strn.h" "$(prefix)/lib/$(LIB)"
 
@@ -92,6 +93,7 @@ install:
 	if test ! -d $(prefix)/include ; then mkdir -p "$(prefix)/include" ; fi
 	if test ! -d $(prefix)/lib ; then mkdir -p "$(prefix)/lib" ; fi
 	cp "$(LIB)" Strn.version "$(prefix)/lib"
+	-@@RANLIB@ "$(prefix)/lib/$(LIB)"
 	cp Strn.h "$(prefix)/include/Strn.h"
 	-chmod 664 "$(prefix)/include/Strn.h" "$(prefix)/lib/Strn.version" "$(prefix)/lib/$(LIB)"
 	-cp Strn.3 "$(MAN)/man3/Strn.3"

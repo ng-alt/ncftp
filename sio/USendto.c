@@ -37,7 +37,7 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 
 	time(&now);
 	done = now + tlen;
-	tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+	tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 	forever {
 		if (tleft < 1) {
 			nwrote = kTimeoutErr;
@@ -54,7 +54,7 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 	}
 
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
@@ -85,7 +85,7 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 				SETWSATIMEOUTERR
 				return (kTimeoutErr);
 			}
-			tleft = (int) (done - now);
+			tleft = (done > now) ? ((int) (done - now)) : 0;
 			errno = 0;
 			MY_FD_ZERO(&ss);
 #if defined(__DECC) || defined(__DECCXX)

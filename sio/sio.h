@@ -125,13 +125,11 @@ typedef struct SReadlineInfo {
 #	define EINPROGRESS WSAEINPROGRESS
 #endif
 
-#if !( (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) )\
-	&& !defined(closesocket)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+	/* Windows has separate functions to close and ioctl sockets. */
+#else
+	/* UNIX uses close() and ioctl() for all types of descriptors */
 #	define closesocket close
-#endif
-
-#if !( (defined(WIN32) && !defined(_WINDOWS)) && !defined(__CYGWIN__) )\
-	&& !defined(ioctlsocket)
 #	define ioctlsocket ioctl
 #endif
 

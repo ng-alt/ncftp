@@ -1,6 +1,6 @@
 /* rdline.c
  *
- * Copyright (c) 1992-2002 by Mike Gleason.
+ * Copyright (c) 1992-2003 by Mike Gleason.
  * All rights reserved.
  *
  * Note: It should still be simple to backport the old GNU Readline
@@ -800,7 +800,7 @@ PrintStartupBanner(void)
 	}
 
 #if defined(BETA) && (BETA > 0)
-	(void) fprintf(stdout, "%s%.11s beta %d%s%s by Mike Gleason (ncftp@ncftp.com).\n",
+	(void) fprintf(stdout, "%s%.11s beta %d%s%s by Mike Gleason (http://www.NcFTP.com/contact/).\n",
 		tcap_boldface,
 		gVersion + 5,
 		BETA,
@@ -808,7 +808,7 @@ PrintStartupBanner(void)
 		vdate
 	);
 #else
-	(void) fprintf(stdout, "%s%.11s%s%s by Mike Gleason (ncftp@ncftp.com).\n",
+	(void) fprintf(stdout, "%s%.11s%s%s by Mike Gleason (http://www.NcFTP.com/contact/).\n",
 		tcap_boldface,
 		gVersion + 5,
 		tcap_normal,

@@ -89,8 +89,8 @@ Usage(void)
   ncftpput -a -u gleason -p my.password -m -U 007 Bozo.probe.net /tmp/tmpdir a.txt\n\
   tar cvf - /home | ncftpput -u operator -c Server.probe.net /backups/monday.tar\n");
 	(void) fprintf(fp, "\nLibrary version: %s.\n", gLibNcFTPVersion + 5);
-	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (mgleason@ncftp.com).\n");
-	(void) fprintf(fp, "This was built using LibNcFTP (http://www.ncftp.com/libncftp).\n");
+	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (http://www.ncftp.com).\n");
+	(void) fprintf(fp, "This was built using LibNcFTP (http://www.ncftp.com/libncftp/).\n");
 
 	ClosePager(fp);
 	DisposeWinsock();
@@ -168,6 +168,7 @@ main(int argc, char **argv)
 	int wantMkdir = 0;
 	char *Umask = NULL;
 	char *dstdir = NULL;
+	char *dstfile = NULL;
 	char **files = (char **) 0;
 	int progmeters;
 	int usingcfg = 0;
@@ -369,9 +370,9 @@ main(int argc, char **argv)
 			dstdir = argv[opt.ind + 0];
 			files = argv + opt.ind + 1;
 		} else {
-			if (opt.ind > argc - 2)
+			if (opt.ind > argc - 1)
 				Usage();
-			(void) STRNCPY(fi.host, argv[opt.ind]);
+			dstfile = argv[opt.ind];
 		}
 	} else {
 		if (ftpcat == 0) {
@@ -384,6 +385,7 @@ main(int argc, char **argv)
 			if (opt.ind > argc - 2)
 				Usage();
 			(void) STRNCPY(fi.host, argv[opt.ind]);
+			dstfile = argv[opt.ind + 1];
 		}
 	}
 
@@ -512,7 +514,7 @@ main(int argc, char **argv)
 				es = kExitSuccess;
 		} else {
 			fi.progress = (FTPProgressMeterProc) 0;
-			if (FTPPutOneFile2(&fi, NULL, argv[opt.ind + 1], xtype, STDIN_FILENO, appendflag, tmppfx, tmpsfx) < 0)
+			if (FTPPutOneFile2(&fi, NULL, dstfile, xtype, STDIN_FILENO, appendflag, tmppfx, tmpsfx) < 0)
 				es = kExitXferFailed;
 			else {
 				es = kExitSuccess;

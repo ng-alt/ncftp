@@ -1,6 +1,6 @@
 /* cmds.c
  *
- * Copyright (c) 1992-2002 by Mike Gleason.
+ * Copyright (c) 1992-2003 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -1176,7 +1176,7 @@ commands.  'help <command>' gives a brief description of <command>.\n\n");
 			}
 		}
 	}
-	printf("\nFor details, please see the manual (\"man ncftp\" at your regular shell prompt\nor online at http://www.ncftp.com/ncftp/doc/ncftp.html).\n");
+	printf("\nFor details, please see the manual (\"man ncftp\" at your regular shell prompt\nor online at http://www.NcFTP.com/ncftp/doc/ncftp.html).\n");
 }	/* HelpCmd */
 
 
@@ -4190,9 +4190,9 @@ VersionCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvI
 {
 	ARGSUSED(gUnusedArg);
 	(void) printf("Version:          %s\n", gVersion + 5);
-	(void) printf("Author:           Mike Gleason (ncftp@ncftp.com)\n");
+	(void) printf("Author:           Mike Gleason (http://www.NcFTP.com/ncftp/)\n");
 #ifndef BETA
-	(void) printf("Archived at:      ftp://ftp.ncftp.com/ncftp/\n");
+	(void) printf("Archived at:      ftp://ftp.NcFTP.com/ncftp/\n");
 #endif
 	(void) printf("Library Version:  %s\n", gLibNcFTPVersion + 5);
 #ifdef __DATE__

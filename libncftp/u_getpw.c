@@ -33,6 +33,12 @@ GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsiz
 {
 	struct passwd *p;
 
+#if ((defined(MACOSX)) && (defined(HAVE_GETPWUID_R)))
+	/* Allow backwards compat on 10.1 if building on 10.2+ */
+#	undef HAVE_GETPWUID_R
+#	undef HAVE_GETPWNAM_R
+#endif
+
 #if defined(HAVE_GETPWUID_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
 	memset(pwbuf, 0, pwbufsize);
 	p = getpwuid_r(uid, pwp, pwbuf, pwbufsize);

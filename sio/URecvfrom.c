@@ -38,7 +38,7 @@ URecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_un *con
 
 	time(&now);
 	done = now + tlen;
-	tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+	tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 	forever {
 		if (tleft < 1) {
 			nread = kTimeoutErr;
@@ -57,7 +57,7 @@ URecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_un *con
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 	}
 
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
@@ -81,7 +81,7 @@ URecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_un *con
 
 	time(&now);
 	done = now + tlen;
-	tleft = (done < now) ? ((int) (done - now)) : 0;
+	tleft = (done > now) ? ((int) (done - now)) : 0;
 	nread = 0;
 	forever {
 		alen = (sockaddr_size_t) sizeof(struct sockaddr_un);
@@ -123,7 +123,7 @@ URecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_un *con
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (done < now) ? ((int) (done - now)) : 0;
+		tleft = (done > now) ? ((int) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = kTimeoutErr;
 			errno = ETIMEDOUT;

@@ -18,7 +18,8 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
  */
 
 /*
- * Note:  This version has been updated by Mike Gleason <mgleason@ncftp.com>
+ * Note:  This version has been updated by
+ *        Mike Gleason (http://www.NcFTP.com/contact/)
  */
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
@@ -367,7 +368,7 @@ gl_getc(void)
 {
     int             c;
 #ifdef __unix__
-    char            ch;
+    unsigned char   ch;
 #endif
 
 #ifdef __unix__
@@ -376,7 +377,7 @@ gl_getc(void)
 	if (errno != EINTR)
 	    break;
     }
-    if (c > 0)
+    if (c != (-1))
 	    c = (int) ch;
 #endif	/* __unix__ */
 #ifdef MSDOS
@@ -530,6 +531,10 @@ gl_init(void)
 {
     const char *cp;
     int w;
+
+	/* Useless code, but prevents copyright from being optimized away. */
+	if (strncmp(copyright, "getline", 7) != 0)
+		exit(1);
 
     if (gl_init_done < 0) {		/* -1 only on startup */
 	cp = (const char *) getenv("COLUMNS");
@@ -714,7 +719,7 @@ getline(char *prompt)
 	FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
 #endif
 
-    while ((c = gl_getc()) > 0) {
+    while ((c = gl_getc()) != (-1)) {
 	gl_extent = 0;  	/* reset to full extent */
 	/* Note: \n may or may not be considered printable */
 	if ((c != '\t') && ((isprint(c) != 0) || ((c & 0x80) != 0))) {

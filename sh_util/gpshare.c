@@ -344,6 +344,9 @@ ReadConfigFile(const char *fn, FTPCIPtr cip)
 		} else if (strncmp(line, "host", 4) == 0) {
 			(void) STRNCPY(cip->host, line + 5);
 			goodfile = 1;
+		} else if (strncmp(line, "machine", 7) == 0) {
+			(void) STRNCPY(cip->host, line + 8);
+			goodfile = 1;
 		} else if ((strncmp(line, "acct", 4) == 0) && (isspace((int) line[4]))) {
 			(void) STRNCPY(cip->acct, line + 5);
 		} else if (strncmp(line, "account", 7) == 0) {

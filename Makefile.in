@@ -26,7 +26,7 @@ all: progs
 	-@/bin/ls -l bin
 	-@echo 'Done.'
 	-@echo
-	-@echo '** Please report any problems to ncftp@ncftp.com **'
+	-@echo '** Please report any problems to http://www.NcFTP.com/contact/ **'
 
 libs:
 	@( cd Strn ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )

@@ -50,7 +50,7 @@ SRecv(int sfd, char *const buf0, size_t size, int fl, int tlen, int retry)
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = (recv_return_t) size - (recv_return_t) nleft;
 			if ((nread == 0) || (retry == kFullBufferRequired)) {
@@ -114,7 +114,7 @@ SRecv(int sfd, char *const buf0, size_t size, int fl, int tlen, int retry)
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (int) (done - now);
+		tleft = (done > now) ? ((int) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = (recv_return_t) size - (recv_return_t) nleft;
 			if ((nread == 0) || (retry == kFullBufferRequired)) {

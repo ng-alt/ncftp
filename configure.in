@@ -7,6 +7,7 @@ wi_ARG_DISABLE_CCDV
 AC_ARG_WITH(curses,[  --without-curses        do not try to find and use the curses library],nc_cv_curses=$withval,nc_cv_curses=yes)
 wi_ARG_ENABLE_DEBUG
 AC_ARG_WITH(ncurses,[  --without-ncurses       do not try to find and use the ncurses library],nc_cv_ncurses=$withval,nc_cv_ncurses=yes)
+wi_ARG_DISABLE_PRECOMP
 dnl AC_ARG_WITH(readline,[  --without-readline      do not try to find and use the readline library],nc_cv_readline=$withval,nc_cv_readline=yes)
 wi_ARG_WITH_SOCKS5
 
@@ -158,7 +159,10 @@ dnl ---------------------------------------------------------------------------
 dnl
 LIBNCFTP_PRECOMP="libncftp/pch.mk.none"
 SIO_PRECOMP="sio/pch.mk.none"
-if test "${wi_cv_cc_precomp}_${SYS}" = "yes_macosx" ; then
+if test "${wi_cv_cc_precomp}_${wi_cv_cc_precomp_type}" = "yes_gcc_gch_files" ; then
+	LIBNCFTP_PRECOMP="libncftp/pch.mk.gcc-gch"
+	SIO_PRECOMP="sio/pch.mk.gcc-gch"
+elif test "${wi_cv_cc_precomp}_${SYS}" = "yes_macosx" ; then
 	LIBNCFTP_PRECOMP="libncftp/pch.mk.$SYS"
 	SIO_PRECOMP="sio/pch.mk.$SYS"
 fi

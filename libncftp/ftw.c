@@ -105,7 +105,13 @@ Readdir(DIR *const dir, struct dirent *const dp)
 {
 	struct dirent *p;
 
-#if defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(SCO)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
+#if defined(MACOSX)
+	p = readdir(dir);
+	if (p != NULL) {
+		memcpy(dp, p, sizeof(struct dirent));
+		return (dp);
+	}
+#elif defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(SCO)) || (defined(HPUX) && (HPUX < 1100)) || (defined(IRIX) && (IRIX < 6)) )
 	p = readdir_r(dir, dp);
 	if (p != NULL)
 		return (dp);

@@ -56,6 +56,7 @@ FTPGetOneF(
 	char *src, *srclim;
 	char *dst, *dstlim;
 	char outbuf[512];
+	int cr;
 #endif
 	longest_int tstartPoint;
 	volatile longest_int startPoint = 0;
@@ -96,6 +97,10 @@ FTPGetOneF(
 		 * zone could be a factor.
 		 *
 		 */
+
+		if ((file == NULL) || (file[0] == '\0') || (dstfile == NULL) || (dstfile[0] == '\0')) {
+			return (kErrBadParameter);
+		}
 
 		AutomaticallyUseASCIIModeDependingOnExtension(cip, file, &xtype);
 
@@ -399,6 +404,7 @@ FTPGetOneF(
 
 #if ASCII_TRANSLATION
 	if (xtype == kTypeAscii) {
+		cr = 0;
 		/* Ascii */
 		for (;;) {
 			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
@@ -510,6 +516,12 @@ FTPGetOneF(
 				 * We also look for raw LFs and convert them
 				 * if needed.
 				 */
+				if (cr != 0) {
+					/* Leftover CR from previous buffer */
+					cr = 0;
+					goto have_char_after_cr;
+				}
+
 				if (*src == '\n') {
 					/* protocol violation: raw LF */
 					src++;
@@ -517,10 +529,28 @@ FTPGetOneF(
 				}
 				if (*src == '\r') {
 					src++;
-					if ((src < srclim) && (*src == '\n')) {
-						src++;
+					if (src < srclim) {
+have_char_after_cr:
+						if (*src == '\n') {
+							/* Normal case:
+							 * CR+LF eoln.
+							 */
+							src++;
+						} else if (*src == '\r') {
+							/* Try to work-around
+							 * server bug which
+							 * sends CR+CR+LF
+							 * eolns.
+							 */
+							if (((src + 1) < srclim) && (src[1] == '\n'))  {
+								src += 2;
+							}
+						}
+						/* else {protocol violation: raw CR} */
+					} else {
+						cr = 1;
+						continue;
 					}
-					/* else {protocol violation: raw CR} */
 add_eoln:
 					if ((dst + 2) >= dstlim) {
 						/* Write out buffer before
@@ -576,6 +606,30 @@ add_eoln:
 			}
 			cip->bytesTransferred += (longest_int) nread;
 			FTPUpdateIOTimer(cip);
+		}
+		if (cr != 0) {
+			/* Last block ended with a raw CR.
+			 * Write out one last end-of-line.
+			 */
+			nwrote = write(fd, cip->textEOLN, (write_size_t) strlen(cip->textEOLN));
+			if (nwrote == (write_return_t) strlen(cip->textEOLN)) {
+				/* Success. */
+				if (mdtm != kModTimeUnknown) {
+					(void) utime(dstfile, &ut);
+				}
+			} else if (errno == EPIPE) {
+				result = kErrWriteFailed;
+				cip->errNo = kErrWriteFailed;
+				errno = EPIPE;
+				(void) shutdown(cip->dataSocket, 2);
+				goto brk;
+			} else {
+				FTPLogError(cip, kDoPerror, "Local write failed.\n");
+				result = kErrWriteFailed;
+				cip->errNo = kErrWriteFailed;
+				(void) shutdown(cip->dataSocket, 2);
+				goto brk;
+			}
 		}
 	} else
 #endif	/* ASCII_TRANSLATION */
@@ -702,7 +756,7 @@ brk:
 	(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
 #endif	/* NO_SIGNALS */
 
-	if ((mdtm != kModTimeUnknown) && (cip->bytesTransferred > 0)) {
+	if (mdtm != kModTimeUnknown) {
 		(void) utime(dstfile, &ut);
 	}
 

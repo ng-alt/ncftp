@@ -17,14 +17,14 @@
 static void
 ExpandTilde(char *pattern, size_t siz)
 {
-	string pat;
+	char pat[512];
 	char *cp, *rest, *firstent;
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	struct passwd pw;
 	char pwbuf[256];
 #endif
-	string hdir;
+	char hdir[512];
 
 	if ((pattern[0] == '~') &&
 	(isalnum((int) pattern[1]) || IsLocalPathDelim(pattern[1]) || (pattern[1] == '\0'))) {
@@ -128,7 +128,7 @@ WinLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *const srcpat)
 static int
 LazyUnixLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *const pattern)
 {
-	string cmd;
+	char cmd[512];
 	longstring gfile;
 	FILE *fp;
 	FTPSigProc sp;
@@ -169,7 +169,7 @@ LazyUnixLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *const patte
 int
 FTPLocalGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int doGlob)
 {
-	string pattern2;
+	char pattern2[512];
 	int result;
 
 	if (cip == NULL)

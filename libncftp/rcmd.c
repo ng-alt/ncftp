@@ -735,7 +735,10 @@ WaitResponse(const FTPCIPtr cip, unsigned int sec)
 #endif
 	tv.tv_sec = (tv_sec_t) sec;
 	tv.tv_usec = 0;
-	result = select(fd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, &tv);
+	do {
+		errno = 0;
+		result = select(fd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, &tv);
+	} while ((result < 0) && (errno == EINTR));
 	return (result);
 }	/* WaitResponse */
 
@@ -813,6 +816,8 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 
 	/* Re-set the cancellation flag. */
 	cip->cancelXfer = 0;
+	cip->canceled = 0;
+	cip->dataSocketConnected = 0;
 
 	/* To transfer data, we do these things in order as specifed by
 	 * the RFC.
@@ -892,6 +897,8 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 	if ((result = AcceptDataConnection(cip)) < 0)
 		goto done;
 
+	cip->dataSocketConnected = 1;
+
 	/* Close the half of the bidirectional pipe that we won't be using. */
 	if (cip->shutdownUnusedSideOfSockets != 0)
 		(void) shutdown(cip->dataSocket, ((netMode == kNetReading) ? 1 : 0));
@@ -911,9 +918,13 @@ FTPAbortDataTransfer(const FTPCIPtr cip)
 {
 	ResponsePtr rp;
 	int result;
+	unsigned int abto1, abto2;
+	int closed = 0;
 
 	if (cip->dataSocket != kClosedFileDescriptor) {
 		PrintF(cip, "Starting abort sequence.\n");
+		cip->canceling = 1;
+		FTPUpdateIOTimer(cip);
 		SendTelnetInterrupt(cip);		/* Probably could get by w/o doing this. */
 
 		result = FTPCmdNoResponse(cip, "ABOR");
@@ -922,17 +933,45 @@ FTPAbortDataTransfer(const FTPCIPtr cip)
 			(void) SetSocketLinger(cip->dataSocket, 0, 0);
 			CloseDataConnection(cip);
 			PrintF(cip, "Could not send abort command.\n");
+			cip->canceling = 0;
 			return;
 		}
 
 		if (cip->abortTimeout != 0) {
-			result = WaitResponse(cip, (unsigned int) cip->abortTimeout);
-			if (result <= 0) {
-				/* Error or no response received to ABOR in time. */
+			if (cip->abortTimeout < 4) {
+				abto1 = 1;
+			} else if (cip->abortTimeout < 6) {
+				abto1 = 3;
+			} else {
+				abto1 = 5;
+			}
+			abto2 = (unsigned int) cip->abortTimeout - abto1;
+			if (abto2 == 0)
+				abto2 = 1;
+			result = WaitResponse(cip, abto1);
+			if (result < 0) {
+				/* Error received to ABOR */
 				(void) SetSocketLinger(cip->dataSocket, 0, 0);
 				CloseDataConnection(cip);
-				PrintF(cip, "No response received to abort request.\n");
+				PrintF(cip, "Error occurred while waiting for abort reply.\n");
+				cip->canceling = 0;
 				return;
+			}
+			if (result == 0) {
+				(void) SetSocketLinger(cip->dataSocket, 0, 0);
+				PrintF(cip, "No response received to abort request yet; closing data connection.\n");
+
+				/* Maybe this will get their attention... */
+				CloseDataConnection(cip);
+				closed = 1;
+
+				result = WaitResponse(cip, abto2);
+				if (result <= 0) {
+					/* Error or finished timeout to ABOR */
+					PrintF(cip, "No response received to abort request yet; giving up.\n");
+					cip->canceling = 0;
+					return;
+				}
 			}
 		}
 
@@ -940,30 +979,65 @@ FTPAbortDataTransfer(const FTPCIPtr cip)
 		if (rp == NULL) {
 			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			cip->errNo = kErrMallocFailed;
-			result = cip->errNo;
+			cip->canceling = 0;
 			return;
 		}
 
+		/*
+		 * In the first case, the server closes the data connection
+		 * (if it is open) and responds with a 226 reply, indicating
+		 * that the abort command was successfully processed.
+		 */
 		result = GetResponse(cip, rp);
 		if (result < 0) {
 			/* Shouldn't happen, and doesn't matter if it does. */
-			(void) SetSocketLinger(cip->dataSocket, 0, 0);
-			CloseDataConnection(cip);
+			if (closed == 0) {
+				(void) SetSocketLinger(cip->dataSocket, 0, 0);
+				CloseDataConnection(cip);
+			}
 			PrintF(cip, "Invalid response to abort request.\n");
 			DoneWithResponse(cip, rp);
+			cip->canceling = 0;
 			return;
 		}
+
+		/*
+		 * In the second case, the server aborts the FTP service in
+		 * progress and closes the data connection, returning a 426
+		 * reply to indicate that the service request terminated
+		 * abnormally.  The server then sends a 226 reply,
+		 * indicating that the abort command was successfully
+		 * processed.
+		 */
+		if (rp->codeType == 4) {
+			ReInitResponse(cip, rp);
+			result = GetResponse(cip, rp);
+			if (result < 0) {
+				if (closed == 0) {
+					(void) SetSocketLinger(cip->dataSocket, 0, 0);
+					CloseDataConnection(cip);
+				}
+				PrintF(cip, "Invalid second abort reply.\n");
+				DoneWithResponse(cip, rp);
+				cip->canceling = 0;
+				return;
+			}
+		}
 		DoneWithResponse(cip, rp);
+		cip->canceled = 1;
 
 		/* A response to the abort request has been received.
 		 * Now the only thing left to do is close the data
 		 * connection, making sure to turn off linger mode
 		 * since we don't care about straggling data bits.
 		 */
-		(void) SetSocketLinger(cip->dataSocket, 0, 0);
-		CloseDataConnection(cip);		/* Must close (by protocol). */
-		PrintF(cip, "End abort.\n");
+		if (closed == 0) {
+			(void) SetSocketLinger(cip->dataSocket, 0, 0);
+			CloseDataConnection(cip);		/* Must close (by protocol). */
+		}
+		PrintF(cip, "Aborted successfully.\n");
 	}
+	cip->canceling = 0;
 }	/* FTPAbortDataTransfer */
 
 
@@ -980,6 +1054,11 @@ FTPEndDataCmd(const FTPCIPtr cip, int didXfer)
 		return (kErrBadParameter);
 	if (strcmp(cip->magic, kLibraryMagic))
 		return (kErrBadMagic);
+
+	if (cip->canceled == 1) {
+		/* Already read the post-transfer response. */
+		return (kNoErr);
+	}
 
 	CloseDataConnection(cip);
 	result = kNoErr;

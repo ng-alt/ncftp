@@ -56,6 +56,7 @@ find . -depth -follow -type f | sed '
 /\.pdb$/d
 /\.idb$/d
 /\.pch$/d
+/\.gch$/d
 /\.ilk$/d
 /\.res$/d
 /\.aps$/d
@@ -65,6 +66,7 @@ find . -depth -follow -type f | sed '
 /\.exe$/d
 /\.zip$/d
 /\.gz$/d
+/\.bz2$/d
 /\.tgz$/d
 /\.tar$/d
 /\.swp$/d

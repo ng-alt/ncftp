@@ -78,6 +78,8 @@ libncftp/u_unmdtm.c
 libncftp/unls.c
 libncftp/u_pathcat.c
 libncftp/u_getopt.c
+libncftp/pch.mk.gcc-gch
+libncftp/u_miscdebug.c
 Strn/syshdrs.h
 Strn/configure.in
 Strn/DStrCat.c
@@ -153,11 +155,14 @@ configure
 config.h.in
 README.txt
 mac/setup/ncftp_dist/NcFTP.pmsp
-mac/setup/ncftp_dist/Resources/NcFTP.pre_install
+mac/setup/ncftp_dist/Resources/preinstall
 mac/setup/ncftp_dist/Resources/ReadMe.rtf
 mac/setup/ncftp_dist/Resources/VolumeCheck
 mac/setup/ncftp_dist/Resources/VolumeCheck.strings
 mac/setup/ncftp_dist/Resources/Welcome.rtf
+mac/setup/ncftp_dist/Resources/PreFlight
+mac/setup/ncftp_dist/Resources/preupgrade
+mac/setup/ncftp_dist/pkg_to_dmg.sh
 vis/Makefile.in
 vis/syshdrs.h
 vis/bmed.c
@@ -262,6 +267,7 @@ sio/pch.mk.macosx
 sio/pch.mk.none
 sio/sio.version
 sio/config.h.in
+sio/pch.mk.gcc-gch
 win/bmed/bmed.clw
 win/bmed/util.c
 win/bmed/bmed.dsw

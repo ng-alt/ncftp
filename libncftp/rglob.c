@@ -102,49 +102,56 @@ void
 RemoteGlobCollapse(const FTPCIPtr cip, const char *pattern, FTPLineListPtr fileList)
 {
 	FTPLinePtr lp, nextLine;
-	string patPrefix;
-	string cur, prev;
-	char *endp, *cp, *dp;
-	const char *pp, *cp2;
-	int wasGlobChar;
+	char *patPrefix;
+	char *patDir;
+	char *cur, *prev;
+	char *cp;
+	char *newpath;
 	size_t plen;
 
-	/* Copy all characters before the first glob-char. */
-	dp = patPrefix;
-	endp = dp + sizeof(patPrefix) - 1;
-	wasGlobChar = 0;
-	for (cp2 = pattern; (*cp2 != '\0') && (dp < endp); ) {
-		for (pp=kGlobChars; *pp != '\0'; pp++) {
-			if (*pp == *cp2) {
-				wasGlobChar = 1;
-				break;
-			}
-		}
-		if (wasGlobChar)
-			break;
-		*dp++ = *cp2++;
+	/* Copy all characters before and including the last path delimiter. */
+	patDir = NULL;	
+	cp = StrRFindLocalPathDelim(pattern);
+	if (cp != NULL) {
+		patDir = StrDup(pattern);
+		if (patDir == NULL)
+			return;
+		patDir[(cp - pattern) + 1] = '\0';
 	}
-	*dp = '\0';
-	plen = (size_t) (dp - patPrefix);
 
-	*prev = '\0';
+	/* Copy all characters before the first glob-char. */
+	cp = strpbrk(pattern, kGlobChars);
+	patPrefix = StrDup(pattern);
+	if (patPrefix == NULL) {
+		free(patDir);
+		return;
+	}
+	if (cp != NULL) {
+		plen = (size_t) (cp - pattern);
+		patPrefix[plen] = '\0';
+	} else {
+		plen = strlen(patPrefix);
+	}
+
+	cur = prev = NULL;
 	for (lp=fileList->first; lp != NULL; lp = nextLine) {
 		nextLine = lp->next;
 		if (strncmp(lp->line, patPrefix, plen) == 0) {
-			(void) STRNCPY(cur, lp->line + plen);
-			cp = strchr(cur, '/');
-			if (cp == NULL)
-				cp = strchr(cur, '\\');
+			if (Dynscpy(&cur, lp->line + plen, 0) == NULL)
+				goto done;
+			cp = strpbrk(cur, "/\\");
 			if (cp != NULL)
 				*cp = '\0';
-			if ((*prev != '\0') && (STREQ(cur, prev))) {
+			if ((prev != NULL) && (STREQ(cur, prev))) {
 				PrintF(cip, "  Rglob omitted: [%s] (type 2)\n", lp->line);
 				nextLine = RemoveLine(fileList, lp);
 			} else if (PathContainsIntermediateDotDotSubDir(lp->line + plen)) {
 				PrintF(cip, "  Rglob omitted: [%s] (type 3)\n", lp->line);
 				nextLine = RemoveLine(fileList, lp);
 			} else {
-				(void) STRNCPY(prev, cur);
+				if (Dynscpy(&prev, cur, 0) == NULL)
+					goto done;
+
 				/* We are playing with a dynamically
 				 * allocated string, but since the
 				 * following expression is guaranteed
@@ -153,11 +160,26 @@ RemoteGlobCollapse(const FTPCIPtr cip, const char *pattern, FTPLineListPtr fileL
 				 */
 				(void) sprintf(lp->line, "%s%s", patPrefix, cur);
 			}
+		} else if (strpbrk(lp->line, "/\\") == NULL) {
+			if (patDir != NULL) {
+				newpath = NULL;
+				if (Dynscpy(&newpath, patDir, lp->line, 0) == NULL)
+					goto done;
+				PrintF(cip, "  Rglob changed: [%s] to [%s]\n", lp->line, newpath);
+				free(lp->line);
+				lp->line = newpath;
+			}
 		} else {
 			PrintF(cip, "  Rglob omitted: [%s] (type 4)\n", lp->line);
 			nextLine = RemoveLine(fileList, lp);
 		}
 	}
+
+done:
+	StrFree(&patDir);
+	StrFree(&patPrefix);
+	StrFree(&cur);
+	StrFree(&prev);
 }	/* RemoteGlobCollapse */
 
 

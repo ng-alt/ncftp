@@ -535,6 +535,16 @@ command lets you retrieve entire directory trees, too.
 Although it may not work with some remote systems, you can
 try ``get\ \-R'' with a directory to download the directory
 and its contents.
+.IP
+When using the ``\-R'' flag, you can also use the ``\-T'' flag to disable
+automatic on-the-fly TAR mode for downloading whole directory trees.
+The program uses TAR whenever possible since this usually preserves symbolic
+links and file permissions. TAR mode can also result in faster transfers for
+directories containing many small files, since a single data connection can
+be used rather than an FTP data connection for each small file. The downside
+to using TAR is that it forces downloading of the whole directory, even if
+you had previously downloaded a portion of it earlier, so you may want to use
+this option if you want to resume downloading of a directory.
 .\"-------
 .IP jobs
 .\"-------
@@ -866,7 +876,7 @@ set <option> <value>
 For example, to change the value you use for the anonymous password, you
 might do:
 .Xs
-set anon-password ncftp@ncftp.com
+set anon-password devnull@example.com
 .Xe
 See the next section for a list of things you change.
 .\"-------
@@ -1193,7 +1203,7 @@ behavior of the remote host.
 .SH "AUTHOR"
 .\"-------
 .PP
-Mike Gleason, NcFTP Software (mgleason@ncftp.com).
+Mike Gleason, NcFTP Software (http://www.ncftp.com).
 .\"-------
 .SH "SEE ALSO"
 .\"-------

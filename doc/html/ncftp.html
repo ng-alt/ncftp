@@ -524,6 +524,16 @@ not work with some remote systems, you can try ``get&nbsp;-R'' with a directory 
 download the directory and its contents.  </DD>
 
 <dt>&nbsp;</dt>
+
+<DD>When using the ``-R'' flag, you can also use the ``-T'' flag to disable
+automatic on-the-fly TAR mode for downloading whole directory trees.&nbsp;
+  The program uses TAR whenever possible since this usually preserves symbolic links
+  and file permissions. TAR mode can also result in faster transfers for directories containing many
+  small files, since a single data connection can be used rather than an FTP
+  data connection for each small file. The downside to using TAR is that it forces downloading of the whole directory,
+  even if you had previously downloaded a portion of it earlier, so you may want to use this option if you want to resume downloading of a directory. </DD>
+<dt>&nbsp;</dt>
+
 </DL>
 
 <pre>jobs</pre>

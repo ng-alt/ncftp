@@ -13,7 +13,7 @@
 struct tm *
 Localtime(time_t t, struct tm *const tp)
 {
-#if defined(HAVE_LOCALTIME_R)
+#if defined(HAVE_LOCALTIME_R) && !defined(MACOSX)
 	if (t == 0)
 		time(&t);
 	if (localtime_r(&t, tp) != NULL)

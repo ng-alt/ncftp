@@ -1,6 +1,6 @@
 /* ncftp.h
  *
- * Copyright (c) 1996-2002 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2003 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
@@ -13,7 +13,7 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.1.5 (October 13, 2002)"
+#define kLibraryVersion "@(#) LibNcFTP 3.1.6 (August 24, 2003)"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */
@@ -205,7 +205,7 @@ extern "C"
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.1.5"
+#define kLibraryMagic "LibNcFTP 3.1.6"
 
 #ifndef longest_int
 #define longest_int long long
@@ -338,6 +338,8 @@ typedef struct FTPConnectionInfo {
 	int stalled;				/* Do not modify this field. */
 	int dataTimedOut;			/* Do not modify this field. */
 	int cancelXfer;				/* You may modify this. */
+	int canceling;				/* Use, but do not modify. */
+	int canceled;				/* Use, but do not modify. */
 
 	char actualHost[64];			/* Do not modify this field. */
 	char ip[32];				/* Do not modify this field. */
@@ -388,6 +390,7 @@ typedef struct FTPConnectionInfo {
 	int ctrlSocketR;			/* You may use but not modify/close. */
 	int ctrlSocketW;			/* You may use but not modify/close. */
 	int dataSocket;				/* You may use but not modify/close. */
+	int dataSocketConnected;		/* Do not use or modify. */
 	int leavePass;				/* You may modify this. */
 	int eofOkay;				/* Do not use or modify. */
 	int require20;				/* You may modify this. */
@@ -486,7 +489,11 @@ typedef struct MLstItem{
 
 #define kDefaultFTPPort			21
 
-#define kDefaultFTPBufSize		32768
+#if ((defined(AIX) || (defined(_AIX))))
+#	define kDefaultFTPBufSize	4096
+#else
+#	define kDefaultFTPBufSize	32768
+#endif
 
 #ifdef USE_SIO
 /* This version of the library can handle timeouts without
@@ -656,10 +663,10 @@ typedef int (*FTPConfirmResumeUploadProc)(
 #define kServerTypeWS_FTP		12
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+	/* Windows has separate functions to close and ioctl sockets. */
+#else
+	/* UNIX uses close() and ioctl() for all types of descriptors */
 #	define closesocket close
-#endif
-
-#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define ioctlsocket ioctl
 #endif
 
@@ -909,6 +916,7 @@ void Scramble(unsigned char *dst, size_t dsize, unsigned char *src, char *key);
 struct tm *Gmtime(time_t t, struct tm *const tp);
 struct tm *Localtime(time_t t, struct tm *const tp);
 time_t GetUTCOffset(const int mon, const int mday);
+time_t GetUTCOffset2(const int year, const int mon, const int mday, const int hour, const int min);
 time_t UnMDTMDate(char *);
 int MkDirs(const char *const, int mode1);
 char *GetPass(const char *const prompt, char *const pwbuf, const size_t pwbufsize);
@@ -992,6 +1000,7 @@ int FTPFileExistsStat(const FTPCIPtr cip, const char *const file);
 int FTPFileExistsNlst(const FTPCIPtr cip, const char *const file);
 int FTPFileExists2(const FTPCIPtr cip, const char *const file, const int tryMDTM, const int trySIZE, const int tryMLST, const int trySTAT, const int tryNLST);
 
+void FTPGetDateStr(time_t t, const char *fmt, char *const ltstr1, const size_t ltstr1size, char *const gtstr1, const size_t gtstr1size);
 int BufferGets(char *, size_t, int, char *, char **, char **, size_t);
 void DisposeFileInfoListContents(FTPFileInfoListPtr);
 void InitFileInfoList(FTPFileInfoListPtr);

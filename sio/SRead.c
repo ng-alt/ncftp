@@ -3,7 +3,7 @@
 #	pragma hdrstop
 #endif
 
-static const char UNUSED(gSioVersion[]) = "@(#) sio 6.1.4 ** Copyright 1992-2002 Mike Gleason. All rights reserved.";
+static const char UNUSED(gSioVersion[]) = "@(#) sio 6.1.5 ** Copyright 1992-2003 Mike Gleason. All rights reserved.";
 
 #ifdef NO_SIGNALS
 static const char UNUSED(gNoSignalsMarker[]) = "@(#) sio - NO_SIGNALS";
@@ -68,7 +68,7 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = (read_return_t) size - (read_return_t) nleft;
 			if ((nread == 0) || ((retry & (kFullBufferRequired)) != 0)) {
@@ -137,7 +137,7 @@ SRead(int sfd, char *const buf0, size_t size, int tlen, int retry)
 	firstRead = 1;
 
 	forever {
-		tleft = (int) (done - now);
+		tleft = (done > now) ? ((int) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = (read_return_t) size - (read_return_t) nleft;
 			if ((nread == 0) || ((retry & (kFullBufferRequired|kFullBufferRequiredExceptLast)) != 0)) {

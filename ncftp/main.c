@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (c) 1992-2002 by Mike Gleason.
+ * Copyright (c) 1992-2003 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -79,7 +79,7 @@ Usage(void)
 	AbbrevStr(s, UNAME, 60, 1);
 	(void) fprintf(fp, "System:           %s\n", s);
 #endif
-	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (ncftp@ncftp.com).\n");
+	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (http://www.NcFTP.com).\n");
 	(void) fprintf(fp, "A directory URL ends in a slash, i.e. ftp://ftp.freebsd.org/pub/FreeBSD/\n");
 	(void) fprintf(fp, "Use ncftpget and ncftpput for command-line FTP and file URLs.\n\n");
 	exit(2);

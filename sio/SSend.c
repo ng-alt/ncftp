@@ -49,7 +49,7 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
+		tleft = (done > now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
 			nwrote = (send_return_t) size - (send_return_t) nleft;
 			if (nwrote == 0) {
@@ -106,7 +106,7 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (int) (done - now);
+		tleft = (done > now) ? ((int) (done - now)) : 0;
 		if (tleft < 1) {
 			nwrote = (send_return_t) size - (send_return_t) nleft;
 			if (nwrote == 0) {

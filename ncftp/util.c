@@ -1,6 +1,6 @@
 /* util.c
  *
- * Copyright (c) 1992-2002 by Mike Gleason.
+ * Copyright (c) 1992-2003 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -509,15 +509,35 @@ InitUserInfo(void)
 
 
 
+char *
+TolowerStr(char *dst)
+{
+	if (dst == NULL)
+		return NULL;
+
+	while (*dst != '\0') {
+		if (isupper((int) *dst))
+			*dst = (char) tolower(*dst);
+		dst++;
+	}
+	return (dst);
+}	/* TolowerStr */
+
+
+
 
 int
-MayUseFirewall(const char *const hn, int firewallType, const char *const firewallExceptionList)
+MayUseFirewall(const char *const hn0, int firewallType, const char *const firewallExceptionList)
 {
 #ifdef HAVE_STRSTR
 	char buf[256];
 	char *tok;
 	char *parse;
 #endif /* HAVE_STRSTR */
+	char hn[80];
+
+	STRNCPY(hn, hn0);
+	TolowerStr(hn);
 
 	if (firewallType == kFirewallNotInUse)
 		return (0);
@@ -542,7 +562,7 @@ MayUseFirewall(const char *const hn, int firewallType, const char *const firewal
 		 */
 		(void) STRNCPY(buf, firewallExceptionList);
 		for (parse = buf; (tok = strtok(parse, ", \n\t\r")) != NULL; parse = NULL) {
-			if (strcmp(tok, "localdomain") == 0)
+			if (ISTREQ(tok, "localdomain"))
 				return (0);
 		}
 		/* fall through */
@@ -550,6 +570,7 @@ MayUseFirewall(const char *const hn, int firewallType, const char *const firewal
 
 #ifdef HAVE_STRSTR
 	(void) STRNCPY(buf, firewallExceptionList);
+	TolowerStr(buf);
 	for (parse = buf; (tok = strtok(parse, ", \n\t\r")) != NULL; parse = NULL) {
 		/* See if host or domain was from exclusion list
 		 * matches the host to open.

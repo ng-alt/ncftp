@@ -60,6 +60,7 @@ $(LIB): $(OBJS)
 
 install: $(LIB)
 	cp $(LIB) $(PREFIX)/lib/$(LIB)
+	-@@RANLIB@ $(PREFIX)/lib/$(LIB)
 	cp sio.h usio.h $(PREFIX)/include
 	chmod a+r $(PREFIX)/lib/$(LIB) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
 	-@/bin/ls -l $(PREFIX)/lib/$(LIB) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
@@ -72,7 +73,7 @@ so: $(LIBSO)
 
 $(LIBSO): $(SOBJS)
 	/bin/rm -f "$(LIBSO)" "$(LIBSOS)"
-	gcc -shared "-Wl,-soname,$(LIBSO)" -o "$(LIBSO)" $(SOBJS)
+	$(CC) -shared "-Wl,-soname,$(LIBSO)" -o "$(LIBSO)" $(SOBJS)
 	chmod a+r "$(LIBSO)" sio.h usio.h
 	/bin/ln -s "$(LIBSO)" "$(LIBSOS)"
 	-@/bin/ls -l "$(LIBSOS)" "$(LIBSO)"

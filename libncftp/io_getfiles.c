@@ -160,11 +160,7 @@ FTPGetFiles3(
 				break;
 			}
 			if (filePtr->type == 'd') {
-#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 				(void) MkDirs(filePtr->lname, 00777);
-#else
-				(void) mkdir(filePtr->lname, 00777);
-#endif
 			} else if (filePtr->type == 'l') {
 				/* skip it -- we do that next pass. */
 			} else if (recurse1 != kRecursiveYes) {
@@ -184,7 +180,7 @@ FTPGetFiles3(
 				ldir = filePtr->lname;
 				cp = StrRFindLocalPathDelim(ldir);
 				if (cp != NULL) {
-					while (cp > ldir) {
+					while (cp >= ldir) {
 						if (! IsLocalPathDelim(*cp)) {
 							++cp;
 							break;

@@ -68,6 +68,7 @@ int gOperation;
 char gOperationStr[16];
 unsigned int gDelaySinceLastFailure;
 char gHost[64];
+char gLastHost[64];
 char gHostIP[32];
 unsigned int gPort;
 char gRUser[128];
@@ -1093,13 +1094,20 @@ DoItem(void)
 		gConn.connTimeout = 30;
 		gConn.ctrlTimeout = 135;
 		gConn.xferTimeout = 300;
+		if (ISTRCMP(gHost, gLastHost) == 0) {
+			/* Same host, but last "recent" attempt to connect failed. */
+			Log(1, "Skipping same failed host as recent attempt (%s).\n", gLastHost);
+			return (-1);	/* Try again next time. */
+		}
 		Log(1, "Opening %s:%u as user %s...\n", gHost, gPort, gRUser);
 		result = FTPOpenHost(&gConn);
 		if (result < 0) {
 			LogEndItemResult(1, "Couldn't open %s, will try again next time.\n", gHost);
 			(void) FTPCloseHost(&gConn);
+			(void) STRNCPY(gLastHost, gHost);	/* save failed connection to gHost. */
 			return (-1);	/* Try again next time. */
 		}
+		gLastHost[0] = '\0';	/* have connected - "clear" gLastHost. */
 		if (FTPGetCWD(&gConn, gRStartDir, sizeof(gRStartDir)) < 0) {
 			LogEndItemResult(1, "Couldn't get start directory on %s, will try again next time.\n", gHost);
 			(void) AdditionalCmd(&gConn, gPostFTPCommand, NULL);
@@ -1379,6 +1387,7 @@ EventShell(volatile unsigned int sleepval)
 			exit(1);
 		}
 
+		gLastHost[0] = '\0';	/* clear [failed]LastHost before starting a pass */
 		Log(0, "Starting pass %d.\n", passes);
 		if (passes >= 1000000) {
 			/* This "panic" and the one a few lines above
