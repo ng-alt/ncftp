@@ -6,6 +6,10 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
+
 #include "shell.h"
 #include "bookmark.h"
 #include "cmds.h"
@@ -247,7 +251,7 @@ Examples:\n\
 	},
 	{ "lookup",
 		LookupCmd,
-		"<host or IP number> [<more hosts or IP numbers>]",
+		"[-v|-V] <host or IP number> [<more hosts or IP numbers>]",
 		"looks up information in the host database",
 		0,
 		1, kNoMax,

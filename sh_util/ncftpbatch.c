@@ -6,20 +6,15 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #if defined(WIN32) || defined(_WINDOWS)
-#	include "..\ncftp\getopt.h"
-#	define getopt Getopt
-#	define optarg gOptArg
-#	define optind gOptInd
-	WSADATA wsaData;
-	int wsaInit = 0;
 	INITCOMMONCONTROLSEX gComCtls;
 	HINSTANCE ghInstance = 0;
 	HWND gMainWnd = 0;
 	HWND gStaticCtrl = 0;
-
-	__inline void DisposeWinsock(int aUNUSED) { if (wsaInit > 0) WSACleanup(); wsaInit--; }
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\pref.h"
 #	include "..\ncftp\spool.h"
@@ -61,6 +56,7 @@ extern char gFirewallUser[32];
 extern char gFirewallPass[32];
 extern char gFirewallExceptionList[256];
 extern unsigned int gFirewallPort;
+extern int gFwDataPortMode;
 int gItemInUse = 0;
 char gItemPath[256];
 char *gItemContents = NULL;
@@ -113,92 +109,41 @@ jmp_buf gCancelJmp;
 #endif	/* HAVE_SIGSETJMP */
 #endif
 
-extern char gOurDirectoryPath[256];
-extern int FTPRebuildConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip);
+extern const char gOS[], gVersion[];
+
 extern void CloseControlConnection(const FTPCIPtr);
-extern char *optarg;
-extern int optind;
-extern char gFirewallExceptionList[256];
-extern int gFwDataPortMode;
-extern char gOS[], gVersion[];
+extern struct dirent *Readdir(DIR *const dir, struct dirent *const dp);
 
-#if defined(WIN32) || defined(_WINDOWS)
-typedef struct dirent {
-	char d_name[MAX_PATH];
-} dirent;
-
-typedef struct DIR {
-	HANDLE searchHandle;
-	char *dirpath;
-	WIN32_FIND_DATA ffd;
-	dirent dent;
-} DIR;
-
-
-DIR *opendir(const char *const path)
-{
-	DIR *p;
-	char *dirpath;
-	size_t len;
-
-	p = (DIR *) malloc(sizeof(DIR));
-	if (p == NULL)
-		return NULL;
-	memset(p, 0, sizeof(DIR));
-
-	len = strlen(path);
-	dirpath = (char *) malloc(len + 5);
-	if (dirpath == NULL)
-		return NULL;
-	p->dirpath = dirpath;
-
-	memcpy(dirpath, path, len + 1);
-	if (IsLocalPathDelim(dirpath[len - 1])) {
-		--len;
-		dirpath[len] = '\0';
-	}
-	memcpy(dirpath + len, "\\*.*", (size_t) 5);
-
-	p->searchHandle = FindFirstFile(dirpath, &p->ffd);
-	if (p->searchHandle == INVALID_HANDLE_VALUE) {
-		memset(&p->ffd, 0, sizeof(p->ffd));
-	}
-	return (p);
-}	/* opendir */
-
-
-
-struct dirent *readdir(DIR *dir)
-{
-	memcpy(dir->dent.d_name, dir->ffd.cFileName, (size_t) sizeof(dir->dent.d_name));
-	if (dir->searchHandle != INVALID_HANDLE_VALUE) {
-		if (!FindNextFile(dir->searchHandle, &dir->ffd)) {
-			/* no more items, or an error we don't care about */
-			FindClose(dir->searchHandle);
-			dir->searchHandle = INVALID_HANDLE_VALUE;
-			memset(&dir->ffd, 0, sizeof(dir->ffd));
-		}
-	}
-	if (dir->dent.d_name[0] == '\0')
-		return NULL;
-	return (&dir->dent);
-}	/* readdir */
-
-
-
-void closedir(DIR *dir)
-{
-	/* The searchHandle is already closed, but we
-	 * need to dealloc the structures.
-	 */
-	if ((dir != NULL) && (dir->dirpath != NULL)) {
-		free(dir->dirpath);
-		memset(dir, 0, sizeof(DIR));
-		free(dir);
-	}
-}	/* closedir */
-
+static void ErrBox(const char *const fmt, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 1, 2)))
 #endif
+;
+
+static void
+Log(
+#if defined(WIN32) || defined(_WINDOWS)
+		int uiShow,
+#else
+		int UNUSED(uiShow),
+#endif
+		const char *const fmt, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 2, 3)))
+#endif
+;
+
+static void LogPerror(const char *const fmt, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 1, 2)))
+#endif
+;
+
+static void LogEndItemResult(int uiShow, const char *const fmt, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 2, 3)))
+#endif
+;
 
 
 
@@ -278,11 +223,10 @@ Log(
 		const char *const fmt, ...)
 {
 	va_list ap;
-	struct tm *ltp;
+	struct tm *ltp, lt;
 
 	if (gLogFile != NULL) {
-		(void) time(&gLogTime);
-		ltp = localtime(&gLogTime);
+		ltp = Localtime(time(&gLogTime), &lt);
 		if (ltp != NULL) {
 			(void) fprintf(gLogFile,
 #if defined(WIN32) || defined(_WINDOWS)
@@ -290,12 +234,12 @@ Log(
 #else
 				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
 #endif
-				ltp->tm_year + 1900,
-				ltp->tm_mon + 1,
-				ltp->tm_mday,
-				ltp->tm_hour,
-				ltp->tm_min,
-				ltp->tm_sec,
+				lt.tm_year + 1900,
+				lt.tm_mon + 1,
+				lt.tm_mday,
+				lt.tm_hour,
+				lt.tm_min,
+				lt.tm_sec,
 				gMyPID
 			);
 		}
@@ -333,13 +277,12 @@ static void
 LogPerror(const char *const fmt, ...)
 {
 	va_list ap;
-	struct tm *ltp;
+	struct tm *ltp, lt;
 	int oerrno;
 	
 	oerrno = errno;
 	if (gLogFile != NULL) {
-		(void) time(&gLogTime);
-		ltp = localtime(&gLogTime);
+		ltp = Localtime(time(&gLogTime), &lt);
 		if (ltp != NULL) {
 			(void) fprintf(gLogFile,
 #if defined(WIN32) || defined(_WINDOWS)
@@ -347,12 +290,12 @@ LogPerror(const char *const fmt, ...)
 #else
 				"%04d-%02d-%02d %02d:%02d:%02d [%06u] | ",
 #endif
-				ltp->tm_year + 1900,
-				ltp->tm_mon + 1,
-				ltp->tm_mday,
-				ltp->tm_hour,
-				ltp->tm_min,
-				ltp->tm_sec,
+				lt.tm_year + 1900,
+				lt.tm_mon + 1,
+				lt.tm_mday,
+				lt.tm_hour,
+				lt.tm_min,
+				lt.tm_sec,
 				gMyPID
 			);
 		}
@@ -385,11 +328,18 @@ PrWinStatBar(const FTPCIPtr cip, int mode)
 {
 	switch (mode) {
 		case kPrInitMsg:
+			if (gLogFile != NULL)
+				(void) fflush(gLogFile);
 			YieldUI(2);
 			break;
 
 		case kPrUpdateMsg:
+			YieldUI(1);
+			break;
+
 		case kPrEndMsg:
+			if (gLogFile != NULL)
+				(void) fflush(gLogFile);
 			YieldUI(1);
 			break;
 	}
@@ -401,7 +351,7 @@ PrWinStatBar(const FTPCIPtr cip, int mode)
 static void
 DebugHook(const FTPCIPtr cipUnused, char *msg)
 {
-	gUnused = (int) cipUnused;			/* shut up gcc */
+	gUnused = cipUnused != 0;			/* shut up gcc */
 	Log(0, "  %s", msg);
 }	/* DebugHook */
 
@@ -437,9 +387,15 @@ OpenLog(void)
 		openMode = FOPEN_WRITE_TEXT;
 	}
 
+#if defined(WIN32) || defined(_WINDOWS)
+	fp = _fsopen(gLogFileName, openMode, _SH_DENYNO);
+#else
 	fp = fopen(gLogFileName, openMode);
+#endif
+
 	if (fp != NULL) {
 #ifdef HAVE_SETVBUF
+		/* Note: On Win32, _IOLBF is the same as _IOFBF.  Bleeeeh.  */
 		(void) setvbuf(fp, gLogLBuf, _IOLBF, sizeof(gLogLBuf));
 #endif	/* HAVE_SETVBUF */
 		(void) time(&gLogTime);
@@ -494,7 +450,7 @@ SigExit(int sigNum)
 	if (gMaySigExit != 0) {
 		ExitStuff();
 		Log(0, "-----caught signal %d, exiting-----\n", sigNum);
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit(0);
 	}
 }	/* SigExit */
@@ -512,14 +468,14 @@ FTPInit(void)
 	result = FTPInitLibrary(&gLib);
 	if (result < 0) {
 		ErrBox("ncftpbatch: init library error %d (%s).\n", result, FTPStrError(result));
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit(1);
 	}
 
 	result = FTPInitConnectionInfo(&gLib, &gConn, kDefaultFTPBufSize);
 	if (result < 0) {
 		ErrBox("ncftpbatch: init connection info error %d (%s).\n", result, FTPStrError(result));
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit(1);
 	}
 }	/* FTPInit */
@@ -632,16 +588,26 @@ LoadCurrentSpoolFileContents(int logErrors)
 {
 	FILE *fp;
 	char line[256];
-	char *cp, *tok1, *tok2;
+	char *tok1, *tok2;
+#if defined(WIN32) || defined(_WINDOWS)
+#else
+	char *cp;
 	struct stat st;
-	
+#endif
+
 #if defined(WIN32) || defined(_WINDOWS)
 	/* gItemContents is not used on Win32 */
+	if ((fp = _fsopen(gMyItemPath, FOPEN_READ_BINARY, _SH_DENYNO)) == NULL) {
+		/* Could have been renamed already. */
+		if (logErrors != 0)
+			LogPerror("%s", gMyItemPath);
+		return (-1);
+	}
 #else
 	if ((stat(gMyItemPath, &st) < 0) || ((fp = fopen(gMyItemPath, FOPEN_READ_BINARY)) == NULL)) {
 		/* Could have been renamed already. */
 		if (logErrors != 0)
-			LogPerror(gMyItemPath);
+			LogPerror("%s", gMyItemPath);
 		return (-1);
 	}
 
@@ -857,42 +823,6 @@ LoadCurrentSpoolFileContents(int logErrors)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
-#else
-static int
-PWrite(int sfd, const char *const buf0, size_t size)
-{
-	int nleft;
-	const char *buf = buf0;
-	int nwrote;
-
-	nleft = (int) size;
-	for (;;) {
-		nwrote = (int) write(sfd, buf, nleft);
-		if (nwrote < 0) {
-			if (errno != EINTR) {
-				nwrote = (int) size - nleft;
-				if (nwrote == 0)
-					nwrote = -1;
-				return (nwrote);
-			} else {
-				errno = 0;
-				nwrote = 0;
-				/* Try again. */
-			}
-		}
-		nleft -= nwrote;
-		if (nleft <= 0)
-			break;
-		buf += nwrote;
-	}
-	nwrote = (int) size - nleft;
-	return (nwrote);
-}	/* PWrite */
-#endif	/* UNIX */
-
-
-
 static int
 RunShellCommandWithSpoolItemData(const char *const cmd, const char *const addstr)
 {
@@ -927,7 +857,7 @@ RunShellCommandWithSpoolItemData(const char *const cmd, const char *const addstr
 			(void) dup2(pfd[0], 0);
 			(void) close(pfd[0]);
 		}
-		argv[0] = (char *) cmd;
+		argv[0] = strdup(cmd);
 		argv[1] = NULL;
 
 		/* Avoid sharing other resources with the shell
@@ -957,8 +887,8 @@ RunShellCommandWithSpoolItemData(const char *const cmd, const char *const addstr
 		(void) wait(NULL);
 #endif	/* HAVE_WAITPID */
 	}
-#endif	/* UNIX */
 	return (0);
+#endif	/* UNIX */
 }	/* RunShellCommandWithSpoolItemData */
 
 
@@ -1012,7 +942,10 @@ DoItem(void)
 		cdflags = kChdirFullPath|kChdirOneSubdirAtATime|kChdirAndMkdir;
 
 	if (gLDir[0] != '\0') {
-		if (chdir(gLDir) < 0) {
+		if (MkDirs(gLDir, 00755) < 0) {
+			LogEndItemResult(1, "Could not mkdir local-dir=%s: %s\n", gLDir, strerror(errno));
+			return (0);	/* remove spool file */
+		} else if (chdir(gLDir) < 0) {
 			LogEndItemResult(1, "Could not cd to local-dir=%s: %s\n", gLDir, strerror(errno));
 			return (0);	/* remove spool file */
 #if defined(WIN32) || defined(_WINDOWS)
@@ -1059,7 +992,7 @@ DoItem(void)
 			/* Highly unlikely... */
 			LogEndItemResult(1, "init connection info failed!\n");
 			ExitStuff();
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit(1);
 		}
 
@@ -1142,12 +1075,12 @@ DoItem(void)
 #if defined(WIN32) || defined(_WINDOWS)
 			sprintf(gStatusText, "Downloading %.200s", gRFile);
 #endif
-			result = FTPGetFiles3(&gConn, gRFile, gLDir, gRecursive, kGlobNo, gXtype, kResumeYes, kAppendNo, gDelete, kTarNo, NoConfirmResumeDownloadProc, 0);
+			result = FTPGetFiles3(&gConn, gRFile, gLDir, gRecursive, kGlobNo, gXtype, kResumeYes, kAppendNo, gDelete, kTarNo, kNoFTPConfirmResumeDownloadProc, 0);
 		} else {
 #if defined(WIN32) || defined(_WINDOWS)
 			sprintf(gStatusText, "[0%%] - Downloading %.200s", gRFile);
 #endif
-			result = FTPGetOneFile3(&gConn, gRFile, gLFile, gXtype, (-1), kResumeYes, kAppendNo, gDelete, NoConfirmResumeDownloadProc, 0);
+			result = FTPGetOneFile3(&gConn, gRFile, gLFile, gXtype, (-1), kResumeYes, kAppendNo, gDelete, kNoFTPConfirmResumeDownloadProc, 0);
 		}
 		if (result == kErrCouldNotStartDataTransfer) {
 			LogEndItemResult(1, "Remote item %s is no longer retrievable.\n", gRFile);
@@ -1166,12 +1099,12 @@ DoItem(void)
 #if defined(WIN32) || defined(_WINDOWS)
 			sprintf(gStatusText, "Uploading %.200s", gLFile);
 #endif
-			result = FTPPutFiles3(&gConn, gLFile, gRDir, gRecursive, kGlobNo, gXtype, kAppendNo, NULL, NULL, kResumeYes, gDelete, NoConfirmResumeUploadProc, 0);
+			result = FTPPutFiles3(&gConn, gLFile, gRDir, gRecursive, kGlobNo, gXtype, kAppendNo, NULL, NULL, kResumeYes, gDelete, kNoFTPConfirmResumeUploadProc, 0);
 		} else {
 #if defined(WIN32) || defined(_WINDOWS)
 			sprintf(gStatusText, "[0%%] - Uploading %.200s", gLFile);
 #endif
-			result = FTPPutOneFile3(&gConn, gLFile, gRFile, gXtype, (-1), kAppendNo, NULL, NULL, kResumeYes, gDelete, NoConfirmResumeUploadProc, 0);
+			result = FTPPutOneFile3(&gConn, gLFile, gRFile, gXtype, (-1), kAppendNo, NULL, NULL, kResumeYes, gDelete, kNoFTPConfirmResumeUploadProc, 0);
 		}
 		if (result == kErrCouldNotStartDataTransfer) {
 			LogEndItemResult(1, "Remote item %s is no longer sendable.  Perhaps permission denied on destination?\n", gRFile);
@@ -1225,12 +1158,12 @@ DecodeName(const char *const src, int *yyyymmdd, int *hhmmss)
 				break;
 			case 2:
 				/* Quick sanity check */
-				if (isdigit(tok[0]) == 0)
+				if (isdigit((int) tok[0]) == 0)
 					goto fail;
 				*yyyymmdd = atoi(tok);
 				break;
 			case 3:
-				if (isdigit(tok[0]) == 0)
+				if (isdigit((int) tok[0]) == 0)
 					goto fail;
 				*hhmmss = atoi(tok);
 				valid = 0;
@@ -1252,21 +1185,18 @@ fail:
 static void
 Now(int *yyyymmdd, int *hhmmss)
 {
-	struct tm *ltp;
-	time_t now;
+	struct tm lt;
 
-	(void) time(&now);
-	ltp = localtime(&now);
-	if (ltp == NULL) {
+	if (Localtime(0, &lt) == NULL) {
 		*yyyymmdd = 0;
 		*hhmmss = 0;
 	} else {
-		*yyyymmdd = ((ltp->tm_year + 1900) * 10000)
-			+ ((ltp->tm_mon + 1) * 100)
-			+ (ltp->tm_mday);
-		*hhmmss = (ltp->tm_hour * 10000)
-			+ (ltp->tm_min * 100)
-			+ (ltp->tm_sec);
+		*yyyymmdd = ((lt.tm_year + 1900) * 10000)
+			+ ((lt.tm_mon + 1) * 100)
+			+ (lt.tm_mday);
+		*hhmmss = (lt.tm_hour * 10000)
+			+ (lt.tm_min * 100)
+			+ (lt.tm_sec);
 	}
 }	/* Now */
 
@@ -1280,11 +1210,12 @@ EventShell(volatile unsigned int sleepval)
 	volatile int nItems;
 	int nProcessed, nFinished;
 	unsigned int minDSLF;
-	struct dirent *direntp;
+	struct dirent dent;
 	struct Stat st;
 	char *cp;
 	char tstr[32];
 	time_t tnext;
+	struct tm tnext_tm;
 	int iType;
 	int iyyyymmdd, ihhmmss, nyyyymmdd, nhhmmss;
 	DIR *volatile DIRp;
@@ -1320,13 +1251,14 @@ EventShell(volatile unsigned int sleepval)
 #endif
 
 	passes = 0;
+	nItems = 0;
 	nProcessed = 0;
 	nFinished = 0;
 	minDSLF = 0;
 
 	for ( ; ; ) {
 		passes++;
-		if ((passes > 1) || ((passes == 1) && (sleepval > 0))) {
+		if ((passes > 1) || ((passes == 1) && (sleepval != 0))) {
 			/* Don't wait between passes if we just
 			 * processed an item.  We only wait between
 			 * passes if we didn't do anything on the
@@ -1367,21 +1299,20 @@ EventShell(volatile unsigned int sleepval)
 
 		if ((DIRp = opendir(gSpoolDir)) == NULL) {
 			PerrorBox(gSpoolDir);
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit(1);
 		}
 
 		Log(0, "Starting pass %d.\n", passes);
 		for (nItems = 0, nProcessed = 0; ; ) {
-			direntp = readdir(DIRp);
-			if (direntp == NULL)
+			if (Readdir(DIRp, &dent) == NULL)
 				break;
 
 			YieldUI(0);
 
 			(void) STRNCPY(gItemPath, gSpoolDir);
 			(void) STRNCAT(gItemPath, LOCAL_PATH_DELIM_STR);
-			(void) STRNCAT(gItemPath, direntp->d_name);
+			(void) STRNCAT(gItemPath, dent.d_name);
 			if ((Stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
 				/* Item may have been
 				 * deleted by another
@@ -1390,7 +1321,7 @@ EventShell(volatile unsigned int sleepval)
 				continue;
 			}
 
-			if (DecodeName(direntp->d_name, &iyyyymmdd, &ihhmmss) < 0) {
+			if (DecodeName(dent.d_name, &iyyyymmdd, &ihhmmss) < 0) {
 				/* Junk file in the spool directory. */
 				continue;
 			}
@@ -1437,8 +1368,8 @@ EventShell(volatile unsigned int sleepval)
 						gDelaySinceLastFailure = 5;
 					else
 						gDelaySinceLastFailure = NEW_SLEEP_VAL(gDelaySinceLastFailure);
-					tnext = time(NULL) + gDelaySinceLastFailure;
-					strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S", localtime(&tnext));
+					tnext = time(NULL) + (time_t) gDelaySinceLastFailure;
+					strftime(tstr, sizeof(tstr), "%Y-%m-%d %H:%M:%S", Localtime(tnext, &tnext_tm));
 
 					gMaySigExit = 0;
 					if (SpoolX(
@@ -1542,7 +1473,7 @@ static void
 ListQueue(void)
 {
 	int nItems;
-	struct dirent *direntp;
+	struct dirent dent;
 	struct Stat st;
 	DIR *DIRp;
 	char *cp;
@@ -1554,17 +1485,16 @@ ListQueue(void)
 	if ((DIRp = opendir(gSpoolDir)) == NULL) {
 		PerrorBox(gSpoolDir);
 		(void) fprintf(stderr, "This directory is created automatically the first time you do a background\noperation from NcFTP.\n");
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit(1);
 	}
 	for (nItems = 0; ; ) {
-		direntp = readdir(DIRp);
-		if (direntp == NULL)
+		if (Readdir(DIRp, &dent) == NULL)
 			break;
 
 		(void) STRNCPY(gItemPath, gSpoolDir);
 		(void) STRNCAT(gItemPath, LOCAL_PATH_DELIM_STR);
-		(void) STRNCAT(gItemPath, direntp->d_name);
+		(void) STRNCAT(gItemPath, dent.d_name);
 		if ((Stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
 			/* Item may have been
 			 * deleted by another
@@ -1573,7 +1503,7 @@ ListQueue(void)
 			continue;
 		}
 
-		if (DecodeName(direntp->d_name, &iyyyymmdd, &ihhmmss) < 0) {
+		if (DecodeName(dent.d_name, &iyyyymmdd, &ihhmmss) < 0) {
 			/* Junk file in the spool directory. */
 			continue;
 		}
@@ -1642,14 +1572,14 @@ static void OnDraw(HWND hwnd, HDC hdc)
 {
 	RECT clientRect, rect, r;
 	char str[128];
-	time_t now;
+	struct tm lt;
 	BOOL sizeIsUnknown, inProgress;
 	int secLeft, minLeft;
 	double rate, per;
 	const char *rStr;
 	int oldBkMode;
 	int iper;
-	HBRUSH redBrush;
+	HBRUSH redBrush, bkgndBrush;
 	TEXTMETRIC textMetrics;
 	static int lineHeight = 0;
 	static int lastUpdate = 0;
@@ -1658,8 +1588,7 @@ static void OnDraw(HWND hwnd, HDC hdc)
 	LOGFONT lf;
 	char *cp;
 
-	time(&now);
-	strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", localtime(&now));
+	strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", Localtime(0, &lt));
 
 	sizeIsUnknown = (gConn.expectedSize == kSizeUnknown);
 	inProgress = (gConn.bytesTransferred > 0);
@@ -1771,14 +1700,18 @@ static void OnDraw(HWND hwnd, HDC hdc)
 
 		rect.left = 10;
 		rect.top = 30 + lineHeight;
-		rect.right = (clientRect.right / 2) - 10;
+		rect.right = clientRect.right - 10;
 		rect.bottom = rect.top + lineHeight;
+		bkgndBrush = CreateSolidBrush(RGB(192,192,192));
+		FillRect(hdc, &rect, bkgndBrush);
+		DeleteObject(bkgndBrush);
 
+		rect.right = (clientRect.right / 2) - 10;
 		if (sizeIsUnknown) {
-			sprintf(str, "%ld bytes", gConn.bytesTransferred);
+			sprintf(str, PRINTF_LONG_LONG " bytes", (gConn.startPoint + gConn.bytesTransferred));
 		} else {
-			sprintf(str, "%ld of %ld bytes",
-				inProgress ? gConn.bytesTransferred : 0,
+			sprintf(str, PRINTF_LONG_LONG " of " PRINTF_LONG_LONG " bytes",
+				inProgress ? (gConn.startPoint + gConn.bytesTransferred) : (longest_int) 0,
 				gConn.expectedSize
 				);
 		}
@@ -1868,7 +1801,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance_unused, PSTR sz
 	wndclass.hCursor       = LoadCursor(NULL, IDC_ARROW) ;
 	wndclass.hbrBackground = (HBRUSH) GetStockObject(LTGRAY_BRUSH);
 	wndclass.lpszMenuName  = NULL;
-	wndclass.lpszClassName = _T("ncftpbatch");
+	wndclass.lpszClassName = __T("ncftpbatch");
 	wndclass.hIcon         = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINFRAME));
 
 	if (RegisterClassEx(&wndclass) == (ATOM) 0) {
@@ -1881,7 +1814,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance_unused, PSTR sz
 	//
 	hWnd = CreateWindow (
 		wndclass.lpszClassName,		// window class name
-		_T("NcFTPBatch"),			// window caption
+		__T("NcFTPBatch"),			// window caption
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,		// window style
 		100,						// initial x position
 		100,						// initial y position
@@ -1928,6 +1861,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance_unused, PSTR sz
 	// Here we go!
 	//
 	PreInit("ncftpbatch.exe");
+	PostInit();
 	EventShell(0);
 	PostShell();
 
@@ -1937,45 +1871,6 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance_unused, PSTR sz
 
 
 #else	/* UNIX */
-
-static int
-PRead(int sfd, char *const buf0, size_t size, int retry)
-{
-	int nread;
-	int nleft;
-	char *buf = buf0;
-
-	errno = 0;
-	nleft = (int) size;
-	for (;;) {
-		nread = (int) read(sfd, buf, nleft);
-		if (nread <= 0) {
-			if (nread == 0) {
-				/* EOF */
-				nread = (int) size - nleft;
-				return (nread);
-			} else if (errno != EINTR) {
-				nread = (int) size - nleft;
-				if (nread == 0)
-					nread = -1;
-				return (nread);
-			} else {
-				errno = 0;
-				nread = 0;
-				/* Try again. */
-			}
-		}
-		nleft -= nread;
-		if ((nleft <= 0) || (retry == 0))
-			break;
-		buf += nread;
-	}
-	nread = (int) size - nleft;
-	return (nread);
-}	/* PRead */
-
-
-
 
 static void
 ReadCore(int fd)
@@ -2110,21 +2005,22 @@ Usage(void)
 	}
 	(void) fprintf(stderr, "\nLibrary version: %s.\n", gLibNcFTPVersion + 5);
 	(void) fprintf(stderr, "This is a freeware program by Mike Gleason (mgleason@probe.net).\n");
-	DisposeWinsock(0);
+	DisposeWinsock();
 	exit(2);
 }	/* Usage */
 
 
 
 
-int
-main(int argc, const char **const argv)
+main_void_return_t
+main(int argc, char **const argv)
 {
 	int c;
 	int runAsDaemon = -1;
 	unsigned int sleepval = 0;
 	int listonly = -1;
 	int readcore = -1;
+	GetoptInfo opt;
 
 	PreInit(argv[0]);
 #if (defined(SOCKS)) && (SOCKS >= 5)
@@ -2133,7 +2029,8 @@ main(int argc, const char **const argv)
 
 	if (gGlobalSpooler != 0) {
 		runAsDaemon = -1;
-		while ((c = getopt(argc, (char **) argv, "Ddls:q:o:")) > 0) switch(c) {
+		GetoptReset(&opt);
+		while ((c = Getopt(&opt, argc, argv, "Ddls:q:o:")) > 0) switch(c) {
 			case 'd':
 				runAsDaemon = 1;
 				break;
@@ -2144,14 +2041,14 @@ main(int argc, const char **const argv)
 				listonly = 1;
 				break;
 			case 's':
-				if (atoi(optarg) > 0)
-					gDelayBetweenPasses = (unsigned int) atoi(optarg);
+				if (atoi(opt.arg) > 0)
+					gDelayBetweenPasses = (unsigned int) atoi(opt.arg);
 				break;
 			case 'q':
-				STRNCPY(gSpoolDir, optarg);
+				STRNCPY(gSpoolDir, opt.arg);
 				break;
 			case 'o':
-				STRNCPY(gLogFileName, optarg);
+				STRNCPY(gLogFileName, opt.arg);
 				break;
 			default:
 				Usage();
@@ -2171,7 +2068,8 @@ main(int argc, const char **const argv)
 		}
 	} else {
 		/* User Spooler */
-		while ((c = getopt(argc, (char **) argv, "|:XDdlS:Z:s:w")) > 0) switch(c) {
+		GetoptReset(&opt);
+		while ((c = Getopt(&opt, argc, (char **) argv, "|:XDdlS:Z:s:w")) > 0) switch(c) {
 			case 'd':
 				runAsDaemon = 1;
 				break;
@@ -2182,27 +2080,29 @@ main(int argc, const char **const argv)
 				listonly = 1;
 				break;
 			case 'Z':
-				if (atoi(optarg) > 0)
-					sleep((unsigned int) atoi(optarg));
+				if (atoi(opt.arg) > 0)
+					sleep((unsigned int) atoi(opt.arg));
 				break;
 			case 'S':
-				if (atoi(optarg) > 0)
-					sleepval = (unsigned int) atoi(optarg);
+				if (atoi(opt.arg) > 0)
+					sleepval = (unsigned int) atoi(opt.arg);
 				break;
 			case 's':
-				if (atoi(optarg) > 0)
-					gDelayBetweenPasses = (unsigned int) atoi(optarg);
+				if (atoi(opt.arg) > 0)
+					gDelayBetweenPasses = (unsigned int) atoi(opt.arg);
 				break;
 			case 'w':
 				gLogOpenMode = FOPEN_WRITE_TEXT;
 				break;
-			case '|':
-				readcore = atoi(optarg);
-				break;
 			case 'X':
 				/* Yes, I do exist. */
-				DisposeWinsock(0);
+				DisposeWinsock();
 				exit(0);
+				/*NOTREACHED*/
+				break;
+			case '|':
+				readcore = atoi(opt.arg);
+				break;
 			default:
 				Usage();
 		}
@@ -2237,7 +2137,7 @@ main(int argc, const char **const argv)
 		EventShell(sleepval);
 		PostShell();
 	}
-	DisposeWinsock(0);
+	DisposeWinsock();
 	exit(0);
 }	/* main */
 

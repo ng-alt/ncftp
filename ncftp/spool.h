@@ -34,7 +34,7 @@ int SpoolX(
 	const char *const xacct,
 	const int xtype,
 	const int recursive,
-	const int delete,
+	const int deleteflag,
 	const int passive,
 	const char *const preftpcmd,
 	const char *const perfileftpcmd,

@@ -8,4 +8,3 @@
 /* main.c */
 void InitConnectionInfo(void);
 void CloseHost(void);
-int main(int, const char **const);

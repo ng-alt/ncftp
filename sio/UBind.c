@@ -1,17 +1,18 @@
 #include "syshdrs.h"
-
-#if !defined(NO_UNIX_DOMAIN_SOCKETS)
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 int
 UBind(int sockfd, const char *const astr, const int nTries, const int reuseFlag)
 {
 	unsigned int i;
 	int on;
-	int onsize;
+	sockopt_size_t onsize;
 	struct sockaddr_un localAddr;
-	int ualen;
+	sockaddr_size_t ualen;
 
-	ualen = MakeSockAddrUn(&localAddr, astr);
+	ualen = (sockaddr_size_t) MakeSockAddrUn(&localAddr, astr);
 	(void) unlink(localAddr.sun_path);
 
 	if (reuseFlag != kReUseAddrNo) {
@@ -20,9 +21,9 @@ UBind(int sockfd, const char *const astr, const int nTries, const int reuseFlag)
 		 * that the address is still in use.
 		 */
 		on = 1;
-		onsize = (int) sizeof(on);
+		onsize = (sockopt_size_t) sizeof(on);
 		(void) setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-			(char *) &on, onsize);
+			&on, onsize);
 	}
 
 	for (i=1; ; i++) {
@@ -50,8 +51,5 @@ UBind(int sockfd, const char *const astr, const int nTries, const int reuseFlag)
 int
 UListen(int sfd, int backlog)
 {
-	return (listen(sfd, backlog));
+	return (listen(sfd, (listen_backlog_t) backlog));
 }	/* UListen */
-
-#endif
-

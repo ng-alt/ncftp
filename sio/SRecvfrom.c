@@ -1,8 +1,11 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
 
 #ifndef NO_SIGNALS
@@ -10,10 +13,11 @@ extern volatile Sjmp_buf gPipeJmp;
 int
 SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *const fromAddr, int tlen)
 {
-	int nread, tleft;
+	recv_return_t nread;
+	alarm_time_t tleft;
 	vsio_sigproc_t sigalrm, sigpipe;
 	time_t done, now;
-	int alen;
+	sockaddr_size_t alen;
 
 	if (SSetjmp(gNetTimeoutJmp) != 0) {
 		alarm(0);
@@ -36,11 +40,16 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 
 	time(&now);
 	done = now + tlen;
-	tleft = (int) (done - now);
+	tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 	forever {
-		alen = sizeof(struct sockaddr_in);
-		(void) alarm((unsigned int) tleft);
-		nread = recvfrom(sfd, buf, size, fl,
+		if (tleft < 1) {
+			nread = kTimeoutErr;
+			errno = ETIMEDOUT;
+			break;
+		}
+		alen = (sockaddr_size_t) sizeof(struct sockaddr_in);
+		(void) alarm(tleft);
+		nread = recvfrom(sfd, buf, (recv_size_t) size, fl,
 			(struct sockaddr *) fromAddr, &alen);
 		(void) alarm(0);
 		if (nread >= 0)
@@ -49,18 +58,13 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (int) (done - now);
-		if (tleft < 1) {
-			nread = kTimeoutErr;
-			errno = ETIMEDOUT;
-			break;
-		}
+		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 	}
 
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
 
-	return (nread);
+	return ((int) nread);
 }	/* SRecvfrom */
 
 #else
@@ -68,25 +72,33 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 int
 SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *const fromAddr, int tlen)
 {
-	int nread, tleft;
+	recv_return_t nread;
+	int tleft;
 	fd_set ss;
 	struct timeval tv;
 	int result;
 	time_t done, now;
-	int alen;
+	sockaddr_size_t alen;
 
 	time(&now);
 	done = now + tlen;
-	tleft = (int) (done - now);
+	tleft = (done < now) ? ((int) (done - now)) : 0;
 	nread = 0;
 	forever {
-		alen = sizeof(struct sockaddr_in);
+		alen = (sockaddr_size_t) sizeof(struct sockaddr_in);
 				
 		forever {
 			errno = 0;
-			FD_ZERO(&ss);
-			FD_SET(sfd, &ss);
-			tv.tv_sec = tleft;
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			tv.tv_sec = (tv_sec_t) tleft;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, SELECT_TYPE_ARG5 &tv);
 			if (result == 1) {
@@ -102,7 +114,7 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 			}
 		}
 
-		nread = recvfrom(sfd, buf, size, fl,
+		nread = recvfrom(sfd, buf, (recv_size_t) size, fl,
 			(struct sockaddr *) fromAddr, &alen);
 
 		if (nread >= 0)
@@ -111,7 +123,7 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (int) (done - now);
+		tleft = (done < now) ? ((int) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = kTimeoutErr;
 			errno = ETIMEDOUT;
@@ -120,7 +132,7 @@ SRecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_in *con
 		}
 	}
 
-	return (nread);
+	return ((int) nread);
 }	/* SRecvfrom */
 
 #endif

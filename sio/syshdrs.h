@@ -1,34 +1,33 @@
 /* syshdrs.h
  *
- * Copyright (c) 1999 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 2001 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
-
-#if defined(HAVE_CONFIG_H)
-#	include "config.h"
-#endif
-
 #if defined(WIN32) || defined(_WINDOWS)
+#	pragma once
+#	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
+#	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
+#	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
+#	pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
+#	pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
+#	pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
+#	pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
+#	pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
 	/* Include "wincfg.h" in place of "config.h" */
 #	include "wincfg.h"
-#	include <winsock2.h>	/* includes <windows.h> */
-#	define _POSIX_ 1
-#	ifdef HAVE_UNISTD_H
-#		include <unistd.h>
-#	endif
+#	define WINVER 0x0400
+#	define _WIN32_WINNT 0x0400
+#	include <windows.h>		/* includes <winsock2.h> if _WIN32_WINNT >= 0x400 */
+#	include <io.h>
 #	include <errno.h>
 #	include <stdio.h>
 #	include <string.h>
-#	ifdef HAVE_STRINGS_H
-#		include <strings.h>
-#	endif
 #	include <stddef.h>
 #	include <stdlib.h>
 #	include <ctype.h>
 #	include <stdarg.h>
 #	include <time.h>
-#	include <io.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
 #	include <fcntl.h>
@@ -52,118 +51,102 @@
 #	ifndef unlink
 #		define unlink remove
 #	endif
+#	define MY_FD_ZERO FD_ZERO
+#	define MY_FD_SET(s,set) FD_SET((SOCKET) (s), set)
+#	define MY_FD_CLR(s,set) FD_CLR((SOCKET) (s), set)
+#	define MY_FD_ISSET FD_ISSET
 #	define NO_SIGNALS 1
 #	define NO_UNIX_DOMAIN_SOCKETS 1
-#else	/* UNIX */
+#else /* ---------------------------- UNIX ---------------------------- */
+#	if defined(HAVE_CONFIG_H)
+#		include <config.h>
+#	endif
+#	if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#		define _ALL_SOURCE 1
+#	endif
+#	ifdef HAVE_UNISTD_H
+#		include <unistd.h>
+#	endif
+#	include <sys/types.h>
+#	include <sys/time.h>
+#	include <sys/stat.h>
+#	include <sys/socket.h>
+#	ifdef HAVE_SYS_UN_H
+#		include <sys/un.h>
+#	endif
+#	include <sys/ioctl.h>
+
+#	include <netinet/in_systm.h>
+#	include <netinet/in.h>
+#	include <netinet/ip.h>
+#	include <netinet/tcp.h>
+#	include <arpa/inet.h>
+#	include <arpa/telnet.h>
+#	include <netdb.h>
+#	include <errno.h>
+#	include <stdio.h>
+#	include <string.h>
+#	ifdef HAVE_STRINGS_H
+#		include <strings.h>
+#	endif
+#	include <stddef.h>
+#	include <stdlib.h>
+#	include <ctype.h>
+#	include <signal.h>
+#	include <setjmp.h>
+#	include <stdarg.h>
+#	include <time.h>
+#	include <fcntl.h>
+
+#	ifdef HAVE_NET_ERRNO_H
+#		include <net/errno.h>
+#	endif
+#	ifdef HAVE_ARPA_NAMESER_H
+#		include <arpa/nameser.h>
+#	endif
+#	ifdef HAVE_NSERVE_H
+#		ifdef SCO
+#			undef MAXDNAME
+#		endif
+#		include <nserve.h>
+#	endif
+#	ifdef HAVE_RESOLV_H
+#		include <resolv.h>
+#		ifdef HPUX
+			extern int res_init(void);
+#		endif
+#	endif
+
+#	ifdef CAN_USE_SYS_SELECT_H
+#		include <sys/select.h>
+#	endif
+#	define MY_FD_ZERO FD_ZERO
+#	define MY_FD_SET FD_SET
+#	define MY_FD_CLR FD_CLR
+#	define MY_FD_ISSET FD_ISSET
+
+#	ifndef SETSOCKOPT_ARG4
+#		define SETSOCKOPT_ARG4
+#		define GETSOCKOPT_ARG4
+#	endif
+#	if defined(MACOSX) || defined(BSDOS)
+#		undef SIG_DFL
+#		undef SIG_IGN
+#		undef SIG_ERR
+#		define SIG_DFL         (void (*)(int))0
+#		define SIG_IGN         (void (*)(int))1
+#		define SIG_ERR         (void (*)(int))-1
+#	endif
+#endif /* ---------------------------- UNIX ---------------------------- */
 
 #if defined(AIX) || defined(_AIX)
-#	define _ALL_SOURCE 1
-#endif
-#ifdef HAVE_UNISTD_H
-#	include <unistd.h>
-#endif
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/ioctl.h>
-#if !defined(HAVE_GETCWD) && defined(HAVE_GETWD)
-#	include <sys/param.h>
-#endif
-
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <arpa/telnet.h>
-#include <netdb.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#ifdef HAVE_STRINGS_H
-#	include <strings.h>
-#endif
-#include <stddef.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <stdarg.h>
-#include <time.h>
-#include <fcntl.h>
-
-#ifdef HAVE_NET_ERRNO_H
-#	include <net/errno.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#	include <arpa/nameser.h>
-#endif
-#ifdef HAVE_NSERVE_H
-#	include <nserve.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#	include <resolv.h>
-#endif
-#ifdef CAN_USE_SYS_SELECT_H
-#	include <sys/select.h>
-#endif
-
-#ifdef HAVE_GETCWD
-#	ifndef HAVE_UNISTD_H
-		extern char *getcwd();
-#	endif
-#else
-#	ifdef HAVE_GETWD
-#		include <sys/param.h>
-#		ifndef MAXPATHLEN
-#			define MAXPATHLEN 1024
-#		endif
-		extern char *getwd(char *);
-#	endif
-#endif
-
-#define HAVE_RECVMSG 1
-
-#endif	/* UNIX */
-
-#if defined(HAVE_LONG_LONG) && defined(HAVE_OPEN64)
-#	define Open open64
-#else
-#	define Open open
-#endif
-
-#if defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
-#	define Stat stat64
-#	ifdef HAVE_FSTAT64
-#		define Fstat fstat64
-#	else
-#		define Fstat fstat
-#	endif
-#	ifdef HAVE_LSTAT64
-#		define Lstat lstat64
-#	else
-#		define Lstat lstat
-#	endif
-#else
-#	define Stat stat
-#	define Fstat fstat
-#	define Lstat lstat
-#endif
-
-#if defined(HAVE_LONG_LONG) && defined(HAVE_LSEEK64)
-#	define Lseek(a,b,c) lseek64(a, (longest_int) b, c)
-#elif defined(HAVE_LONG_LONG) && defined(HAVE_LLSEEK)
-#	if 1
-#		if defined(LINUX) && (LINUX <= 23000)
-#			define Lseek(a,b,c) lseek(a, (off_t) b, c)
-#		else
-#			define Lseek(a,b,c) llseek(a, (longest_int) b, c)
-#		endif
-#	else
-#		define Lseek(a,b,c) lseek(a, (off_t) b, c)
-#	endif
-#else
-#	define Lseek(a,b,c) lseek(a, (off_t) b, c)
+/* AIX 4.3's sys/socket.h doesn't properly prototype these for C */
+extern int naccept(int, struct sockaddr *, socklen_t *);
+extern int ngetpeername(int, struct sockaddr *, socklen_t *);
+extern int ngetsockname(int, struct sockaddr *, socklen_t *);
+extern ssize_t nrecvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+extern ssize_t nrecvmsg(int, struct msghdr *, int);
+extern ssize_t nsendmsg(int, const struct msghdr *, int);
 #endif
 
 
@@ -197,7 +180,7 @@
 #endif
 
 #include "sio.h"			/* Library header. */
-#ifndef NO_UNIX_DOMAIN_SOCKETS
+#ifdef HAVE_UNIX_DOMAIN_SOCKETS
 #	include "usio.h"
 #endif
 

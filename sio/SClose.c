@@ -1,8 +1,11 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
 
 int
@@ -27,7 +30,8 @@ SClose(int sfd, int tlen)
 			/* This will result in a fd leak,
 			 * but it's either that or hang forever.
 			 */
-			return (shutdown(sfd, 2));
+			(void) shutdown(sfd, 2);
+			return (closesocket(sfd));
 		}
 	}
 
@@ -45,14 +49,14 @@ SClose(int sfd, int tlen)
 			 * but it's either that or hang forever.
 			 */
 			(void) shutdown(sfd, 2);
+			return (closesocket(sfd));
 		}
-		return (-1);
 	}
 
 	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
 	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIG_IGN);
 
-	alarm((unsigned int) tlen);
+	alarm((alarm_time_t) tlen);
 	for (;;) {
 		if (closesocket(sfd) == 0) {
 			errno = 0;
@@ -75,6 +79,7 @@ SClose(int sfd, int tlen)
 			 * but it's either that or hang forever.
 			 */
 			(void) shutdown(sfd, 2);
+			(void) closesocket(sfd);
 		}
 	}
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
@@ -84,7 +89,7 @@ SClose(int sfd, int tlen)
 	struct timeval tv;
 	int result;
 	time_t done, now;
-	fd_set ss;
+	fd_set ss, ss2;
 
 	if (sfd < 0) {
 		errno = EBADF;
@@ -102,7 +107,8 @@ SClose(int sfd, int tlen)
 			/* This will result in a fd leak,
 			 * but it's either that or hang forever.
 			 */
-			return (shutdown(sfd, 2));
+			(void) shutdown(sfd, 2);
+			return (closesocket(sfd));
 		}
 	}
 
@@ -124,17 +130,26 @@ SClose(int sfd, int tlen)
 				 * but it's either that or hang forever.
 				 */
 				(void) shutdown(sfd, 2);
+				(void) closesocket(sfd);
 			}
 			errno = ETIMEDOUT;
 			return (kTimeoutErr);
 		}
 
 		errno = 0;
-		FD_ZERO(&ss);
-		FD_SET(sfd, &ss);
-		tv.tv_sec = tlen;
+		MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+		MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+		memcpy(&ss2, &ss, sizeof(ss2));
+		tv.tv_sec = (tv_sec_t) tlen;
 		tv.tv_usec = 0;
-		result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG5 &tv);
+		result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, SELECT_TYPE_ARG5 &tv);
 		if (result == 1) {
 			/* ready */
 			break;
@@ -150,6 +165,7 @@ SClose(int sfd, int tlen)
 				 * but it's either that or hang forever.
 				 */
 				(void) shutdown(sfd, 2);
+				(void) closesocket(sfd);
 			}
 			errno = ETIMEDOUT;
 			return (kTimeoutErr);
@@ -175,17 +191,26 @@ SClose(int sfd, int tlen)
 				 * but it's either that or hang forever.
 				 */
 				(void) shutdown(sfd, 2);
+				(void) closesocket(sfd);
 			}
 			errno = ETIMEDOUT;
 			return (kTimeoutErr);
 		}
 
 		errno = 0;
-		FD_ZERO(&ss);
-		FD_SET(sfd, &ss);
-		tv.tv_sec = tlen;
+		MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+		MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+		tv.tv_sec = (tv_sec_t) tlen;
 		tv.tv_usec = 0;
-		result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, SELECT_TYPE_ARG5 &tv);
+		memcpy(&ss2, &ss, sizeof(ss2));
+		result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, SELECT_TYPE_ARG5 &tv);
 		if (result == 1) {
 			/* ready */
 			break;
@@ -197,10 +222,8 @@ SClose(int sfd, int tlen)
 				 */
 				(void) closesocket(sfd);
 			} else {
-				/* This will result in a fd leak,
-				 * but it's either that or hang forever.
-				 */
 				(void) shutdown(sfd, 2);
+				(void) closesocket(sfd);
 			}
 			errno = ETIMEDOUT;
 			return (kTimeoutErr);

@@ -1,6 +1,7 @@
 #include "syshdrs.h"
-
-#if !defined(NO_UNIX_DOMAIN_SOCKETS)
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 int
 MakeSockAddrUn(struct sockaddr_un *uaddr, const char *const sockfile)
@@ -12,10 +13,10 @@ MakeSockAddrUn(struct sockaddr_un *uaddr, const char *const sockfile)
 	strncpy(uaddr->sun_path, sockfile, sizeof(uaddr->sun_path) - 1);
 #ifdef HAVE_SOCKADDR_UN_SUN_LEN
         /* 4.3bsd-reno */
-        ualen = sizeof(uaddr->sun_len) + sizeof(uaddr->sun_family) + strlen(uaddr->sun_path) + 1;
+        ualen = (int) sizeof(uaddr->sun_len) + (int) sizeof(uaddr->sun_family) + (int) strlen(uaddr->sun_path) + 1;
         uaddr->sun_len = ualen;
 #else
-        ualen = sizeof(uaddr->sun_family) + strlen(uaddr->sun_path) + 1;
+        ualen = (int) sizeof(uaddr->sun_family) + (int) strlen(uaddr->sun_path) + 1;
 #endif
 	return (ualen);
 }	/* MakeSockAddrUn */
@@ -102,5 +103,3 @@ UNewDatagramServer(const char *const astr, const int nTries, const int reuseFlag
 
 	return (sfd);
 }	/* UNewDatagramServer */
-
-#endif

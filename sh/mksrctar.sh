@@ -12,24 +12,35 @@ for f in ncftp libncftp sh_util vis sio Strn ; do
 done
 
 TMPDIR=/tmp
+TAR=""
+TARFLAGS=""
+
 if [ "$#" -lt 2 ] ; then
 	TARDIR="ncftp"
 	STGZFILE="$TARDIR.tar.gz"
 else
 	TARDIR="$1"
 	STGZFILE="$2"
+	if [ "$#" -eq 4 ] ; then
+		# I.e., called from Makefile
+		TAR="$3"
+		TARFLAGS="$4"
+	fi
 fi
 
+if [ -x /usr/bin/bzip2 ] ; then
+	BZIP="/usr/bin/bzip2"
+elif [ -x /usr/local/bin/bzip2 ] ; then
+	BZIP="/usr/local/bin/bzip2"
+else
+	BZIP=":"
+fi
+ZIPFILE=`echo "$STGZFILE" | sed 's/\.tar\.gz/.zip/g'`
+SBGZFILE=`echo "$STGZFILE" | sed 's/\.tar\.gz/.tar.bz2/g'`
 rm -rf $TMPDIR/TAR
 mkdir -p -m755 $TMPDIR/TAR/$TARDIR 2>/dev/null
 
-chmod 755 configure sh/* install-sh
-find . -name '*.[ch]' -exec sh/dos2unix.sh {} \;
-find . -name '*.in' -exec sh/dos2unix.sh {} \;
-
-if [ -f "$wd/sh/fixfcase.sh" ] ; then
-	$wd/sh/fixfcase.sh "$wd"
-fi
+chmod 755 configure sh/*
 
 find . -depth -follow -type f | sed '
 /\/samples/d
@@ -58,16 +69,19 @@ find . -depth -follow -type f | sed '
 /\.swp$/d
 /\.orig$/d
 /\.rej$/d
-/\/Makefile\.bin$/p
+/\/Makefile\.bin$/d
 /\.bin$/d
 /\/bin/d
 /\/core$/d
-/\/^[Rr]elease$/d
-/\/^[Dd]ebug$/d
+/\/ccdv$/d
+/\/[Rr]elease$/d
+/\/[Dd]ebug$/d
 /\/sio\/.*\//d
 /shit/d
 /\/upload/d
 /\/config\.h\.in$/p
+/\/config\.guess$/p
+/\/config\.sub$/p
 /\/config\./d
 /\/Makefile$/d
 /\/OLD/d
@@ -80,29 +94,42 @@ fi
 
 cpio -Lpdm $TMPDIR/TAR/$TARDIR < "$wd/doc/manifest"
 
-x=`tar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
-case "$x" in
-	*owner=NAME*)
-		TARFLAGS="-c --owner=bin --group=bin --verbose -f"
-		TAR=tar
-		;;
-	*)
-		TARFLAGS="cvf"
-		TAR=tar
-		x2=`gtar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
-		case "$x2" in
-			*owner=NAME*)
-				TARFLAGS="-c --owner=bin --group=bin --verbose -f"
-				TAR=gtar
-				;;
-		esac
-		;;
-esac
+find $TMPDIR/TAR/$TARDIR -type f -name '*.[ch]' -exec $wd/sh/dos2unix.sh {} \;
+find $TMPDIR/TAR/$TARDIR -type f -name '*.in' -exec $wd/sh/dos2unix.sh {} \;
+
+if [ "$TAR" = "" ] || [ "$TARFLAGS" = "" ] ; then
+	x=`tar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
+	case "$x" in
+		*owner=NAME*)
+			TARFLAGS="-c --owner=bin --group=bin --verbose -f"
+			TAR=tar
+			;;
+		*)
+			TARFLAGS="cvf"
+			TAR=tar
+			x2=`gtar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
+			case "$x2" in
+				*owner=NAME*)
+					TARFLAGS="-c --owner=bin --group=bin --verbose -f"
+					TAR=gtar
+					;;
+			esac
+			;;
+	esac
+fi
 
 ( cd $TMPDIR/TAR ; $TAR $TARFLAGS - $TARDIR | gzip -c > $STGZFILE )
 cp $TMPDIR/TAR/$STGZFILE .
-chmod 644 $STGZFILE
+
+if [ "$BZIP" != ":" ] ; then
+	( cd $TMPDIR/TAR ; $TAR $TARFLAGS - $TARDIR | $BZIP -c > $SBGZFILE )
+	cp $TMPDIR/TAR/$SBGZFILE .
+fi
+
+( cd $TMPDIR/TAR ; zip -r -9 -v $ZIPFILE $TARDIR )
+cp $TMPDIR/TAR/$ZIPFILE .
+
+chmod 644 $STGZFILE $SBGZFILE $ZIPFILE 2>/dev/null
 rm -rf $TMPDIR/TAR
-ls -l $STGZFILE 2>/dev/null
-mv $TGZFILE newbin/ 2>/dev/null
+ls -l $STGZFILE $SBGZFILE $ZIPFILE 2>/dev/null
 exit 0

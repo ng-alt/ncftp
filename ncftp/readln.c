@@ -10,6 +10,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "shell.h"
 #include "util.h"
@@ -33,13 +36,12 @@ char gCurXtermTitleStr[256];
 	char gSavedConsoleTitle[64];
 #endif
 
-extern int gEventNumber;
 extern int gMaySetXtermTitle;
 extern LsCacheItem gLsCache[kLsCacheSize];
 extern FTPConnectionInfo gConn;
 extern char gRemoteCWD[512];
 extern char gOurDirectoryPath[];
-extern char gVersion[];
+extern const char gVersion[];
 extern int gNumBookmarks;
 extern BookmarkPtr gBookmarkTable;
 extern PrefOpt gPrefOpts[];
@@ -67,7 +69,7 @@ GetScreenColumns(void)
 #ifdef BINDIR
 	char ncftpbookmarks[256];
 	FILE *infp;
-	vsigproc_t osigpipe;
+	sigproc_t osigpipe;
 	int columns;
 #endif	/* BINDIR */
 	char *cp;
@@ -189,6 +191,7 @@ InitTermcap(void)
 		(strcmp(term, "vt100") == 0) ||
 		(strcmp(term, "linux") == 0) ||
 		(strcmp(term, "vt220") == 0) ||
+		(strcmp(term, "cons25") == 0) ||
 		(strcmp(term, "vt102") == 0)
 	) {
 		tcap_normal = "\033[0m";       /* Default ANSI escapes */
@@ -648,7 +651,6 @@ SaveHistory(void)
 		return;		/* Don't create in root directory. */
 	(void) OurDirectoryPath(pathName, sizeof(pathName), kHistoryFileName);
 
-	gl_strlen = Vt100VisibleStrlen;
 	gl_histsavefile(pathName);
 	(void) chmod(pathName, 00600);
 }	/* SaveHistory */
@@ -661,6 +663,7 @@ InitReadline(void)
 {
 	gl_completion_proc = CompletionFunction;
 	gl_setwidth(gScreenColumns);
+	gl_strlen = Vt100VisibleStrlen;
 	LoadHistory();
 	ReCacheBookmarks();
 }	/* InitReadline */
@@ -712,7 +715,7 @@ Readline(char *prompt)
 
 
 void
-AddHistory(char *line)
+AddHistory(const char *const line)
 {
 	gl_histadd(line);
 }	/* AddHistory */

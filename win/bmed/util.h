@@ -1,6 +1,6 @@
 /* util.h
  *
- * Copyright (c) 1992-1999 by Mike Gleason.
+ * Copyright (c) 2001 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -42,7 +42,7 @@ typedef volatile sigproc_t vsigproc_t;
 #	define F_OK 0
 #endif
 
-#define kOurDirectoryName	".ncftp"
+#define kOurDirectoryName	"ncftp"
 
 #define kPasswordMagic "*encoded*"
 #define kPasswordMagicLen 9
@@ -75,9 +75,8 @@ void InitOurDirectory(void);
 void InitUserInfo(void);
 int StrToBool(const char *const);
 char *OurInstallationPath(char *const dst, const size_t siz, const char *const fname);
-
-char *FGets(char *str, size_t size, FILE *fp);
 int MkDirs(const char *const, int mode1);
+char *FGets(char *str, size_t size, FILE *fp);
 char *StrFindLocalPathDelim(const char *src);
 char *StrRFindLocalPathDelim(const char *src);
 

@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 #include "shell.h"
 #include "util.h"
 #include "ls.h"
@@ -18,7 +21,6 @@
 #include "spool.h"
 #include "getline.h"
 #include "readln.h"
-#include "getopt.h"
 
 /* This was the directory path when the user logged in.  For anonymous users,
  * this should be "/", but for real users, it should be their home directory.
@@ -58,16 +60,27 @@ FTPConnectionInfo gTmpURLConn;
  */
 int gResumeAnswerAll;
 
-extern FTPLibraryInfo gLib;
+/* Did the user stupidly type passwords, etc., on our command line? */
+int gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk = 0;
+
+typedef struct SpoolCmdInfo {
+	int xtype;
+	int deleteFlag;
+	int recurseFlag;
+	int renameMode;
+	time_t when;
+	const char *lcwd;
+	const char *rcwd;
+	int base;
+} SpoolCmdInfo;
+
 extern FTPConnectionInfo gConn;
 extern char gOurDirectoryPath[];
 extern Command gCommands[];
-extern char gVersion[];
+extern const char gVersion[];
 extern size_t gNumCommands;
-extern int gDebug, gDoneApplication;
-extern char *gOptArg;
-extern int gOptInd, gGotSig;
-extern int gFirstTimeUser;
+extern int gDebug, gDoneApplication, gIsTTYr;
+extern int gGotSig;
 extern unsigned int gFirewallPort;
 extern int gFirewallType;
 extern char gFirewallHost[64];
@@ -76,21 +89,34 @@ extern char gFirewallPass[32];
 extern char gFirewallExceptionList[];
 extern char gPager[], gHome[], gShell[];
 extern char gOS[];
-extern int gAutoResume, gRedialDelay;
+extern int gAutoResume;
 extern int gAutoSaveChangesToExistingBookmarks;
 extern Bookmark gBm;
 extern int gLoadedBm, gConfirmClose, gSavePasswords, gScreenColumns;
-extern char gLocalCWD[512], gPrevLocalCWD[512], gOurInstallationPath[];
+extern char gLocalCWD[512], gPrevLocalCWD[512];
 extern int gMayCancelJmp;
+extern char gOurHostName[64];
 #if defined(WIN32) || defined(_WINDOWS)
+extern char gOurInstallationPath[];
 #elif defined(HAVE_SIGSETJMP)
 extern sigjmp_buf gCancelJmp;
 #else	/* HAVE_SIGSETJMP */
 extern jmp_buf gCancelJmp;
 #endif	/* HAVE_SIGSETJMP */
 
+static void
+OpenMsg(const char *const fmt, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 1, 2)))
+#endif
+;
 
-
+#if (defined(__GNUC__)) && (__GNUC__ == 2)
+#	define DATE_SPEC "%a %b %H:%M:%S %Z %Y"
+#else
+	/* For GCC 3, we can disable the Y2K warnings. */
+#	define DATE_SPEC "%c"
+#endif
 
 /* Open the users $PAGER, or just return stdout.  Make sure to use
  * ClosePager(), and not fclose/pclose directly.
@@ -234,26 +260,28 @@ FillBookmarkInfo(BookmarkPtr bmp)
 void
 SaveCurrentAsBookmark(void)
 {
-	int saveBm;
+	int saveBmPassword;
 	char ans[64];
 
 	/* gBm.bookmarkName must already be set. */
 	FillBookmarkInfo(&gBm);
 
-	saveBm = gSavePasswords;
-	if (gLoadedBm != 0)
-		saveBm = 1;
-	if ((saveBm < 0) && (gBm.pass[0] != '\0')) {
-		(void) printf("\n\nYou logged into this site using a password.\nWould you like to save the password with this bookmark?\n\n");
-		(void) printf("Save? [no] ");
-		(void) memset(ans, 0, sizeof(ans));
-		fflush(stdin);
-		(void) fgets(ans, sizeof(ans) - 1, stdin);
-		if ((saveBm = StrToBool(ans)) == 0) {
-			(void) printf("\nNot saving the password.\n");
+	saveBmPassword = gSavePasswords;
+	if ((saveBmPassword < 0) && (gBm.pass[0] != '\0')) {
+		if (gIsTTYr == 0) {
+			saveBmPassword = 0;
+		} else {
+			(void) printf("\n\nYou logged into this site using a password.\nWould you like to save the password with this bookmark?\n\n");
+			(void) printf("Save? [no] ");
+			(void) memset(ans, 0, sizeof(ans));
+			fflush(stdin);
+			(void) fgets(ans, sizeof(ans) - 1, stdin);
+			if ((saveBmPassword = StrToBool(ans)) == 0) {
+				(void) printf("\nNot saving the password.\n");
+			}
 		}
 	}
-	if (PutBookmark(&gBm, saveBm) < 0) {
+	if (PutBookmark(&gBm, saveBmPassword) < 0) {
 		(void) fprintf(stderr, "Could not save bookmark.\n");
 	} else {
 		/* Also marks whether we saved it. */
@@ -277,7 +305,9 @@ SaveUnsavedBookmark(void)
 	char ans[64];
 	int c;
 
-	if ((gConfirmClose != 0) && (gLoadedBm == 0) && (gOurDirectoryPath[0] != '\0')) {
+	if (gIsTTYr == 0) {
+		return;
+	} else if ((gConfirmClose != 0) && (gLoadedBm == 0) && (gOurDirectoryPath[0] != '\0')) {
 		FillBookmarkInfo(&gBm);
 		BookmarkToURL(&gBm, url, sizeof(url));
 		(void) printf("\n\nYou have not saved a bookmark for this site.\n");
@@ -324,7 +354,7 @@ SaveUnsavedBookmark(void)
  * will be referred to by a bookmark abbreviation name.
  */
 void
-BookmarkCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+BookmarkCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	/* The only reason we do this is to get gcc/lint to shut up
 	 * about unused parameters.
@@ -357,7 +387,7 @@ BookmarkCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 
 /* Dump a remote file to the screen. */
 void
-CatCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+CatCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 	int i;
@@ -421,7 +451,6 @@ int
 nFTPChdirAndGetCWD(const FTPCIPtr cip, const char *cdCwd, const int quietMode)
 {
 	ResponsePtr rp;
-	size_t cdCwdLen;
 	int result;
 #ifdef USE_WHAT_SERVER_SAYS_IS_CWD
 	int foundcwd;
@@ -443,7 +472,6 @@ nFTPChdirAndGetCWD(const FTPCIPtr cip, const char *cdCwd, const int quietMode)
 			cip->errNo = kErrMallocFailed;
 			/* Error(cip, kDontPerror, "Malloc failed.\n"); */
 		} else {
-			cdCwdLen = strlen(cdCwd);
 			if (strcmp(cdCwd, "..") == 0) {
 				result = RCmd(cip, rp, "CDUP"); 	
 			} else {
@@ -564,7 +592,7 @@ Chdirs(FTPCIPtr cip, const char *const cdCwd)
 
 /* Remote change of working directory command. */
 void
-ChdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+ChdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 	LineList ll;
@@ -618,7 +646,7 @@ ChdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Chmod files on the remote host, if it supports it. */
 void
-ChmodCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+ChmodCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i, result;
 
@@ -643,7 +671,7 @@ ChmodCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Close the current session to a remote FTP server. */
 void
-CloseCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+CloseCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	if (gConn.connected == 0)
@@ -656,7 +684,7 @@ CloseCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* User interface to the program's debug-mode setting. */
 void
-DebugCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+DebugCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	if (argc > 1)
@@ -670,15 +698,16 @@ DebugCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Delete files on the remote host. */
 void
-DeleteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+DeleteCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 	int i, c;
 	int recursive = kRecursiveNo;
+	GetoptInfo opt;
 
 	ARGSUSED(gUnusedArg);
-	GetoptReset();
-	while ((c = Getopt(argc, argv, "rf")) > 0) switch(c) {
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "rf")) > 0) switch(c) {
 		case 'r':
 			recursive = kRecursiveYes;
 			break;
@@ -690,7 +719,7 @@ DeleteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const 
 			return;
 	}
 
-	for (i=gOptInd; i<argc; i++) {
+	for (i=opt.ind; i<argc; i++) {
 		result = FTPDelete(
 				&gConn, argv[i], recursive,
 				(aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes
@@ -712,7 +741,7 @@ DeleteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const 
  * shell, as a sample command which prints some output.
  */
 void
-EchoCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+EchoCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i;
 	int result;
@@ -746,26 +775,27 @@ EchoCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 
 static int
 NcFTPConfirmResumeDownloadProc(
-	const char *volatile *localpath,
-	volatile longest_int localsize,
-	volatile time_t localmtime,
-	const char *volatile remotepath,
-	volatile longest_int remotesize,
-	volatile time_t remotemtime,
-	volatile longest_int *volatile startPoint)
+	const char **localpath,
+	longest_int localsize,
+	time_t localmtime,
+	const char *remotepath,
+	longest_int remotesize,
+	time_t remotemtime,
+	longest_int *startPoint)
 {
 	int zaction = kConfirmResumeProcSaidBestGuess;
 	char tstr[80], ans[32];
 	static char newname[128];	/* arrggh... static. */
+	struct tm t;
 
 	if (gResumeAnswerAll != kConfirmResumeProcNotUsed)
 		return (gResumeAnswerAll);
 
-	if (gAutoResume != 0)
+	if ((gAutoResume != 0) || (gIsTTYr == 0))
 		return (kConfirmResumeProcSaidBestGuess);
 
 	tstr[sizeof(tstr) - 1] = '\0';
-	(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &localmtime)); 
+	(void) strftime(tstr, sizeof(tstr) - 1, DATE_SPEC, Localtime(localmtime, &t));
 	(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 		"\nThe local file \"%s\" already exists.\n\tLocal:  %12lld bytes, dated %s.\n",
@@ -782,7 +812,7 @@ NcFTPConfirmResumeDownloadProc(
 	);
 
 	if ((remotemtime != kModTimeUnknown) && (remotesize != kSizeUnknown)) {
-		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &remotemtime)); 
+		(void) strftime(tstr, sizeof(tstr) - 1, DATE_SPEC, Localtime(remotemtime, &t));
 		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tRemote: %12lld bytes, dated %s.\n",
@@ -814,7 +844,7 @@ NcFTPConfirmResumeDownloadProc(
 			remotesize
 		);
 	} else if (remotemtime != kModTimeUnknown) {
-		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &remotemtime)); 
+		(void) strftime(tstr, sizeof(tstr) - 1, DATE_SPEC, Localtime(remotemtime, &t));
 		(void) printf(
 			"\tRemote: size unknown, dated %s.\n",
 			tstr
@@ -922,9 +952,9 @@ NcFTPConfirmResumeDownloadProc(
 
 /* Download files from the remote system. */
 void
-GetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+GetCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-	int opt;
+	int optrc;
 	int renameMode = 0;
 	int recurseFlag = kRecursiveNo;
 	int appendFlag = kAppendNo;
@@ -939,13 +969,14 @@ GetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 	int deleteFlag = kDeleteNo;
 	char pattern[256];
 	vsigproc_t osigint;
-	ConfirmResumeDownloadProc confirmProc;
+	FTPConfirmResumeDownloadProc confirmProc;
+	GetoptInfo opt;
 
 	confirmProc = NcFTPConfirmResumeDownloadProc;
 	gResumeAnswerAll = kConfirmResumeProcNotUsed;	/* Ask at least once each time */
 	ARGSUSED(gUnusedArg);
-	GetoptReset();
-	while ((opt = Getopt(argc, argv, "aAzfrRTD")) >= 0) switch (opt) {
+	GetoptReset(&opt);
+	while ((optrc = Getopt(&opt, argc, argv, "aAzfrRTD")) >= 0) switch (optrc) {
 		case 'a':
 			xtype = kTypeAscii;
 			break;
@@ -962,7 +993,7 @@ GetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 			 * already.
 			 */
 			resumeFlag = kResumeNo;
-			confirmProc = NoConfirmResumeDownloadProc;
+			confirmProc = kNoFTPConfirmResumeDownloadProc;
 			break;
 		case 'z':
 			/* Special flag that lets you specify the
@@ -1008,18 +1039,18 @@ GetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 		deleteFlag = kDeleteYes;
 
 	if (renameMode != 0) {
-		if (gOptInd > argc - 2) {
+		if (opt.ind > argc - 2) {
 			PrintCmdUsage(cmdp);
 			(void) fprintf(stderr, "\nFor get with rename, try \"get -z remote-path-name local-path-name\".\n");
 			return;
 		}
 		osigint = NcSignal(SIGINT, XferCanceller);
-		rc = FTPGetOneFile3(&gConn, argv[gOptInd], argv[gOptInd + 1], xtype, (-1), resumeFlag, appendFlag, deleteFlag, NoConfirmResumeDownloadProc, 0);
+		rc = FTPGetOneFile3(&gConn, argv[opt.ind], argv[opt.ind + 1], xtype, (-1), resumeFlag, appendFlag, deleteFlag, kNoFTPConfirmResumeDownloadProc, 0);
 		if (rc < 0)
-			FTPPerror(&gConn, rc, kErrCouldNotStartDataTransfer, "get", argv[gOptInd]);
+			FTPPerror(&gConn, rc, kErrCouldNotStartDataTransfer, "get", argv[opt.ind]);
 	} else {
 		osigint = NcSignal(SIGINT, XferCanceller);
-		for (i=gOptInd; i<argc; i++) {
+		for (i=opt.ind; i<argc; i++) {
 			doGlob = (aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes;
 			STRNCPY(pattern, argv[i]);
 			StrRemoveTrailingSlashes(pattern);
@@ -1042,7 +1073,7 @@ GetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 
 /* Display some brief help for specified commands, or a list of commands. */
 void
-HelpCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+HelpCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	CommandPtr c;
 	int showall = 0, helpall = 0;
@@ -1075,8 +1106,11 @@ commands.  'help <command>' gives a brief description of <command>.\n\n");
 			if ((!iscntrl((int) c->name[0])) && (!(c->flags & kCmdHidden) || showall))
 				nCmds2Print++;
 
-		(void) memset((char *) cmdnames, 0, sizeof(cmdnames));
-
+#if defined(WIN32) || defined(_WINDOWS)
+		(void) memset((void *) cmdnames, 0, sizeof(cmdnames));
+#else
+		(void) memset(cmdnames, 0, sizeof(cmdnames));
+#endif
 		/* Now form the list we'll be printing, and noting what the maximum
 		 * length of a command name was, so we can use that when determining
 		 * how to print in columns.
@@ -1292,8 +1326,8 @@ RunBookmarkEditor(char *selectedBmName, size_t dsize)
 		} else if (pid == 0) {
 			/* child */
 
-			av[0] = (char *) "ncftpbookmarks";
-			av[1] = bmSelectionFile;
+			av[0] = strdup("ncftpbookmarks");
+			av[1] = strdup(bmSelectionFile);
 			av[2] = NULL;
 			execv(ncftpbookmarks, av);
 			exit(1);
@@ -1335,19 +1369,21 @@ RunBookmarkEditor(char *selectedBmName, size_t dsize)
 
 /* This just shows the list of saved bookmarks. */
 void
-HostsCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+HostsCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-	const char *av[3];
+	char *av[3];
 	char bm[128];
 
 	ARGSUSED(gUnusedArg);
 	/* Skip visual mode if "-l". */
 	if ((argc == 1) && (RunBookmarkEditor(bm, sizeof(bm)) == 0)) {
 		if (bm[0] != '\0') {
-			av[0] = "open";
-			av[1] = bm;
+			av[0] = strdup("open");
+			av[1] = strdup(bm);
 			av[2] = NULL;
 			OpenCmd(2, av, (CommandPtr) 0, (ArgvInfoPtr) 0);
+			free(av[0]);
+			free(av[1]);
 		}
 		return;
 	}
@@ -1364,7 +1400,7 @@ HostsCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Show active background ncftp (ncftpbatch) jobs. */
 void
-JobsCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+JobsCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	Jobs();
@@ -1377,7 +1413,7 @@ JobsCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
  * user.  This command handles "dir" (ls -l), "ls", and "nlist" (ls -1).
  */
 void
-ListCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+ListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	volatile int i;
 	int j;
@@ -1520,7 +1556,7 @@ ListCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 
 /* Does a change of working directory on the local host. */
 void
-LocalChdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalChdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 	const char *dir;
@@ -1558,7 +1594,7 @@ LocalChdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, co
 
 /* Does directory listing on the local host. */
 void
-LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 #if defined(WIN32) || defined(_WINDOWS)
 	volatile int i;
@@ -1641,7 +1677,7 @@ LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 	int dashopts;
 	char incmd[256];
 	char line[256];
-	vsigproc_t osigpipe, osigint;
+	vsigproc_t osigpipe = (sigproc_t) 0, osigint = (sigproc_t) 0;
 
 	ARGSUSED(gUnusedArg);
 	(void) fflush(stdin);
@@ -1713,7 +1749,7 @@ LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 
 
 static void
-Sys(const int argc, const char **const argv, const ArgvInfoPtr aip, const char *syscmd, int noDQuote)
+Sys(const int argc, char **const argv, const ArgvInfoPtr aip, const char *syscmd, int noDQuote)
 {
 	char cmd[256];
 	int i;
@@ -1747,7 +1783,7 @@ Sys(const int argc, const char **const argv, const ArgvInfoPtr aip, const char *
 #if defined(WIN32) || defined(_WINDOWS)
 #else
 void
-LocalChmodCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalChmodCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	Sys(argc, argv, aip, "/bin/chmod", 1);
@@ -1757,7 +1793,7 @@ LocalChmodCmd(const int argc, const char **const argv, const CommandPtr cmdp, co
 
 
 void
-LocalMkdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalMkdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 #if defined(WIN32) || defined(_WINDOWS)
 	const char *arg;
@@ -1781,7 +1817,7 @@ LocalMkdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, co
 #if defined(WIN32) || defined(_WINDOWS)
 #else
 void
-LocalPageCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalPageCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	Sys(argc, argv, aip, gPager, 0);
@@ -1792,7 +1828,7 @@ LocalPageCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 
 
 void
-LocalRenameCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalRenameCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 #if defined(WIN32) || defined(_WINDOWS)
 	if (rename(argv[1], argv[2]) < 0) {
@@ -1808,7 +1844,7 @@ LocalRenameCmd(const int argc, const char **const argv, const CommandPtr cmdp, c
 
 
 void
-LocalRmCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalRmCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 #if defined(WIN32) || defined(_WINDOWS)
 	int i;
@@ -1842,7 +1878,7 @@ LocalRmCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
 
 
 void
-LocalRmdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalRmdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 #if defined(WIN32) || defined(_WINDOWS)
 	int i;
@@ -1877,7 +1913,7 @@ LocalRmdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, co
 
 /* Displays the current local working directory. */
 void
-LocalPwdCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LocalPwdCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	if (FTPGetLocalCWD(gLocalCWD, sizeof(gLocalCWD)) != NULL) {
@@ -1892,45 +1928,53 @@ LocalPwdCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
  * of nslookup.
  */
 void
-LookupCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+LookupCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i, j;
-	struct hostent *hp;
+	struct hostent hp;
+	int hpok;
 	const char *host;
 	char **cpp;
 	struct in_addr ip_address;
-	int shortMode, opt;
+	int shortMode, optrc;
 	char ipStr[16];
+	GetoptInfo opt;
 
 	ARGSUSED(gUnusedArg);
-	shortMode = 1;
+	shortMode = 0;
 	
-	GetoptReset();
-	while ((opt = Getopt(argc, argv, "v")) >= 0) {
-		if (opt == 'v')
+	GetoptReset(&opt);
+	while ((optrc = Getopt(&opt, argc, argv, "vqV")) >= 0) {
+		if (optrc == 'v') {
 			shortMode = 0;
-		else {
+		} else if (optrc == 'V') {
+			shortMode = 1;
+		} else if (optrc == 'q') {
+			shortMode = 1;
+		} else {
 			PrintCmdUsage(cmdp);
 			return;
 		}
 	}
 
-	for (i=gOptInd; i<argc; i++) {
-		hp = GetHostEntry((host = argv[i]), &ip_address);
-		if ((i > gOptInd) && (shortMode == 0))
+	for (i=opt.ind; i<argc; i++) {
+		hpok = 0;
+		if (GetHostEntry(&hp, (host = argv[i]), &ip_address, gConn.buf, gConn.bufSize) == 0)
+			hpok = 1;
+		if ((i > opt.ind) && (shortMode == 0))
 			Trace(-1, "\n");
-		if (hp == NULL) {
+		if (hpok == 0) {
 			Trace(-1, "Unable to get information about site %s.\n", host);
 		} else if (shortMode) {
-			MyInetAddr(ipStr, sizeof(ipStr), hp->h_addr_list, 0);
-			Trace(-1, "%-40s %s\n", hp->h_name, ipStr);
+			MyInetAddr(ipStr, sizeof(ipStr), hp.h_addr_list, 0);
+			Trace(-1, "%-40s %s\n", hp.h_name, ipStr);
 		} else {
 			Trace(-1, "%s:\n", host);
-			Trace(-1, "    Name:     %s\n", hp->h_name);
-			for (cpp = hp->h_aliases; *cpp != NULL; cpp++)
+			Trace(-1, "    Name:     %s\n", hp.h_name);
+			for (cpp = hp.h_aliases; *cpp != NULL; cpp++)
 				Trace(-1, "    Alias:    %s\n", *cpp);
-			for (j = 0, cpp = hp->h_addr_list; *cpp != NULL; cpp++, ++j) {
-				MyInetAddr(ipStr, sizeof(ipStr), hp->h_addr_list, j);
+			for (j = 0, cpp = hp.h_addr_list; *cpp != NULL; cpp++, ++j) {
+				MyInetAddr(ipStr, sizeof(ipStr), hp.h_addr_list, j);
 				Trace(-1, "    Address:  %s\n", ipStr);	
 			}
 		}
@@ -1943,20 +1987,21 @@ LookupCmd(const int argc, const char **const argv, const CommandPtr cmdp, const 
  * Mostly for debugging, since NcFTP uses MLSD automatically when it needs to.
  */
 void
-MlsCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+MlsCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i;
-	int opt;
+	int optrc;
 	LinePtr linePtr, nextLinePtr;
 	int result;
 	LineList dirContents;
 	int mlsd = 1, x;
 	const char *item;
+	GetoptInfo opt;
 
 	ARGSUSED(gUnusedArg);
-	GetoptReset();
-	while ((opt = Getopt(argc, argv, "dt")) >= 0) {
-		if ((opt == 'd') || (opt == 't')) {
+	GetoptReset(&opt);
+	while ((optrc = Getopt(&opt, argc, argv, "dt")) >= 0) {
+		if ((optrc == 'd') || (optrc == 't')) {
 			/* Use MLST instead of MLSD,
 			 * which is similar to using "ls -d" instead of "ls".
 			 */
@@ -1967,7 +2012,7 @@ MlsCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 		}
 	}
 
-	i = gOptInd;
+	i = opt.ind;
 	if (i == argc) {
 		/* No args, do current directory. */
 		x = 1;
@@ -2017,17 +2062,18 @@ MlsCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 
 /* Create directories on the remote system. */
 void
-MkdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+MkdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i;
-	int opt;
+	int optrc;
 	int result;
 	int recurseFlag = kRecursiveNo;
+	GetoptInfo opt;
 
 	ARGSUSED(gUnusedArg);
-	GetoptReset();
-	while ((opt = Getopt(argc, argv, "p")) >= 0) {
-		if (opt == 'p') {
+	GetoptReset(&opt);
+	while ((optrc = Getopt(&opt, argc, argv, "p")) >= 0) {
+		if (optrc == 'p') {
 			/* Try creating intermediate directories if they
 			 * don't exist.
 			 *
@@ -2042,7 +2088,7 @@ MkdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 		}
 	}
 
-	for (i=gOptInd; i<argc; i++) {
+	for (i=opt.ind; i<argc; i++) {
 		result = FTPMkdir(&gConn, argv[i], recurseFlag);
 		if (result < 0)
 			FTPPerror(&gConn, result, kErrMKDFailed, "Could not mkdir", argv[i]);
@@ -2189,15 +2235,15 @@ DoOpen(void)
 		(void) STRNCPY(ohost, gConn.host);
 		OpenMsg("Resolving %s...", ohost);
 		if ((gLoadedBm != 0) && (gBm.lastIP[0] != '\0')) {
-			result = GetHostByName(ipstr, sizeof(ipstr), ohost, 3);
+			result = MyGetHostByName(ipstr, sizeof(ipstr), ohost, 3);
 			if (result < 0) {
 				(void) STRNCPY(ipstr, gBm.lastIP);
 				result = 0;
 			} else {
-				result = GetHostByName(ipstr, sizeof(ipstr), ohost, 7);
+				result = MyGetHostByName(ipstr, sizeof(ipstr), ohost, 7);
 			}
 		} else {
-			result = GetHostByName(ipstr, sizeof(ipstr), ohost, 10);
+			result = MyGetHostByName(ipstr, sizeof(ipstr), ohost, 10);
 		}
 		if (result < 0) {
 			(void) printf("\n");
@@ -2216,7 +2262,7 @@ DoOpen(void)
 			gConn.firewallPort
 		);
 		Trace(0, "FwExceptions: %s\n", gFirewallExceptionList);
-		if (strchr(gLib.ourHostName, '.') == NULL) {
+		if (strchr(gOurHostName, '.') == NULL) {
 			Trace(0, "NOTE:  Your domain name could not be detected.\n");
 			if (gConn.firewallType != kFirewallNotInUse) {
 				Trace(0, "       Make sure you manually add your domain name to firewall-exception-list.\n");
@@ -2283,7 +2329,7 @@ DoOpen(void)
 		} else {
 			cp = gConn.startingWorkingDirectory;
 			(void) STRNCPY(gRemoteCWD, cp);
-			if ((strlen(cp) >= 2) && (isalpha(cp[0])) && (cp[1] == ':'))
+			if ((strlen(cp) >= 2) && (isalpha((int) cp[0])) && (cp[1] == ':'))
 				gServerUsesMSDOSPaths = 1;
 		}
 		(void) STRNCPY(gStartDir, gRemoteCWD);
@@ -2328,7 +2374,7 @@ DoOpen(void)
  * information needed to do the open, and then doing it.
  */
 void
-OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int c;
 	int opts = 0;
@@ -2341,6 +2387,7 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 	LineList cdlist;
 	LinePtr lp;
 	char prompt[256];
+	GetoptInfo opt;
 
 	ARGSUSED(gUnusedArg);
 	FlushLsCache();
@@ -2349,18 +2396,18 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 	InitConnectionInfo();
 
 	/* Need to find the host argument first. */
-	GetoptReset();
-	while ((c = Getopt(argc, argv, "aP:u:p:J:rd:g:")) > 0) switch(c) {
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "aP:u:p:j:rd:g:")) > 0) switch(c) {
 		case 'u':
-			uOptInd = gOptInd + 1;
+			uOptInd = opt.ind + 1;
 			opts++;
 			break;
 		default:
 			opts++;
 	}
-	if (gOptInd < argc) {
-		(void) STRNCPY(gConn.host, argv[gOptInd]);
-		(void) STRNCPY(url, argv[gOptInd]);
+	if (opt.ind < argc) {
+		(void) STRNCPY(gConn.host, argv[opt.ind]);
+		(void) STRNCPY(url, argv[opt.ind]);
 	} else if (uOptInd > argc) {
 		/* Special hack for v2.4.2 compatibility */
 		(void) STRNCPY(gConn.host, argv[argc - 1]);
@@ -2410,9 +2457,13 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 
 		memcpy(&gTmpURLConn, &gConn, sizeof(gTmpURLConn));
 		rc = DecodeDirectoryURL(&gTmpURLConn, url, &cdlist, urlfile, sizeof(urlfile));
+		if (gTmpURLConn.pass[0] != '\0') {
+			gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk++;
+		}
 		if (rc == kMalformedURL) {
 			(void) fprintf(stdout, "Malformed URL: %s\n", url);
 			DisposeLineListContents(&cdlist);
+			memset(&gTmpURLConn, 0, sizeof(gTmpURLConn));
 			return;
 		} else if (rc == kNotURL) {
 			directoryURL = 0;
@@ -2427,6 +2478,7 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 			memcpy(&gConn, &gTmpURLConn, sizeof(gConn));
 			directoryURL = 1;
 		}
+		memset(&gTmpURLConn, 0, sizeof(gTmpURLConn));
 	}
 
 	if (MayUseFirewall(gConn.host, gFirewallType, gFirewallExceptionList) != 0) {
@@ -2437,11 +2489,10 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 		gConn.firewallPort = gFirewallPort;
 	}
 
-	GetoptReset();
-	while ((c = Getopt(argc, argv, "aP:u:p:J:j:rd:g:")) > 0) switch(c) {
-		case 'J':
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "aP:u:p:j:rd:g:")) > 0) switch(c) {
 		case 'j':
-			(void) STRNCPY(gConn.acct, gOptArg);
+			(void) STRNCPY(gConn.acct, opt.arg);
 			break;
 		case 'a':
 			(void) STRNCPY(gConn.user, "anonymous");
@@ -2449,24 +2500,32 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 			(void) STRNCPY(gConn.acct, "");
 			break;
 		case 'P':
-			gConn.port = atoi(gOptArg);	
+			gConn.port = atoi(opt.arg);	
 			break;
 		case 'u':
 			if (uOptInd <= argc)
-				(void) STRNCPY(gConn.user, gOptArg);
+				(void) STRNCPY(gConn.user, opt.arg);
 			break;
 		case 'p':
-			(void) STRNCPY(gConn.pass, gOptArg);	/* Don't recommend doing this! */
+			(void) STRNCPY(gConn.pass, opt.arg);	/* Don't recommend doing this! */
+			memset(opt.arg, '*', strlen(opt.arg));
+			/* Since they passed sensitive information
+			 * on the command line (their fault!),
+			 * make an effort not to compound the
+			 * problem by not saving this information
+			 * to the trace log and command history.
+			 */
+			gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk++;
 			break;
 		case 'r':
 			/* redial is on by default */
 			break;
 		case 'g':
-			n = atoi(gOptArg);
+			n = atoi(opt.arg);
 			gConn.maxDials = n;
 			break;
 		case 'd':
-			n = atoi(gOptArg);
+			n = atoi(opt.arg);
 			if (n >= 10)
 				gConn.redialDelay = n;
 			break;
@@ -2507,7 +2566,7 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 
 /* View a remote file through the users $PAGER. */
 void
-PageCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+PageCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 	int i;
@@ -2581,28 +2640,29 @@ PageCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 
 static int
 NcFTPConfirmResumeUploadProc(
-	const char *volatile localpath,
-	volatile longest_int localsize,
-	volatile time_t localmtime,
-	const char *volatile *remotepath,
-	volatile longest_int remotesize,
-	volatile time_t remotemtime,
-	volatile longest_int *volatile startPoint)
+	const char *localpath,
+	longest_int localsize,
+	time_t localmtime,
+	const char **remotepath,
+	longest_int remotesize,
+	time_t remotemtime,
+	longest_int *startPoint)
 {
 	int zaction = kConfirmResumeProcSaidBestGuess;
 	char tstr[80], ans[32];
 	static char newname[128];	/* arrggh... static. */
+	struct tm t;
 
 	if (gResumeAnswerAll != kConfirmResumeProcNotUsed)
 		return (gResumeAnswerAll);
 
-	if (gAutoResume != 0)
+	if ((gAutoResume != 0) || (gIsTTYr == 0))
 		return (kConfirmResumeProcSaidBestGuess);
 
 	printf("\nThe remote file \"%s\" already exists.\n", *remotepath);
 
 	if ((localmtime != kModTimeUnknown) && (localsize != kSizeUnknown)) {
-		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &localmtime)); 
+		(void) strftime(tstr, sizeof(tstr) - 1, DATE_SPEC, Localtime(localmtime, &t));
 		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tLocal:  %12lld bytes, dated %s.\n",
@@ -2634,7 +2694,7 @@ NcFTPConfirmResumeUploadProc(
 			localsize
 		);
 	} else if (localmtime != kModTimeUnknown) {
-		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &localmtime)); 
+		(void) strftime(tstr, sizeof(tstr) - 1, DATE_SPEC, Localtime(localmtime, &t));
 		(void) printf(
 			"\tLocal:  size unknown, dated %s.\n",
 			tstr
@@ -2643,7 +2703,7 @@ NcFTPConfirmResumeUploadProc(
 
 	tstr[sizeof(tstr) - 1] = '\0';
 	if ((remotemtime != kModTimeUnknown) && (remotesize != kSizeUnknown)) {
-		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &remotemtime)); 
+		(void) strftime(tstr, sizeof(tstr) - 1, DATE_SPEC, Localtime(remotemtime, &t));
 		(void) fprintf(stdout,
 #if defined(HAVE_LONG_LONG) && defined(PRINTF_LONG_LONG_LLD)
 			"\tRemote: %12lld bytes, dated %s.\n",
@@ -2671,7 +2731,7 @@ NcFTPConfirmResumeUploadProc(
 			remotesize
 		);
 	} else if (remotemtime != kModTimeUnknown) {
-		(void) strftime(tstr, sizeof(tstr) - 1, "%c", localtime((time_t *) &remotemtime)); 
+		(void) strftime(tstr, sizeof(tstr) - 1, DATE_SPEC, Localtime(remotemtime, &t));
 		(void) printf(
 			"\tRemote: size unknown, dated %s.\n",
 			tstr
@@ -2779,9 +2839,9 @@ NcFTPConfirmResumeUploadProc(
 
 /* Upload files to the remote system, permissions permitting. */
 void
-PutCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+PutCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-	int opt;
+	int optrc;
 	int renameMode = 0;
 	int recurseFlag = kRecursiveNo;
 	int appendFlag = kAppendNo;
@@ -2795,13 +2855,14 @@ PutCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 	int resumeFlag = kResumeYes;
 	char pattern[256];
 	vsigproc_t osigint;
-	ConfirmResumeUploadProc confirmProc;
+	FTPConfirmResumeUploadProc confirmProc;
+	GetoptInfo opt;
 
 	confirmProc = NcFTPConfirmResumeUploadProc;
 	gResumeAnswerAll = kConfirmResumeProcNotUsed;	/* Ask at least once each time */
 	ARGSUSED(gUnusedArg);
-	GetoptReset();
-	while ((opt = Getopt(argc, argv, "AafZzrRD")) >= 0) switch (opt) {
+	GetoptReset(&opt);
+	while ((optrc = Getopt(&opt, argc, argv, "AafZzrRD")) >= 0) switch (optrc) {
 		case 'a':
 			xtype = kTypeAscii;
 			break;
@@ -2818,7 +2879,7 @@ PutCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 			 * already.
 			 */
 			resumeFlag = kResumeNo;
-			confirmProc = NoConfirmResumeUploadProc;
+			confirmProc = kNoFTPConfirmResumeUploadProc;
 			break;
 		case 'z':
 			/* Special flag that lets you specify the
@@ -2854,18 +2915,18 @@ PutCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 		deleteFlag = kDeleteYes;
 
 	if (renameMode != 0) {
-		if (gOptInd > (argc - 2)) {
+		if (opt.ind > (argc - 2)) {
 			PrintCmdUsage(cmdp);
 			(void) fprintf(stderr, "\nFor put with rename, try \"put -z local-path-name remote-path-name\".\n");
 			return;
 		}
 		osigint = NcSignal(SIGINT, XferCanceller);
-		rc = FTPPutOneFile3(&gConn, argv[gOptInd], argv[gOptInd + 1], xtype, (-1), appendFlag, NULL, NULL, resumeFlag, deleteFlag, confirmProc, 0);
+		rc = FTPPutOneFile3(&gConn, argv[opt.ind], argv[opt.ind + 1], xtype, (-1), appendFlag, NULL, NULL, resumeFlag, deleteFlag, confirmProc, 0);
 		if (rc < 0)
-			FTPPerror(&gConn, rc, kErrCouldNotStartDataTransfer, "put", argv[gOptInd + 1]);
+			FTPPerror(&gConn, rc, kErrCouldNotStartDataTransfer, "put", argv[opt.ind + 1]);
 	} else {
 		osigint = NcSignal(SIGINT, XferCanceller);
-		for (i=gOptInd; i<argc; i++) {
+		for (i=opt.ind; i<argc; i++) {
 			doGlob = (aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes;
 			STRNCPY(pattern, argv[i]);
 			StrRemoveTrailingSlashes(pattern);
@@ -2887,7 +2948,7 @@ PutCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 
 /* Displays the current remote working directory path. */
 void
-PwdCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+PwdCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 	char url[256];
@@ -2934,7 +2995,7 @@ PwdCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 
 /* Sets a flag so that the command shell exits. */
 void
-QuitCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+QuitCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	gDoneApplication = 1;
@@ -2945,7 +3006,7 @@ QuitCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 
 /* Send a command string to the FTP server, verbatim. */
 void
-QuoteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+QuoteCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	char cmdbuf[256];
 	int i;
@@ -2965,7 +3026,7 @@ QuoteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Expands a remote regex.  Mostly a debugging command. */
 void
-RGlobCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+RGlobCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i;
 	int result;
@@ -2999,7 +3060,7 @@ RGlobCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Renames a remote file. */
 void
-RenameCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+RenameCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 
@@ -3018,15 +3079,16 @@ RenameCmd(const int argc, const char **const argv, const CommandPtr cmdp, const 
 
 /* Removes a directory on the remote host. */
 void
-RmdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+RmdirCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 	int i, c;
 	int recursive = kRecursiveNo;
+	GetoptInfo opt;
 
 	ARGSUSED(gUnusedArg);
-	GetoptReset();
-	while ((c = Getopt(argc, argv, "rf")) > 0) switch(c) {
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "rf")) > 0) switch(c) {
 		case 'r':
 			recursive = kRecursiveYes;
 			break;
@@ -3037,7 +3099,7 @@ RmdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 			PrintCmdUsage(cmdp);
 			return;
 	}
-	for (i=gOptInd; i<argc; i++) {
+	for (i=opt.ind; i<argc; i++) {
 		result = FTPRmdir(&gConn, argv[i], recursive, (aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes);
 		if (result < 0)
 			FTPPerror(&gConn, result, kErrRMDFailed, "rmdir", argv[i]);
@@ -3052,7 +3114,7 @@ RmdirCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Asks the remote server for help on how to use its server. */
 void
-RmtHelpCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+RmtHelpCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i, result;
 	LineList ll;
@@ -3089,7 +3151,7 @@ RmtHelpCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
  * at the end of the program's run.
  */
 void
-SetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+SetCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	if (argc < 2)
@@ -3105,7 +3167,7 @@ SetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Arg
 
 /* Local shell escape. */
 void
-ShellCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+ShellCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 #if defined(WIN32) || defined(_WINDOWS)
 #else
@@ -3113,6 +3175,8 @@ ShellCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 	pid_t pid;
 	int status;
 	vsigproc_t osigint;
+	char **margv;
+	int margc;
 
 	osigint = NcSignal(SIGINT, (FTPSigProc) SIG_IGN);
 	ARGSUSED(gUnusedArg);
@@ -3130,7 +3194,17 @@ ShellCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 			perror(gShell);
 			exit(1);
 		} else {
-			execvp(argv[1], (char **) argv + 1);
+			margv = calloc((size_t) (argc + 1), sizeof(char *));
+			if (margv == (char **) 0) {
+				perror("malloc");
+				exit(1);
+			}
+			for (margc = 1; ; margc++) {
+				if (argv[margc] == NULL)
+					break;
+				margv[margc - 1] = strdup(argv[margc]);
+			}
+			execvp(margv[0], margv);
 			perror(gShell);
 			exit(1);
 		}
@@ -3157,7 +3231,7 @@ ShellCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Send a command string to the FTP server, verbatim. */
 void
-SiteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+SiteCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	char cmdbuf[256];
 	int i;
@@ -3200,7 +3274,7 @@ GetStartSpoolDate(const char *s)
 		if ((n <= 0) || (toff <= 0))
 			return ((time_t) -1);
 		cp += n;
-		while ((*cp != '\0') && (!isalpha(*cp)))
+		while ((*cp != '\0') && (!isalpha((int) *cp)))
 			cp++;
 		c = *cp;
 		if (isupper(c))
@@ -3224,11 +3298,9 @@ GetStartSpoolDate(const char *s)
 		when = now + (time_t) toff;
 	} else if (cp != NULL) {
 		/* HH:MM, as in "23:38" */
-		time(&now);
-		ltp = localtime(&now);
+		ltp = Localtime(time(&now), &lt);
 		if (ltp == NULL)
 			return ((time_t) -1);	/* impossible */
-		lt = *ltp;
 		*cp = ' ';
 		hr = -1;
 		min = -1;
@@ -3277,7 +3349,7 @@ SpoolCheck(void)
  * at the end of the program's run.
  */
 void
-BGStartCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+BGStartCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int i, n;
 
@@ -3290,7 +3362,7 @@ BGStartCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
 		(void) printf("Background process started.\n");
 #if defined(WIN32) || defined(_WINDOWS)
 #else
-		(void) printf("Watch the \"%s/batchlog\" file to see how it is progressing.\n", gOurDirectoryPath);
+		(void) printf("Watch the \"%s/spool/log\" file to see how it is progressing.\n", gOurDirectoryPath);
 #endif
 	} else {
 		for (i=0; i<n; i++)
@@ -3298,30 +3370,191 @@ BGStartCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
 		(void) printf("Background processes started.\n");
 #if defined(WIN32) || defined(_WINDOWS)
 #else
-		(void) printf("Watch the \"%s/batchlog\" file to see how it is progressing.\n", gOurDirectoryPath);
+		(void) printf("Watch the \"%s/spool/log\" file to see how it is progressing.\n", gOurDirectoryPath);
 #endif
 	}
 }	/* BGStart */
 
 
 
+static int
+BggetFtwProc(const FtwInfoPtr ftwip)
+{
+	const char *baserelpath;
+	char *curPath;
+	char *rdir, *ldir;
+	char *rdir1, *ldir1, *cp;
+	size_t len;
+	char *lpath;
+	char dirsep[2];
+	int rc;
+	int toplevel;
+	SpoolCmdInfo *cinfop;
+
+	if (ftwip->depth >= 50) {
+		Trace(-1, "Aborting -- recursion depth is %u.\nPerhaps an infinite loop exists on the remote filesystem?", ftwip->depth);
+		return (-1);
+	}
+
+	cinfop = (SpoolCmdInfo *) ftwip->userdata;
+	/* relpath = ftwip->curPath + ftwip->startPathLen + 1; */
+	baserelpath = ftwip->curPath + cinfop->base;
+	curPath = ftwip->curPath;
+	if (strcmp(curPath, ftwip->rootDir) == 0)
+		return (0);	/* ignore root directory */
+
+	lpath = NULL;
+	dirsep[0] = ftwip->dirSeparator;
+	dirsep[1] = '\0';
+	toplevel = 0;
+	if ((strrchr(ftwip->curPath, '/') == ftwip->curPath) || (strrchr(ftwip->curPath, '\\') == ftwip->curPath)) {
+		/* "get -R /" == "rcp -r remote:/ ." */
+		/* Special case files in top-level, i.e. /vmunix */
+		toplevel = 1;
+		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+			return (-1);
+		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+			return (-1);
+	} else if ((ftwip->curPath[0] == '.') && ((ftwip->curPath[1] == '\0') || (((ftwip->curPath[1] == '/') || (ftwip->curPath[1] == '\\')) && (strchr(ftwip->curPath + 2, '/') == NULL) && (strchr(ftwip->curPath + 2, '\\') == NULL)) )) {
+		/* "get -R ." == "rcp -r remote:. ." */
+		/* Special case files in top- .level, i.e. ./vmunix but not ./bin/ls */
+		toplevel = 1;
+		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+			return (-1);
+		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+			return (-1);
+	} else {
+		if (Dynscpy(&rdir1, cinfop->rcwd, "/", curPath, 0) == NULL)
+			return (-1);
+		if (Dynscpy(&ldir1, cinfop->lcwd, dirsep, baserelpath, 0) == NULL)
+			return (-1);
+	}
+
+	len = strlen(rdir1);
+	rdir = malloc(len + 1);
+	if (rdir == NULL)
+		return (-1);
+	CompressPath(rdir, rdir1, len + 1);
+	StrFree(&rdir1);
+	cp = strrchr(rdir, '/');
+	if ((cp != NULL) && (cp != rdir) && (toplevel == 0))
+		*cp = '\0';
+
+	len = strlen(ldir1);
+	ldir = malloc(len + 1);
+	if (ldir == NULL)
+		return (-1);
+	CompressPath(ldir, ldir1, len + 1);
+	StrFree(&ldir1);
+	cp = StrRFindLocalPathDelim(ldir);
+	if ((cp != NULL) && (cp != ldir) && (toplevel == 0))
+		*cp = '\0';
+
+	if (ftwip->curType != '-') {
+		if (Dynscpy(&lpath, ldir, "/", ftwip->curFile, 0) == NULL)
+			return (-1);
+		TVFSPathToLocalPath(lpath);
+		Trace(0, "  // Lpath [%s] ([%s]/%s)\n", lpath, ldir, ftwip->curFile);
+	}
+
+	if (ftwip->curType == 'd') {
+		/* Directory: Note that batch would mkdir -p if needed.
+		 * We do this mostly so "symlink" below will work.
+		 */
+		if (MkDirs(lpath, 00755) < 0) {
+			Trace(-1, "  - Local Mkdir %s Failed: %s\n", lpath, strerror(errno));
+		} else if (errno != EEXIST) {
+			Trace(0, "  + Mkdir %s\n", lpath);
+		} else {
+			Trace(0, "  + Mkdir %s (already existed)\n", lpath);
+		}
+#ifdef HAVE_SYMLINK
+	} else if (ftwip->curType == 'l') {
+		/* Symlink */
+		if (ftwip->rlinkto != NULL) {
+			if (symlink(ftwip->rlinkto, lpath) == 0) {
+				Trace(0, "  + Linked: %s -> %s\n", lpath, ftwip->rlinkto);
+			} else {
+				Trace(-1, "  - Link Failed: %s -> %s (%s)\n", lpath, ftwip->rlinkto, strerror(errno));
+			}
+		}
+#endif	/* SYMLINK */
+	} else if (ftwip->curType == '-') {
+		/* File */
+		rc = SpoolX(
+			NULL,
+			NULL,
+			"get",
+			ftwip->curFile,
+			rdir,
+			ftwip->curFile,
+			ldir,
+			gConn.host,
+			gConn.ip,
+			gConn.port,
+			gConn.user,
+			gConn.pass,
+			gConn.acct,
+			cinfop->xtype,
+			kRecursiveNo,
+			cinfop->deleteFlag,
+			gConn.dataPortMode,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			cinfop->when,
+			0
+		);
+		if (rc == 0) {
+			Trace(-1, "  + Spooled: get %s/%s\n", rdir, ftwip->curFile);
+			Trace(0, "  + Spooled: get [%s]/%s -> [%s]/%s\n", rdir, ftwip->curFile, ldir, ftwip->curFile);
+		}
+	}
+
+	StrFree(&rdir);
+	StrFree(&ldir);
+	StrFree(&lpath);
+	return (0);
+}	/* BggetFtwProc */
+
+
+
 /* (bgget) */
 void
-SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+SpoolGetCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-	int opt;
-	int renameMode = 0;
+	int optrc;
 	int rc;
 	int i;
-	int xtype = gBm.xferType;
 	int nD = 0;
-	int deleteFlag = kDeleteNo;
-	time_t when = 0;
-	char ldir[256];
 	char pattern[256];
 	char *lname;
+	char *base;
 	LineList ll;
 	LinePtr lp;
+	GetoptInfo opt;
+	FtwInfo ftwi;
+	SpoolCmdInfo cinfo;
+
+	cinfo.xtype = gBm.xferType;
+	cinfo.deleteFlag = kDeleteNo;
+	cinfo.recurseFlag = kRecursiveNo;
+	cinfo.renameMode = 0;
+	cinfo.when = 0;
+	cinfo.base = 0;
+
+	Trace(0, "Local CWD is: %s\n", gLocalCWD);
+	Trace(0, "Remote CWD is: %s\n", gRemoteCWD);
+
+	cinfo.rcwd = gRemoteCWD;
+	if (((cinfo.rcwd[0] == '/') || (cinfo.rcwd[0] == '\\')) && (cinfo.rcwd[1] == '\0'))
+		cinfo.rcwd++;
+
+	cinfo.lcwd = gLocalCWD;
+	if (strcmp(cinfo.lcwd, "/") == 0)
+		cinfo.lcwd++;
 
 	ARGSUSED(gUnusedArg);
 
@@ -3332,17 +3565,17 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 		return;
 	}
 
-	GetoptReset();
-	while ((opt = Getopt(argc, argv, "@:azfrD")) >= 0) switch (opt) {
+	GetoptReset(&opt);
+	while ((optrc = Getopt(&opt, argc, argv, "@:azfrRD")) >= 0) switch (optrc) {
 		case '@':
-			when = GetStartSpoolDate(gOptArg);
-			if ((when == (time_t) -1) || (when == (time_t) 0)) {
+			cinfo.when = GetStartSpoolDate(opt.arg);
+			if ((cinfo.when == (time_t) -1) || (cinfo.when == (time_t) 0)) {
 				(void) fprintf(stderr, "Bad date.  It must be expressed as one of the following:\n\tYYYYMMDDHHMMSS\t\n\t\"now + N hours|min|sec|days\"\n\tHH:MM\n\nNote:  Do not forget to quote the entire argument for the offset option.\nExample:  bgget -@ \"now + 15 min\" ...\n");
 				return;
 			}
 			break;
 		case 'a':
-			xtype = kTypeAscii;
+			cinfo.xtype = kTypeAscii;
 			break;
 		case 'z':
 			/* Special flag that lets you specify the
@@ -3350,7 +3583,7 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			 * write the file by the same name as the
 			 * remote file's basename.
 			 */
-			renameMode = 1;
+			cinfo.renameMode = 1;
 			break;
 		case 'D':
 			/* You can delete the remote file after
@@ -3361,21 +3594,23 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			 */
 			nD++;
 			break;
+		case 'r':
+		case 'R':
+			/* If the item is a directory, get the
+			 * directory and all its contents.
+			 */
+			cinfo.recurseFlag = kRecursiveYes;
+			break;
 		default:
 			PrintCmdUsage(cmdp);
 			return;
 	}
 
 	if (nD >= 2)
-		deleteFlag = kDeleteYes;
+		cinfo.deleteFlag = kDeleteYes;
 
-	if (FTPGetLocalCWD(ldir, sizeof(ldir)) == NULL) {
-		perror("could not get current local directory");
-		return;
-	}
-
-	if (renameMode != 0) {
-		if (gOptInd > argc - 2) {
+	if (cinfo.renameMode != 0) {
+		if (opt.ind > argc - 2) {
 			PrintCmdUsage(cmdp);
 			return;
 		}
@@ -3383,9 +3618,219 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			NULL,
 			NULL,
 			"get",
-			argv[gOptInd],
+			argv[opt.ind],
 			gRemoteCWD,
-			argv[gOptInd + 1],
+			argv[opt.ind + 1],
+			gLocalCWD,
+			gConn.host,
+			gConn.ip,
+			gConn.port,
+			gConn.user,
+			gConn.pass,
+			gConn.acct,
+			cinfo.xtype,
+			kRecursiveNo,
+			cinfo.deleteFlag,
+			gConn.dataPortMode,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			cinfo.when,
+			0
+		);
+		if (rc == 0) {
+			Trace(-1, "  + Spooled: get %s as %s\n", argv[opt.ind], argv[opt.ind + 1]);
+		}
+		return;
+	}
+
+	if (cinfo.recurseFlag == kRecursiveYes) {
+		FtwInit(&ftwi);
+		ftwi.userdata = &cinfo;
+	}
+
+	for (i=opt.ind; i<argc; i++) {
+		STRNCPY(pattern, argv[i]);
+		StrRemoveTrailingSlashes(pattern);
+		InitLineList(&ll);
+		rc = FTPRemoteGlob(&gConn, &ll, pattern, (aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes);
+		if (rc < 0) {
+			FTPPerror(&gConn, rc, kErrGlobFailed, argv[0], pattern);
+			goto done;
+		}
+		for (lp = ll.first; ((lp != NULL) && (lp->line != NULL)); lp = lp->next) {
+			if (cinfo.recurseFlag == kRecursiveNo) {
+				lname = strrchr(lp->line, '/');
+				if (lname == NULL)
+					lname = lp->line;
+				else
+					lname++;
+				rc = SpoolX(
+					NULL,
+					NULL,
+					"get",
+					lp->line,
+					gRemoteCWD,
+					lname,
+					gLocalCWD,
+					gConn.host,
+					gConn.ip,
+					gConn.port,
+					gConn.user,
+					gConn.pass,
+					gConn.acct,
+					cinfo.xtype,
+					cinfo.recurseFlag,
+					cinfo.deleteFlag,
+					gConn.dataPortMode,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					cinfo.when,
+					0
+				);
+				if (rc == 0) {
+					Trace(-1, "  + Spooled: get %s\n", lp->line);
+				}
+			} else /* if (cinfo.recurseFlag == kRecursiveYes) */ {
+				base = StrRFindLocalPathDelim(lp->line);
+				if (base == NULL) {
+					cinfo.base = 0;
+				} else if (base == lp->line) {
+					cinfo.base = 0;
+				} else {
+					base++;
+					cinfo.base = (int) (base - lp->line);
+				}
+				if ((rc = FTPFtw(&gConn, &ftwi, lp->line, BggetFtwProc)) != 0) {
+					FTPPerror(&gConn, gConn.errNo, kErrCWDFailed, lp->line, "Could not traverse directory");
+				}
+			}
+		}
+		DisposeLineListContents(&ll);
+	}
+done:
+	if (cinfo.recurseFlag == kRecursiveYes)
+		FtwDispose(&ftwi);
+}	/* SpoolGetCmd */
+
+
+
+static int
+BgputFtwProc(const FtwInfoPtr ftwip)
+{
+	const char *basererpath;
+	char *curPath;
+	char *rdir, *ldir;
+	char *rdir1, *ldir1, *cp;
+	size_t len;
+	char *rpath;
+	char dirsep[2];
+	int rc;
+	int toplevel;
+	SpoolCmdInfo *cinfop;
+	char errStr[128];
+
+	cinfop = (SpoolCmdInfo *) ftwip->userdata;
+	/* rerpath = ftwip->curPath + ftwip->startPathLen + 1; */
+	basererpath = ftwip->curPath + cinfop->base;
+	curPath = ftwip->curPath;
+	if (strcmp(curPath, ftwip->rootDir) == 0)
+		return (0);	/* ignore root directory */
+
+	rpath = NULL;
+	dirsep[0] = ftwip->dirSeparator;
+	dirsep[1] = '\0';
+	toplevel = 0;
+	if ((strrchr(ftwip->curPath, '/') == ftwip->curPath) || (strrchr(ftwip->curPath, '\\') == ftwip->curPath)) {
+		/* "get -R /" == "rcp -r remote:/ ." */
+		/* Special case files in top-level, i.e. /vmunix */
+		toplevel = 1;
+		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+			return (-1);
+		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+			return (-1);
+	} else if ((ftwip->curPath[0] == '.') && ((ftwip->curPath[1] == '\0') || (((ftwip->curPath[1] == '/') || (ftwip->curPath[1] == '\\')) && (strchr(ftwip->curPath + 2, '/') == NULL) && (strchr(ftwip->curPath + 2, '\\') == NULL)) )) {
+		/* "get -R ." == "rcp -r remote:. ." */
+		/* Special case files in top- .level, i.e. ./vmunix but not ./bin/ls */
+		toplevel = 1;
+		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+			return (-1);
+		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+			return (-1);
+	} else {
+		if (IsLocalPathDelim(curPath[0])) {
+			if (Dynscpy(&ldir1, curPath, 0) == NULL)
+				return (-1);
+		} else {
+			if (Dynscpy(&ldir1, cinfop->lcwd, "/", curPath, 0) == NULL)
+				return (-1);
+		}
+		if (Dynscpy(&rdir1, cinfop->rcwd, dirsep, basererpath, 0) == NULL)
+			return (-1);
+	}
+
+	len = strlen(rdir1);
+	rdir = malloc(len + 1);
+	if (rdir == NULL)
+		return (-1);
+	CompressPath(rdir, rdir1, len + 1);
+	StrFree(&rdir1);
+	cp = strrchr(rdir, '/');
+	if ((cp != NULL) && (cp != rdir) && (toplevel == 0))
+		*cp = '\0';
+
+	len = strlen(ldir1);
+	ldir = malloc(len + 1);
+	if (ldir == NULL)
+		return (-1);
+	CompressPath(ldir, ldir1, len + 1);
+	StrFree(&ldir1);
+	cp = StrRFindLocalPathDelim(ldir);
+	if ((cp != NULL) && (cp != ldir) && (toplevel == 0))
+		*cp = '\0';
+
+	if (ftwip->curType != '-') {
+		if (Dynscpy(&rpath, rdir, "/", ftwip->curFile, 0) == NULL)
+			return (-1);
+		TVFSPathToLocalPath(rpath);
+		Trace(0, "  // Rpath [%s] ([%s]/%s)\n", rpath, rdir, ftwip->curFile);
+	}
+
+	if (ftwip->curType == 'd') {
+		/* Directory: Note that batch would mkdir -p if needed.
+		 * We do this mostly so "symlink" below will work.
+		 */
+		if ((rc = FTPMkdir(&gConn, rpath, kRecursiveYes)) < 0) {
+			Trace(-1, "  - Remote Mkdir %s Failed: %s\n", rpath, FTPStrError2(&gConn, gConn.errNo, errStr, sizeof(errStr), kErrMKDFailed));
+			goto done;
+		} else {
+			Trace(0, "  + Mkdir %s\n", rpath);
+		}
+#ifdef HAVE_SYMLINK
+	} else if (ftwip->curType == 'l') {
+		/* Symlink */
+		if (ftwip->rlinkto != NULL) {
+			if (FTPSymlink(&gConn, ftwip->rlinkto, rpath) == 0) {
+				Trace(0, "  + Linked: %s -> %s\n", rpath, ftwip->rlinkto);
+			} else {
+				Trace(-1, "  - Link Failed: %s -> %s (%s)\n", rpath, ftwip->rlinkto, FTPStrError2(&gConn, gConn.errNo, errStr, sizeof(errStr), kErrSYMLINKFailed));
+			}
+		}
+#endif	/* SYMLINK */
+	} else if (ftwip->curType == '-') {
+		/* File */
+		rc = SpoolX(
+			NULL,
+			NULL,
+			"put",
+			ftwip->curFile,
+			rdir,
+			ftwip->curFile,
 			ldir,
 			gConn.host,
 			gConn.ip,
@@ -3393,92 +3838,68 @@ SpoolGetCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			gConn.user,
 			gConn.pass,
 			gConn.acct,
-			xtype,
+			cinfop->xtype,
 			kRecursiveNo,
-			deleteFlag,
+			cinfop->deleteFlag,
 			gConn.dataPortMode,
 			NULL,
 			NULL,
 			NULL,
 			NULL,
 			NULL,
-			when,
+			cinfop->when,
 			0
 		);
 		if (rc == 0) {
-			Trace(-1, "  + Spooled: get %s as %s\n", argv[gOptInd], argv[gOptInd + 1]);
-		}
-	} else {
-		for (i=gOptInd; i<argc; i++) {
-			STRNCPY(pattern, argv[i]);
-			StrRemoveTrailingSlashes(pattern);
-			InitLineList(&ll);
-			rc = FTPRemoteGlob(&gConn, &ll, pattern, (aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes);
-			if (rc < 0) {
-				FTPPerror(&gConn, rc, kErrGlobFailed, argv[0], pattern);
-			} else {
-				for (lp = ll.first; (lp != NULL) && (lp->line != NULL); lp = lp->next) {
-					lname = strrchr(lp->line, '/');
-					if (lname == NULL)
-						lname = lp->line;
-					else
-						lname++;
-					rc = SpoolX(
-						NULL,
-						NULL,
-						"get",
-						lp->line,
-						gRemoteCWD,
-						lname,
-						ldir,
-						gConn.host,
-						gConn.ip,
-						gConn.port,
-						gConn.user,
-						gConn.pass,
-						gConn.acct,
-						xtype,
-						kRecursiveNo,
-						deleteFlag,
-						gConn.dataPortMode,
-						NULL,
-						NULL,
-						NULL,
-						NULL,
-						NULL,
-						when,
-						0
-					);
-					if (rc == 0) {
-						Trace(-1, "  + Spooled: get %s\n", lp->line);
-					}
-				}
-			}
-			DisposeLineListContents(&ll);
+			Trace(-1, "  + Spooled: put %s/%s\n", ldir, ftwip->curFile);
+			Trace(0, "  + Spooled: put [%s]/%s -> [%s]/%s\n", ldir, ftwip->curFile, rdir, ftwip->curFile);
 		}
 	}
-}	/* SpoolGetCmd */
+	rc = 0;
+done:
+	StrFree(&rdir);
+	StrFree(&ldir);
+	StrFree(&rpath);
+	return (rc);
+}	/* BgputFtwProc */
 
 
 
 
 /* (bgput) */
 void
-SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
-	int opt;
-	int renameMode = 0;
+	int optrc;
 	int rc;
 	int i;
-	int xtype = gBm.xferType;
 	int nD = 0;
-	int deleteFlag = kDeleteNo;
-	time_t when = 0;
-	char ldir[256];
 	char pattern[256];
 	LineList ll;
 	LinePtr lp;
 	char *rname;
+	char *base;
+	GetoptInfo opt;
+	FtwInfo ftwi;
+	SpoolCmdInfo cinfo;
+
+	cinfo.xtype = gBm.xferType;
+	cinfo.deleteFlag = kDeleteNo;
+	cinfo.recurseFlag = kRecursiveNo;
+	cinfo.renameMode = 0;
+	cinfo.when = 0;
+	cinfo.base = 0;
+
+	Trace(0, "Local CWD is: %s\n", gLocalCWD);
+	Trace(0, "Remote CWD is: %s\n", gRemoteCWD);
+
+	cinfo.rcwd = gRemoteCWD;
+	if (((cinfo.rcwd[0] == '/') || (cinfo.rcwd[0] == '\\')) && (cinfo.rcwd[1] == '\0'))
+		cinfo.rcwd++;
+
+	cinfo.lcwd = gLocalCWD;
+	if (strcmp(cinfo.lcwd, "/") == 0)
+		cinfo.lcwd++;
 
 	ARGSUSED(gUnusedArg);
 
@@ -3489,34 +3910,41 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 		return;
 	}
 
-	GetoptReset();
-	while ((opt = Getopt(argc, argv, "@:azrD")) >= 0) switch (opt) {
+	GetoptReset(&opt);
+	while ((optrc = Getopt(&opt, argc, argv, "@:azrRD")) >= 0) switch (optrc) {
 		case '@':
-			when = GetStartSpoolDate(gOptArg);
-			if ((when == (time_t) -1) || (when == (time_t) 0)) {
+			cinfo.when = GetStartSpoolDate(opt.arg);
+			if ((cinfo.when == (time_t) -1) || (cinfo.when == (time_t) 0)) {
 				(void) fprintf(stderr, "Bad date.  It must be expressed as one of the following:\n\tYYYYMMDDHHMMSS\t\n\t\"now + N hours|min|sec|days\"\n\tHH:MM\n\nNote:  Do not forget to quote the entire argument for the offset option.\nExample:  bgget -@ \"now + 15 min\" ...\n");
 				return;
 			}
 			break;
 		case 'a':
-			xtype = kTypeAscii;
+			cinfo.xtype = kTypeAscii;
 			break;
 		case 'z':
 			/* Special flag that lets you specify the
-			 * destination file.  Normally a "get" will
+			 * destination file.  Normally a "put" will
 			 * write the file by the same name as the
 			 * remote file's basename.
 			 */
-			renameMode = 1;
+			cinfo.renameMode = 1;
 			break;
 		case 'D':
 			/* You can delete the remote file after
-			 * you downloaded it successfully by using
+			 * you uploaded it successfully by using
 			 * the -DD option.  It requires two -D's
 			 * to minimize the odds of accidentally
 			 * using a single -D.
 			 */
 			nD++;
+			break;
+		case 'r':
+		case 'R':
+			/* If the item is a directory, get the
+			 * directory and all its contents.
+			 */
+			cinfo.recurseFlag = kRecursiveYes;
 			break;
 		default:
 			PrintCmdUsage(cmdp);
@@ -3524,15 +3952,10 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 	}
 
 	if (nD >= 2)
-		deleteFlag = kDeleteYes;
+		cinfo.deleteFlag = kDeleteYes;
 
-	if (FTPGetLocalCWD(ldir, sizeof(ldir)) == NULL) {
-		perror("could not get current local directory");
-		return;
-	}
-
-	if (renameMode != 0) {
-		if (gOptInd > argc - 2) {
+	if (cinfo.renameMode != 0) {
+		if (opt.ind > argc - 2) {
 			PrintCmdUsage(cmdp);
 			return;
 		}
@@ -3540,90 +3963,109 @@ SpoolPutCmd(const int argc, const char **const argv, const CommandPtr cmdp, cons
 			NULL,
 			NULL,
 			"put",
-			argv[gOptInd + 1],
+			argv[opt.ind + 1],
 			gRemoteCWD,
-			argv[gOptInd + 0],
-			ldir,
+			argv[opt.ind + 0],
+			gLocalCWD,
 			gConn.host,
 			gConn.ip,
 			gConn.port,
 			gConn.user,
 			gConn.pass,
 			gConn.acct,
-			xtype,
+			cinfo.xtype,
 			kRecursiveNo,
-			deleteFlag,
+			cinfo.deleteFlag,
 			gConn.dataPortMode,
 			NULL,
 			NULL,
 			NULL,
 			NULL,
 			NULL,
-			when,
+			cinfo.when,
 			0
 		);
 		if (rc == 0) {
-			Trace(-1, "  + Spooled: put %s as %s\n", argv[gOptInd], argv[gOptInd + 1]);
+			Trace(-1, "  + Spooled: put %s as %s\n", argv[opt.ind], argv[opt.ind + 1]);
 		}
-	} else {
-		for (i=gOptInd; i<argc; i++) {
-			STRNCPY(pattern, argv[i]);
-			StrRemoveTrailingSlashes(pattern);
-			InitLineList(&ll);
-			rc = FTPLocalGlob(&gConn, &ll, pattern, (aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes);
-			if (rc < 0) {
-				FTPPerror(&gConn, rc, kErrGlobFailed, "local glob", pattern);
+		return;
+	}
+
+	if (cinfo.recurseFlag == kRecursiveYes) {
+		FtwInit(&ftwi);
+		ftwi.userdata = &cinfo;
+	}
+
+	for (i=opt.ind; i<argc; i++) {
+		STRNCPY(pattern, argv[i]);
+		StrRemoveTrailingSlashes(pattern);
+		InitLineList(&ll);
+		rc = FTPLocalGlob(&gConn, &ll, pattern, (aip->noglobargv[i] != 0) ? kGlobNo: kGlobYes);
+		if (rc < 0) {
+			FTPPerror(&gConn, rc, kErrGlobFailed, "local glob", pattern);
+			return;
+		}
+		for (lp = ll.first; ((lp != NULL) && (lp->line != NULL)); lp = lp->next) {
+			if (cinfo.recurseFlag == kRecursiveNo) {
+				rname = strrchr(lp->line, '/');
+				if (rname == NULL)
+					rname = lp->line;
+				else
+					rname++;
+				rc = SpoolX(
+					NULL,
+					NULL,
+					"put",
+					rname,
+					gRemoteCWD,
+					lp->line,
+					gLocalCWD,
+					gConn.host,
+					gConn.ip,
+					gConn.port,
+					gConn.user,
+					gConn.pass,
+					gConn.acct,
+					cinfo.xtype,
+					cinfo.recurseFlag,
+					cinfo.deleteFlag,
+					gConn.dataPortMode,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					cinfo.when,
+					0
+				);
+				if (rc == 0) {
+					Trace(-1, "  + Spooled: put %s\n", lp->line);
+				}
 			} else {
-				for (lp = ll.first; lp != NULL; lp = lp->next) {
-					if (lp->line != NULL) {
-						rname = strrchr(lp->line, '/');
-						if (rname == NULL)
-							rname = lp->line;
-						else
-							rname++;
-						rc = SpoolX(
-							NULL,
-							NULL,
-							"put",
-							rname,
-							gRemoteCWD,
-							lp->line,
-							ldir,
-							gConn.host,
-							gConn.ip,
-							gConn.port,
-							gConn.user,
-							gConn.pass,
-							gConn.acct,
-							xtype,
-							kRecursiveNo,
-							deleteFlag,
-							gConn.dataPortMode,
-							NULL,
-							NULL,
-							NULL,
-							NULL,
-							NULL,
-							when,
-							0
-						);
-						if (rc == 0) {
-							Trace(-1, "  + Spooled: put %s\n", lp->line);
-						}
-					}
+				base = StrRFindLocalPathDelim(lp->line);
+				if (base == NULL) {
+					cinfo.base = 0;
+				} else if (base == lp->line) {
+					cinfo.base = 0;
+				} else {
+					base++;
+					cinfo.base = (int) (base - lp->line);
+				}
+				if ((rc = Ftw(&ftwi, lp->line, BgputFtwProc)) != 0) {
+					fprintf(stderr, "Could not traverse directory %s: %s\n", lp->line, strerror(errno));
 				}
 			}
-			DisposeLineListContents(&ll);
 		}
+		DisposeLineListContents(&ll);
 	}
-}	/* SpoolGetCmd */
+}	/* SpoolPutCmd */
 
 
 
 
 /* This commands lets the user create symbolic links, if the server supports it. */
 void
-SymlinkCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+SymlinkCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 
@@ -3641,7 +4083,7 @@ SymlinkCmd(const int argc, const char **const argv, const CommandPtr cmdp, const
 
 /* This commands lets the user change the transfer type to use. */
 void
-TypeCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+TypeCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int c;
 	int result;
@@ -3686,7 +4128,7 @@ TypeCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 
 /* This commands lets the user change the umask, if the server supports it. */
 void
-UmaskCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+UmaskCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	int result;
 
@@ -3701,7 +4143,7 @@ UmaskCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 
 /* Show the version information. */
 void
-VersionCmd(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+VersionCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
 {
 	ARGSUSED(gUnusedArg);
 	(void) printf("Version:          %s\n", gVersion + 5);

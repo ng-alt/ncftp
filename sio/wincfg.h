@@ -1,6 +1,25 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 
+/* #define alarm_time_t unsigned int */ /* leave undefined */
+#define gethost_addrptr_t const char *
+#define gethostname_size_t int
+#define listen_backlog_t int
+#define read_return_t int
+#define read_size_t unsigned int
+#define sockaddr_size_t int
+#define sockopt_size_t int
+#define SETSOCKOPT_ARG4 (char *)
+#define GETSOCKOPT_ARG4 (char *)
+#define write_return_t int
+#define write_size_t unsigned int
+#define tv_sec_t long
+#define tv_usec_t long
+#define recv_return_t int
+#define recv_size_t unsigned int
+#define send_return_t int
+#define send_size_t unsigned int
+
 /* #define CAN_USE_SYS_SELECT_H 1 */
 
 /* Define to empty if the keyword does not work.  */

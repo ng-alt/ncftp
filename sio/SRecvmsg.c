@@ -1,16 +1,34 @@
 #include "syshdrs.h"
-
-#ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
 #endif
 
 #ifndef NO_SIGNALS
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
+#endif
+
+#ifndef HAVE_RECVMSG
+int
+SRecvmsg(int UNUSED(sfd), void *const UNUSED(msg), int UNUSED(fl), int UNUSED(tlen))
+{
+	LIBSIO_USE_VAR(sfd);
+	LIBSIO_USE_VAR(msg);
+	LIBSIO_USE_VAR(fl);
+	LIBSIO_USE_VAR(tlen);
+#	ifdef ENOSYS
+	errno = ENOSYS;
+#	endif
+	return (-1);
+}
+
+#elif !defined(NO_SIGNALS)
 
 int
 SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 {
-	int nread, tleft;
+	recv_return_t nread;
+	alarm_time_t tleft;
 	vsio_sigproc_t sigalrm, sigpipe;
 	time_t done, now;
 
@@ -19,7 +37,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 		for (;;) {
 			nread = recvmsg(sfd, (struct msghdr *) msg, fl);
 			if ((nread >= 0) || (errno != EINTR))
-				return (nread);
+				return ((int) nread);
 		}
 	}
 
@@ -44,9 +62,9 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 
 	time(&now);
 	done = now + tlen;
-	tleft = (int) (done - now);
+	tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 	forever {
-		(void) alarm((unsigned int) tleft);
+		(void) alarm(tleft);
 		nread = recvmsg(sfd, (struct msghdr *) msg, fl);
 		(void) alarm(0);
 		if (nread >= 0)
@@ -55,7 +73,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (int) (done - now);
+		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
 			nread = kTimeoutErr;
 			errno = ETIMEDOUT;
@@ -66,7 +84,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
 
-	return (nread);
+	return ((int) nread);
 }	/* SRecvmsg */
 
 #elif defined(HAVE_RECVMSG)
@@ -74,7 +92,8 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 int
 SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 {
-	int nread, tleft;
+	recv_return_t nread;
+	int tleft;
 	time_t done, now;
 	fd_set ss;
 	struct timeval tv;
@@ -85,7 +104,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 		for (;;) {
 			nread = recvmsg(sfd, (struct msghdr *) msg, fl);
 			if ((nread >= 0) || (errno != EINTR))
-				return (nread);
+				return ((int) nread);
 		}
 	}
 
@@ -96,9 +115,16 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 				
 		for (;;) {
 			errno = 0;
-			FD_ZERO(&ss);
-			FD_SET(sfd, &ss);
-			tv.tv_sec = tleft;
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			tv.tv_sec = (tv_sec_t) tleft;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, SELECT_TYPE_ARG5 &tv);
 			if (result == 1) {
@@ -131,7 +157,7 @@ SRecvmsg(int sfd, void *const msg, int fl, int tlen)
 		}
 	}
 
-	return (nread);
+	return ((int) nread);
 }	/* SRecvmsg */
 
 #endif

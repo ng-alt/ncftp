@@ -1,11 +1,14 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 int
 SBind(int sockfd, const int port, const int nTries, const int reuseFlag)
 {
 	unsigned int i;
 	int on;
-	int onsize;
+	sockopt_size_t onsize;
 	struct sockaddr_in localAddr;
 
 	localAddr.sin_family = AF_INET;
@@ -18,9 +21,9 @@ SBind(int sockfd, const int port, const int nTries, const int reuseFlag)
 		 * that the address is still in use.
 		 */
 		on = 1;
-		onsize = (int) sizeof(on);
+		onsize = (sockopt_size_t) sizeof(on);
 		(void) setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-			(char *) &on, onsize);
+			SETSOCKOPT_ARG4 &on, onsize);
 
 #ifdef SO_REUSEPORT
 		/* Tells kernel that it's okay to have more
@@ -28,9 +31,9 @@ SBind(int sockfd, const int port, const int nTries, const int reuseFlag)
 		 * local port.
 		 */
 		on = 1;
-		onsize = (int) sizeof(on);
+		onsize = (sockopt_size_t) sizeof(on);
 		(void) setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT,
-			(char *) &on, onsize);
+			SETSOCKOPT_ARG4 &on, onsize);
 #endif	/* SO_REUSEPORT */
 	}
 
@@ -38,7 +41,7 @@ SBind(int sockfd, const int port, const int nTries, const int reuseFlag)
 		/* Try binding a few times, in case we get Address in Use
 		 * errors.
 		 */
-		if (bind(sockfd, (struct sockaddr *) &localAddr, sizeof(struct sockaddr_in)) == 0) {
+		if (bind(sockfd, (struct sockaddr *) &localAddr, (sockaddr_size_t) sizeof(struct sockaddr_in)) == 0) {
 			break;
 		}
 		if ((int) i == nTries) {
@@ -59,5 +62,5 @@ SBind(int sockfd, const int port, const int nTries, const int reuseFlag)
 int
 SListen(int sfd, int backlog)
 {
-	return (listen(sfd, (unsigned int) backlog));
+	return (listen(sfd, (listen_backlog_t) backlog));
 }	/* SListen */

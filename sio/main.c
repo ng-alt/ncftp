@@ -1,12 +1,19 @@
-#define _sio_main_c_
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
 
 #ifndef NO_SIGNALS
 
+#if defined(HPUX) || defined(__hpux__)
 volatile Sjmp_buf gNetTimeoutJmp;
 volatile Sjmp_buf gPipeJmp;
+#else
+Sjmp_buf gNetTimeoutJmp;
+Sjmp_buf gPipeJmp;
+#endif
 
 void
 SIOHandler(int sigNum)

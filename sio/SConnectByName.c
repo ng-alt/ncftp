@@ -1,4 +1,7 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 int
 SConnectByName(int sfd, const char * const addrStr, const int tlen)

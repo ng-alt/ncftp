@@ -1,31 +1,135 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
 AC_INIT(SWrite.c)
-
+AC_PREREQ(2.13)
 AC_CONFIG_HEADER(config.h)
-
 wi_ARG_ENABLE_SOCKS5
-no_signals=yes
-AC_ARG_ENABLE(signals,[  --enable-signals       allow use of signal handling],[no_signals=no])
+want_unix_domain_sockets=yes
+AC_ARG_ENABLE([unix-sockets],[  --enable-unix-sockets   enable support for UNIX domain sockets],[want_unix_domain_sockets=no])
 
+
+
+dnl ---------------------------------------------------------------------------
+dnl Environment and compiler settings.
+dnl ---------------------------------------------------------------------------
+dnl
 wi_OS_VAR
-
-SFLAG='-s'
-
-case "$OS" in
-	macosx*)
-		SFLAG='-Wl,-x'
-		;;
-esac
-
 AC_PROG_CC
+wi_CC_PRECOMP
 wi_CFLAGS
-AC_PROG_RANLIB
+wi_CFLAGS_REENTRANT
+wi_SFLAG
+AC_OBJEXT
+AC_EXEEXT
 
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for header files.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_HEADER_STDC
+dnl strings.h for AIX FD_ZERO which uses bzero
+AC_CHECK_HEADERS(arpa/nameser.h net/errno.h nserve.h resolv.h strings.h sys/socket.h sys/time.h time.h unistd.h)
+AC_TIME_WITH_SYS_TIME
+
+wi_UNIX_DOMAIN_SOCKETS
+SIO_OBJS_U=''
+SIO_SOBJS_U=''
+if test "$wi_cv_unix_domain_sockets" = yes ; then
+	SIO_OBJS_U='$(OBJS_U) '
+	SIO_SOBJS_U='$(SOBJS_U) '
+fi
+AC_SUBST(SIO_OBJS_U)
+AC_SUBST(SIO_SOBJS_U)
+
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for libraries.
 dnl Needed to build the samples.
+dnl ---------------------------------------------------------------------------
+dnl
 wi_NET_LIBS
 wi_LIB_SOCKS5
 
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for typedefs, structures, and compiler characteristics.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_C_CONST
+AC_TYPE_SIZE_T
+wi__RES_DEFDNAME
+wi_STRUCT_TIMEVAL_FIELD_TYPES
+wi_VOID_MAIN_RETURN_TYPE
+wi_UNISTD_FUNC_PARAM_TYPES
+wi_HEADER_SYS_SELECT_H
+wi_FUNC_SELECT_ARGTYPES
+wi_TYPE_SIG_ATOMIC_T
+wi_STRUCT_CMSGHDR
+wi_MSGHDR_CONTROL
+wi_MSGHDR_ACCRIGHTS
+
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for library functions.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_CHECK_FUNCS(gethostbyaddr_r gethostbyname_r gethostname getdomainname getservbyname_r getservbyport_r inet_ntop recvmsg sigaction)
+wi_FUNC_SIGSETJMP
+
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for system characteristics.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_PROG_MAKE_SET
+wi_PROG_TAR
+wi_CREATE_TAR_FILES
+AC_PROG_RANLIB
+wi_PROG_CCDV
+CPPFLAGS="-I. $CPPFLAGS"
+wi_BEAUTIFY_ENVIRONMENT_VARIABLES
+
+
+
+dnl ---------------------------------------------------------------------------
+dnl Extra steps to work with precompiled headers.
+dnl ---------------------------------------------------------------------------
+dnl
+SIO_PRECOMP="pch.mk.none"
+changequote({{, }})dnl
+if [ "${wi_cv_cc_precomp}_${SYS}" = "yes_macosx" ] ; then
+	SIO_PRECOMP="pch.mk.$SYS"
+fi
+changequote([, ])dnl
+AC_SUBST_FILE(SIO_PRECOMP)
+
+
+
+dnl ---------------------------------------------------------------------------
+dnl Version lookups for Makefile variables.
+dnl ---------------------------------------------------------------------------
+dnl
+changequote(<<, >>)dnl
+SIO_VERSION=`sed -n '/gSioVersion\[\]/{
+	s/^[^0-9]*//
+	s/\ .*$//
+	p
+	q
+}' SRead.c`
+changequote([, ])dnl
+
+
+
+dnl ---------------------------------------------------------------------------
+dnl Create Makefiles and config.h files.
+dnl ---------------------------------------------------------------------------
+dnl
 AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CPPFLAGS)
@@ -33,75 +137,5 @@ AC_SUBST(LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(DEFS)
 AC_SUBST(SFLAG)
-
-AC_C_CONST
-
-AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h sys/un.h)
-wi_HEADER_SYS_SELECT_H
-AC_FUNC_SELECT_ARGTYPES
-wi_STRUCT_CMSGHDR
-wi_MSGHDR_CONTROL
-wi_MSGHDR_ACCRIGHTS
-wi_SOCKADDR_UN_SUN_LEN
-AC_TYPE_SIZE_T
-
-
-AC_CHECK_FUNCS(sigaction)
-wi_FUNC_SIGSETJMP
-
-changequote(<<, >>)dnl
-
-if test "$no_signals" = no ; then
-	dv1='#	if 0'
-	dv2='#if 0'
-else
-	dv1='#	if 1'
-	dv2='#if 1'
-fi
-
-if sed "s!^.*/. %config1!${dv1} /* %config1!;s!^.*/. %config2!${dv2} /* %config2!" sio.h > temp.h ; then
-	mv temp.h sio.h
-	chmod a+r sio.h
-fi
-
-if sed "s!^.*/. %config1!${dv1} /* %config1!;s!^.*/. %config2!${dv2} /* %config2!" usio.h > temp.h ; then
-	mv temp.h usio.h
-	chmod a+r usio.h
-fi
-
-patterns1=""
-if [ "$SYS" = solaris ] ; then
-	patterns1='s!/. %configure%.*!#define SAccept SAcceptS!'
-	patterns2='s!/. %configure%.*!#define UAccept UAcceptS!'
-fi
-
-if [ "$patterns1" != "" ] ; then
-	sed "$patterns1" < sio.h > tmpfile
-	if [ $? -eq 0 ] ; then
-		mv tmpfile sio.h
-		chmod 644 sio.h
-	else
-		/bin/rm tmpfile
-	fi
-fi
-
-if [ "$patterns2" != "" ] ; then
-	sed "$patterns2" < usio.h > tmpfile
-	if [ $? -eq 0 ] ; then
-		mv tmpfile usio.h
-		chmod 644 usio.h
-	else
-		/bin/rm tmpfile
-	fi
-fi
-
-changequote([, ])dnl
-
-LIBS=`echo "$LIBS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-LDFLAGS=`echo "$LDFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-CPPFLAGS=`echo "$CPPFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-CFLAGS=`echo "$CFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-DEFS=`echo "$DEFS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-
+AC_SUBST(SIO_VERSION)
 AC_OUTPUT([Makefile ucase_c/Makefile ucase_s/Makefile time_c/Makefile time_s/Makefile srltest/Makefile sendmessage/Makefile])

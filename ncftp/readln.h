@@ -17,7 +17,7 @@ void InitTermcap(void);
 void InitReadline(void);
 void ReCacheBookmarks(void);
 char *Readline(char *);
-void AddHistory(char *);
+void AddHistory(const char *const line);
 void PrintStartupBanner(void);
 void SetXtermTitle(const char *const fmt, ...)
 #if (defined(__GNUC__)) && (__GNUC__ >= 2)
@@ -27,5 +27,4 @@ __attribute__ ((format (printf, 1, 2)))
 void MakePrompt(char *, size_t);
 void SaveHistory(void);
 void LoadHistory(void);
-void InitReadline(void);
 void DisposeReadline(void);

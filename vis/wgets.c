@@ -1,24 +1,9 @@
 /* wgets.c */
 
 #include "syshdrs.h"
-
-/* The only reason we need to include this junk, is because on some systems
- * the function killchar() is actually a macro that uses definitions in
- * termios.h.  Example:  #define killchar()      (__baset.c_cc[VKILL])
- */
-
-#ifdef HAVE_TERMIOS_H
-#		include <termios.h>
-#else
-#	ifdef HAVE_TERMIO_H
-#		include <termio.h>
-#	else
-#		ifdef HAVE_SYS_IOCTL_H
-#			include <sys/ioctl.h>	/* For TIOxxxx constants. */
-#		endif
-#		include <sgtty.h>
-#	endif
-#endif /* !HAVE_TERMIOS_H */
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "wgets.h"
 #define MEMMOVE memmove
@@ -240,7 +225,7 @@ wg_ForwardKillCh(void)
 	size_t n;
 	char *limit;
 
-	if (gBufLen > 0) {
+	if (gBufLen != 0) {
 		limit = gDst + gBufLen;
 		if (gBufPtr == limit) {
 			/* Nothing in front to delete. */
@@ -528,7 +513,7 @@ wg_Gets(WGetsParamPtr wgpp)
 	gHadStartingString = 0;
 	if (wgpp->useCurrentContents) {
 		gBufLen = strlen(gBufPtr);
-		if (gBufLen > 0)
+		if (gBufLen != 0)
 			gHadStartingString = 1;
 	} else {
 		gBufLen = 0;
@@ -590,7 +575,16 @@ wg_Gets(WGetsParamPtr wgpp)
 					result = wg_EOF;
 					goto done;
 				}
-				/*FALLTHROUGH*/
+				if (gBufPtr == gDst + gBufLen) {
+#if 0
+					wg_AddCh('*'); wg_Update();
+					CompleteOptions(gDst, gBufPtr-gDst-1);
+					wg_KillCh(1);
+#endif
+				} else {
+					wg_ForwardKillCh();		/* Emacs ^D */
+				}
+				break;
 #ifdef KEY_DC
 			case KEY_DC:
 #endif
@@ -657,7 +651,7 @@ wg_Gets(WGetsParamPtr wgpp)
 			case KEY_EOL:
 #endif
 			case 0x0B:
-				while (gBufLen > 0 && gBufPtr < gDst + gBufLen)
+				while ((gBufLen != 0) && (gBufPtr < gDst + gBufLen))
 					wg_ForwardKillCh();     /* Emacs ^K */
 				break;
 
@@ -707,7 +701,7 @@ done:
 	gDst[gBufLen] = '\0';
 	wgpp->changed = gChanged;
 	wgpp->dstLen = (int) gBufLen;
-	if ((gHistory != wg_NoHistory) && (gBufLen > 0))
+	if ((gHistory != wg_NoHistory) && (gBufLen != 0))
 		AddLine(wgpp->history, gDst);
 	
 #ifdef WG_DEBUG

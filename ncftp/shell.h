@@ -6,7 +6,7 @@
  */
 
 typedef struct ArgvInfo {
-	const char *cargv[255];
+	char *cargv[255];
 	int cargc;
 	int noglobargv[255];
 	int reserved;
@@ -27,7 +27,7 @@ typedef struct ArgvInfo {
 #define kBeepAfterCmdTime 15
 
 typedef struct Command *CommandPtr;
-typedef void (*CmdProc)(const int argc, const char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip);
+typedef void (*CmdProc)(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip);
 
 /* These are used in the command table, to specify that a command
  * doesn't require an exact number of parameters.
@@ -72,7 +72,7 @@ CommandPtr GetCommandByIndex(const int);
 CommandPtr GetCommandByName(const char *const, int);
 void PrintCmdHelp(CommandPtr);
 void PrintCmdUsage(CommandPtr);
-int MakeArgv(char *, int *, const char **, int, char *, size_t, int *, int);
+int MakeArgv(char *, int *, char **, int, char *, size_t, int *, int);
 void XferCanceller(int);
 void BackToTop(int);
 void Cancel(int);

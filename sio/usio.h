@@ -1,5 +1,13 @@
 /* usio.h */
 
+#ifndef _usio_h_
+#define _usio_h_ 1
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif	/* __cplusplus */
+
 #define kUNewFailed (-9)
 #define kUBindFailed (-10)
 #define kUListenFailed (-11)
@@ -46,3 +54,9 @@ int USendto(int, const char *const, size_t, int, const struct sockaddr_un *const
 
 /* USendtoByName.c */
 int USendtoByName(int, const char *const, size_t, int, const char *const, int);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif	/* _usio_h_ */

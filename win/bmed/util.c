@@ -274,9 +274,21 @@ InitOurDirectory(void)
 
 	if (gOurInstallationPath[0] != '\0') {
 		if ((cp = getenv("NCFTPDIR")) != NULL) {
+			if (*cp == '"')
+				cp++;
 			(void) STRNCPY(gOurDirectoryPath, cp);
+			cp = strrchr(gOurDirectoryPath, '"');
+			if ((cp != NULL) && (cp[1] == '\0'))
+				*cp = '\0';
 		} else if ((cp = getenv("HOME")) != NULL) {
+			if (*cp == '"')
+				cp++;
 			(void) STRNCPY(gOurDirectoryPath, cp);
+			cp = strrchr(gOurDirectoryPath, '"');
+			if ((cp != NULL) && (cp[1] == '\0'))
+				*cp = '\0';
+			(void) STRNCAT(gOurDirectoryPath, "\\");
+			(void) STRNCAT(gOurDirectoryPath, kOurDirectoryName);
 		} else {
 			STRNCPY(gOurDirectoryPath, gOurInstallationPath);
 			if (gUser[0] == '\0') {
@@ -490,7 +502,6 @@ StrRFindLocalPathDelim(const char *src)	/* TODO: optimize */
 
 
 
-
 int
 MkDirs(const char *const newdir, int mode1)
 {
@@ -501,9 +512,11 @@ MkDirs(const char *const newdir, int mode1)
 	struct _stat st;
 	char *share;
 #else
-	struct stat st;
+	struct Stat st;
 	mode_t mode = (mode_t) mode1;
 #endif
+
+	errno = 0;	/* We can return 0 but set errno to EEXIST */
 
 #if defined(WIN32) || defined(_WINDOWS)
 	if ((isalpha(newdir[0])) && (newdir[1] == ':')) {
@@ -515,12 +528,15 @@ MkDirs(const char *const newdir, int mode1)
 			return (-1);
 		} else if (newdir[3] == '\0') {
 			/* Special case root directory, which cannot be made. */
+			errno = EEXIST;
 			return (0);
 		}
 	} else if (IsUNCPrefixed(newdir)) {
 		share = StrFindLocalPathDelim(newdir + 2);
-		if ((share == NULL) || (StrFindLocalPathDelim(share + 1) == NULL))
+		if ((share == NULL) || (StrFindLocalPathDelim(share + 1) == NULL)) {
+			errno = ENOTDIR;
 			return (-1);
+		}
 	}
 
 	if (_access(newdir, 00) == 0) {
@@ -530,16 +546,18 @@ MkDirs(const char *const newdir, int mode1)
 			errno = ENOTDIR;
 			return (-1);
 		}
+		errno = EEXIST;
 		return 0;
 	}
 #else
 	if (access(newdir, F_OK) == 0) {
-		if (stat(newdir, &st) < 0)
+		if (Stat(newdir, &st) < 0)
 			return (-1);
 		if (! S_ISDIR(st.st_mode)) {
 			errno = ENOTDIR;
 			return (-1);
 		}
+		errno = EEXIST;
 		return 0;
 	}
 #endif
@@ -619,7 +637,14 @@ MkDirs(const char *const newdir, int mode1)
 			 */
 			if (sl != NULL)
 				*sl = LOCAL_PATH_DELIM;
-			cp = s - 1;
+
+			/* We refer to cp + 1 below,
+			 * so this is why we can
+			 * set "cp" to point to the
+			 * byte before the array starts.
+			 */
+			cp = s;
+			--cp;
 			break;
 		}
 	}

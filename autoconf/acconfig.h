@@ -14,6 +14,8 @@
    Leave the following blank line there!!  Autoheader needs it.  */
 
 
+#undef alarm_time_t
+
 /* Define if on AIX 3.
    System headers sometimes define this.
    We just want to avoid a redefinition error message.  */
@@ -50,6 +52,10 @@
 /* Define to the type of elements in the array set by `getgroups'.
    Usually this is either `int' or `gid_t'.  */
 #undef GETGROUPS_T
+
+#undef gethost_addrptr_t
+
+#undef gethostname_size_t
 
 /* Define if the `getloadavg' function needs to be run setuid or setgid.  */
 #undef GETLOADAVG_PRIVILEGED
@@ -189,6 +195,8 @@
 /* Define if you have <unistd.h>.  */
 #undef HAVE_UNISTD_H
 
+#undef HAVE_UNIX_DOMAIN_SOCKETS
+
 /* Define if utime(file, NULL) sets file's timestamp to the present.  */
 #undef HAVE_UTIME_NULL
 
@@ -223,8 +231,12 @@
 /* Define if int is 16 bits instead of 32.  */
 #undef INT_16_BITS
 
+#undef listen_backlog_t
+
 /* Define if long int is 64 bits.  */
 #undef LONG_64_BITS
+
+#undef main_void_return_t
 
 /* Define if major, minor, and makedev are declared in <mkdev.h>.  */
 #undef MAJOR_IN_MKDEV
@@ -240,6 +252,12 @@
 
 /* Define if you don't have <dirent.h>, but have <ndir.h>.  */
 #undef NDIR
+
+/* Define if optind, optarg, etc., need to be declared as extern. */
+#undef NEED_GETOPT_EXTERN_DECLS
+
+/* Define if <getopt.h> exists and declares optind, optarg, etc. */
+#undef NEED_GETOPT_H
 
 /* Define if you have <memory.h>, and <string.h> doesn't declare the
    mem* functions.  */
@@ -262,12 +280,17 @@
 
 #undef OS
 
+/* Define to the full path of the Perl program, if you have it. */
+#undef PERL
+
 /* Define to `int' if <sys/types.h> doesn't define.  */
 #undef pid_t
 
 /* Define if the system does not provide POSIX.1 features except
    with this defined.  */
 #undef _POSIX_1_SOURCE
+
+#undef PRAGMA_HDRSTOP
 
 /* Define if you need to in order for stat and other things to work.  */
 #undef _POSIX_SOURCE
@@ -286,6 +309,14 @@
 
 /* Define if your C compiler supports ANSI C function prototyping. */
 #undef PROTOTYPES
+
+#undef read_return_t
+
+#undef read_size_t
+
+#undef recv_return_t
+
+#undef recv_size_t
 
 /* Define as the return type of signal handlers (int or void).  */
 #undef RETSIGTYPE
@@ -311,6 +342,10 @@
 /* Define to the type of arg5 for select(). */
 #undef SELECT_TYPE_ARG5
 
+#undef send_return_t
+
+#undef send_size_t
+
 /* Define if the `setpgrp' function takes no argument.  */
 #undef SETPGRP_VOID
 
@@ -325,8 +360,12 @@
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
+#undef sockaddr_size_t
+
 /* If SOCKS library is being used, define the major version (i.e. 5) */
 #undef SOCKS
+
+#undef sockopt_size_t
 
 #undef SNPRINTF_TERMINATES
 
@@ -368,6 +407,10 @@
 /* Define if your <sys/time.h> declares struct tm.  */
 #undef TM_IN_SYS_TIME
 
+#undef tv_sec_t
+
+#undef tv_usec_t
+
 /* Define to `int' if <sys/types.h> doesn't define.  */
 #undef uid_t
 
@@ -390,9 +433,17 @@
 /* Define if the closedir function returns void instead of int.  */
 #undef VOID_CLOSEDIR
 
+#undef waddstr_str_t
+
+#undef WADDSTR_TYPE_ARG1_CONST
+
 /* Define if your processor stores words with the most significant
    byte first (like Motorola and SPARC, unlike Intel and VAX).  */
 #undef WORDS_BIGENDIAN
+
+#undef write_return_t
+
+#undef write_size_t
 
 /* Define if the X Window System is missing or not being used.  */
 #undef X_DISPLAY_MISSING

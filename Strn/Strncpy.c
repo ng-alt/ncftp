@@ -1,7 +1,9 @@
-#include <sys/types.h>
-#include <string.h>
-#include "Strn.h"
+#include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
+const char gStrnLibVersion[] = "@(#) Strn 3.1.0";
 
 /*
  * Copy src to dst, truncating or null-padding to always copy n-1 bytes.
@@ -41,5 +43,3 @@ Strncpy(char *const dst, const char *const src, const size_t n)
 	}
 	return (dst);
 }	/* Strncpy */
-
-/* eof Strn.c */

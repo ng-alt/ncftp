@@ -1,8 +1,11 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
 
 #ifndef NO_SIGNALS
@@ -10,9 +13,10 @@ extern volatile Sjmp_buf gPipeJmp;
 int
 SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 {
-	volatile int nleft;
 	char *volatile buf = buf0;
-	int nwrote, tleft;
+	send_return_t nwrote;
+	volatile send_size_t nleft;
+	alarm_time_t tleft;
 	vsio_sigproc_t sigalrm, sigpipe;
 	time_t done, now;
 
@@ -20,9 +24,9 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 		alarm(0);
 		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = size - nleft;
+		nwrote = (send_return_t) size - (send_return_t) nleft;
 		if (nwrote > 0)
-			return (nwrote);
+			return ((int) nwrote);
 		errno = ETIMEDOUT;
 		return (kTimeoutErr);
 	}
@@ -31,9 +35,9 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 		alarm(0);
 		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = size - nleft;
+		nwrote = (send_return_t) size - (send_return_t) nleft;
 		if (nwrote > 0)
-			return (nwrote);
+			return ((int) nwrote);
 		errno = EPIPE;
 		return (kBrokenPipeErr);
 	}
@@ -41,27 +45,27 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
 	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
 
-	nleft = (int) size;
+	nleft = (send_size_t) size;
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (int) (done - now);
+		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
-			nwrote = size - nleft;
+			nwrote = (send_return_t) size - (send_return_t) nleft;
 			if (nwrote == 0) {
 				nwrote = kTimeoutErr;
 				errno = ETIMEDOUT;
 			}
 			goto done;
 		}
-		(void) alarm((unsigned int) tleft);
-		nwrote = send(sfd, buf, size, fl);
+		(void) alarm(tleft);
+		nwrote = send(sfd, buf, nleft, fl);
 		(void) alarm(0);
 		if (nwrote < 0) {
 			if (errno != EINTR) {
-				nwrote = size - nleft;
+				nwrote = (send_return_t) size - (send_return_t) nleft;
 				if (nwrote == 0)
-					nwrote = -1;
+					nwrote = (send_return_t) -1;
 				goto done;
 			} else {
 				errno = 0;
@@ -69,19 +73,19 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 				/* Try again. */
 			}
 		}
-		nleft -= nwrote;
-		if (nleft <= 0)
+		nleft -= (send_size_t) nwrote;
+		if (nleft == 0)
 			break;
 		buf += nwrote;
 		time(&now);
 	}
-	nwrote = size - nleft;
+	nwrote = (send_return_t) size - (send_return_t) nleft;
 
 done:
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
 
-	return (nwrote);
+	return ((int) nwrote);
 }	/* SSend */
 
 #else
@@ -89,21 +93,22 @@ done:
 int
 SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 {
-	int nleft;
 	char *buf = buf0;
-	int nwrote, tleft;
+	send_return_t nwrote;
+	send_size_t nleft;
+	int tleft;
 	time_t done, now;
 	fd_set ss;
 	struct timeval tv;
 	int result;
 
-	nleft = (int) size;
+	nleft = (send_size_t) size;
 	time(&now);
 	done = now + tlen;
 	forever {
 		tleft = (int) (done - now);
 		if (tleft < 1) {
-			nwrote = size - nleft;
+			nwrote = (send_return_t) size - (send_return_t) nleft;
 			if (nwrote == 0) {
 				nwrote = kTimeoutErr;
 				errno = ETIMEDOUT;
@@ -122,9 +127,16 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 
 		forever {
 			errno = 0;
-			FD_ZERO(&ss);
-			FD_SET(sfd, &ss);
-			tv.tv_sec = tlen;
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			tv.tv_sec = (tv_sec_t) tlen;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG5 &tv);
 			if (result == 1) {
@@ -132,9 +144,9 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 				break;
 			} else if (result == 0) {
 				/* timeout */		
-				nwrote = size - nleft;
+				nwrote = (send_return_t) size - (send_return_t) nleft;
 				if (nwrote > 0)
-					return (nwrote);
+					return ((int) nwrote);
 				errno = ETIMEDOUT;
 				SETWSATIMEOUTERR
 				return (kTimeoutErr);
@@ -143,13 +155,13 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 			}
 		}
 
-		nwrote = send(sfd, buf, size, fl);
+		nwrote = send(sfd, buf, nleft, fl);
 
 		if (nwrote < 0) {
 			if (errno != EINTR) {
-				nwrote = size - nleft;
+				nwrote = (send_return_t) size - (send_return_t) nleft;
 				if (nwrote == 0)
-					nwrote = -1;
+					nwrote = (send_return_t) -1;
 				goto done;
 			} else {
 				errno = 0;
@@ -157,16 +169,16 @@ SSend(int sfd, char *buf0, size_t size, int fl, int tlen)
 				/* Try again. */
 			}
 		}
-		nleft -= nwrote;
-		if (nleft <= 0)
+		nleft -= (send_size_t) nwrote;
+		if (nleft == 0)
 			break;
 		buf += nwrote;
 		time(&now);
 	}
-	nwrote = size - nleft;
+	nwrote = (send_return_t) size - (send_return_t) nleft;
 
 done:
-	return (nwrote);
+	return ((int) nwrote);
 }	/* SSend */
 
 #endif

@@ -41,7 +41,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /W4 /GX /O2 /Ob1 /I "..\Strn" /I "..\sio" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
+# ADD CPP /nologo /W4 /GX /O2 /I "..\Strn" /I "..\sio" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -85,7 +85,91 @@ LIB32=link.exe -lib
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=.\cmds.c
+SOURCE=.\c_chdir.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_chdir3.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_chdirlist.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_chmod.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_delete.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_exists.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_filetype.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_getcwd.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_mkdir.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_mlist1.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_modtime.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_opennologin.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_rename.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_rhelp.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_rmdir.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_rmdirr.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_size.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_sizemdtm.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_symlink.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_type.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_umask.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\c_utime.c
 # End Source File
 # Begin Source File
 
@@ -97,19 +181,59 @@ SOURCE=.\ftp.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\glob.c
+SOURCE=.\ftw.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\io.c
+SOURCE=.\io_get.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_getfiles.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_getonefile.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_list.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_listmem.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_put.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_putfiles.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_putmem.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_putonefile.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\io_util.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\lglob.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\lglobr.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\linelist.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\mksrczip.bat
 # End Source File
 # Begin Source File
 
@@ -121,7 +245,99 @@ SOURCE=.\rcmd.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\util.c
+SOURCE=.\rftw.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rglob.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rglobr.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_close.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_decodeurl.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_error.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_fileextn.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_getcwd.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_gethome.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_getopt.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_getpass.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_getusr.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_getutc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_gmtime.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_localtime.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_misc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_mkdirs.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_printf.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_rebuildci.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_scram.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_shutdownci.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_slash.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\u_unmdtm.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\unls.c
 # End Source File
 # Begin Source File
 

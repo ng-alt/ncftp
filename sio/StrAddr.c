@@ -1,4 +1,7 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef INADDR_ANY
 #	define INADDR_ANY              ((unsigned long int) 0x00000000)
@@ -11,18 +14,27 @@
 /* Linux libc 5.3.x has a bug that causes isalnum() to not work! */
 #define ISALNUM(c) ( (((c) >= 'A') && ((c) <= 'Z')) || (((c) >= 'a') && ((c) <= 'z')) || (((c) >= '0') && ((c) <= '9')) )
 
-static unsigned int
-ServiceNameToPortNumber(const char *const s)
+#if defined(WIN32) || defined(_WINDOWS)
+#	pragma warning(disable : 4711)	// warning: function 'ServiceNameToPortNumber' selected for automatic inline expansion
+#endif
+unsigned int
+ServiceNameToPortNumber(const char *const s, const int proto)
 {
 	char str[64];
 	char *cp;
+#if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX))
 	struct servent *sp;
-
+#elif defined(HAVE_GETSERVBYNAME_R)
+	struct servent se, *sp;
+	char spbuf[256];
+#else
+	struct servent *sp;
+#endif
 	strncpy(str, s, sizeof(str) - 1);
 	str[sizeof(str) - 1] = '\0';
 	cp = str;
-	if (isdigit(*cp)) {
-		while (isdigit(*cp))
+	if (isdigit((int) *cp)) {
+		while (isdigit((int) *cp))
 			cp++;
 		*cp = '\0';
 		return (atoi(str));
@@ -34,14 +46,52 @@ ServiceNameToPortNumber(const char *const s)
 	}
 	*cp = '\0';
 
-	sp = getservbyname(str, "tcp");
-	if (sp != NULL) {
-		/* endservent(); */
-		return ((unsigned int) ntohs((unsigned short) sp->s_port));
+	sp = NULL;
+#if defined(HAVE_GETSERVBYNAME_R) && (defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
+	if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		sp = getservbyname_r(str, "tcp", &se, spbuf, sizeof(spbuf));
 	}
-	sp = getservbyname(str, "udp");
+	if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		sp = getservbyname_r(str, "udp", &se, spbuf, sizeof(spbuf));
+	}
+#elif defined(HAVE_GETSERVBYNAME_R) && defined(LINUX)
+	if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		if (getservbyname_r(str, "tcp", &se, spbuf, sizeof(spbuf), &sp) != 0)
+			sp = NULL;
+	}
+	if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		if (getservbyname_r(str, "udp", &se, spbuf, sizeof(spbuf), &sp) != 0)
+			sp = NULL;
+	}
+#elif defined(HAVE_GETSERVBYNAME_R) && defined(AIX)
+	{
+		struct servent_data sed;
+		if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+			memset(&sed, 0, sizeof(sed));
+			if (getservbyname_r(str, "tcp", sp, &sed) != 0)
+				sp = NULL;
+		}
+		if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+			memset(&sed, 0, sizeof(sed));
+			if (getservbyname_r(str, "udp", sp, &sed) != 0)
+				sp = NULL;
+		}
+	}
+#else
+	/* Note: getservbyname is already threadsafe on: HP-UX, Tru64 */
+	if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+		sp = getservbyname(str, "tcp");
+	}
+	if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+		sp = getservbyname(str, "udp");
+	}
+#endif
+
 	if (sp != NULL) {
-		/* endservent(); */
 		return ((unsigned int) ntohs((unsigned short) sp->s_port));
 	}
 	return (0);	/* error */
@@ -51,10 +101,105 @@ ServiceNameToPortNumber(const char *const s)
 
 
 int
+ServicePortNumberToName(unsigned short port, char *const dst, const size_t dsize, const int proto)
+{
+#if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX))
+	struct servent *sp;
+#elif defined(HAVE_GETSERVBYNAME_R)
+	struct servent se, *sp;
+	char spbuf[256];
+#else
+	struct servent *sp;
+#endif
+
+	sp = NULL;
+#if defined(HAVE_GETSERVBYPORT_R) && (defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
+	if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		sp = getservbyport_r((int) htons(port), "tcp", &se, spbuf, sizeof(spbuf));
+	}
+	if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		sp = getservbyport_r((int) htons(port), "udp", &se, spbuf, sizeof(spbuf));
+	}
+#elif defined(HAVE_GETSERVBYPORT_R) && defined(LINUX)
+	if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		if (getservbyport_r((int) htons(port), "tcp", &se, spbuf, sizeof(spbuf), &sp) != 0)
+			sp = NULL;
+	}
+	if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+		memset(spbuf, 0, sizeof(spbuf));
+		if (getservbyport_r((int) htons(port), "udp", &se, spbuf, sizeof(spbuf), &sp) != 0)
+			sp = NULL;
+	}
+#elif defined(HAVE_GETSERVBYPORT_R) && defined(AIX)
+	{
+		struct servent_data sed;
+		if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+			memset(&sed, 0, sizeof(sed));
+			if (getservbyport_r((int) htons(port), "tcp", sp, &sed) != 0)
+				sp = NULL;
+		}
+		if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+			memset(&sed, 0, sizeof(sed));
+			if (getservbyport_r((int) htons(port), "udp", sp, &sed) != 0)
+				sp = NULL;
+		}
+	}
+#else
+	/* Note: getservbyport is already threadsafe on: HP-UX, Tru64 */
+	if ((sp == NULL) && ((proto == 0) || (proto == 't'))) {
+		sp = getservbyport((int) htons(port), "tcp");
+	}
+	if ((sp == NULL) && ((proto == 0) || (proto == 'u'))) {
+		sp = getservbyport((int) htons(port), "ucp");
+	}
+#endif
+
+	if (sp != NULL) {
+		strncpy(dst, sp->s_name, dsize);
+		dst[dsize - 1] = '\0';
+		return (1);
+	}
+
+#ifdef HAVE_SNPRINTF
+	snprintf(dst, dsize,
+#else
+	sprintf(dst,
+#endif
+		"%u", (unsigned int) port);
+
+	return (0);	/* error */
+}	/* ServicePortNumberToName */
+
+
+
+
+void
+InetNtoA(char *dst, struct in_addr *ia, size_t siz)
+{
+#ifdef HAVE_INET_NTOP	/* Mostly to workaround bug in IRIX 6.5's inet_ntoa */
+	memset(dst, 0, siz);
+	(void) inet_ntop(AF_INET, ia, dst, siz - 1);
+#else
+	char *cp;
+	memset(dst, 0, siz);
+	cp = inet_ntoa(*ia);
+	if ((cp != (char *) 0) && (cp != (char *) -1) && (cp[0] != '\0')) {
+		(void) strncpy(dst, cp, siz - 1);
+	}
+#endif
+}	/* InetNtoA */
+
+
+
+
+int
 AddrStrToAddr(const char * const s, struct sockaddr_in * const sa, const int defaultport)
 {
 	char portstr[128];
-	unsigned long ipnum;
+	unsigned int ipnum;
 	unsigned int port;
 	struct hostent *hp;
 	char *hostcp, *atsign, *colon, *cp, *p2;
@@ -72,10 +217,10 @@ AddrStrToAddr(const char * const s, struct sockaddr_in * const sa, const int def
 			for (cp = hostcp; *cp != '\0'; cp++) {
 				if ((!ISALNUM(*cp)) && (*cp != '.')) {
 					/* http://host:port */
-					if ((*cp == ':') && (isdigit(cp[1]))) {
+					if ((*cp == ':') && (isdigit((int) cp[1]))) {
 						*cp++ = '\0';
 						p2 = cp;
-						while (isdigit(*cp))
+						while (isdigit((int) *cp))
 							cp++;
 						*cp = '\0';
 						port = atoi(p2);
@@ -85,7 +230,7 @@ AddrStrToAddr(const char * const s, struct sockaddr_in * const sa, const int def
 				}
 			}
 			if (port == 0)
-				port = ServiceNameToPortNumber(portstr);
+				port = ServiceNameToPortNumber(portstr, 0);
 		} else {
 			/* Look for host.name.domain:port */
 			*colon = '\0';
@@ -135,21 +280,25 @@ AddrStrToAddr(const char * const s, struct sockaddr_in * const sa, const int def
 char *
 AddrToAddrStr(char *const dst, size_t dsize, struct sockaddr_in * const saddrp, int dns, const char *fmt)
 {
-	const char *addrNamePtr;
+	char addrName[128];
+	char *addrNamePtr;
 	struct hostent *hp;
 	char str[128];
+	char s_name[64];
 	char *dlim, *dp;
 	const char *cp;
-	struct servent *pp;
 
+	addrNamePtr = NULL;
 	if (dns == 0) {
-		addrNamePtr = inet_ntoa(saddrp->sin_addr);
+		InetNtoA(addrName, &saddrp->sin_addr, sizeof(addrName));
+		addrNamePtr = addrName;
 	} else {
-		hp = gethostbyaddr((char *) &saddrp->sin_addr, (int) sizeof(struct in_addr), AF_INET);
+		hp = gethostbyaddr((gethost_addrptr_t) &saddrp->sin_addr, sizeof(struct in_addr), AF_INET);
 		if ((hp != NULL) && (hp->h_name != NULL) && (hp->h_name[0] != '\0')) {
 			addrNamePtr = hp->h_name;
 		} else {
-			addrNamePtr = inet_ntoa(saddrp->sin_addr);
+			InetNtoA(addrName, &saddrp->sin_addr, sizeof(addrName));
+			addrNamePtr = addrName;
 		}
 	}
 	if (fmt == NULL)
@@ -179,28 +328,16 @@ AddrToAddrStr(char *const dst, size_t dsize, struct sockaddr_in * const saddrp, 
 						*dp++ = *cp;
 				*dp = '\0';
 			} else if (*fmt == 's') {
-				pp = getservbyport((int) (saddrp->sin_port), "tcp");
-				if (pp == NULL)
-					pp = getservbyport((int) (saddrp->sin_port), "udp");
-				if (pp == NULL) {
-					sprintf(str, "%u", (unsigned int) ntohs(saddrp->sin_port));
-					cp = str;
-				} else {
-					cp = pp->s_name;
-				}
+				cp = s_name;
+				(void) ServicePortNumberToName(ntohs(saddrp->sin_port), s_name, sizeof(s_name), 0);
 				for ( ; *cp != '\0'; cp++)
 					if (dp < dlim)
 						*dp++ = *cp;
 				/* endservent(); */
 				*dp = '\0';
 			} else if ((*fmt == 't') || (*fmt == 'u')) {
-				pp = getservbyport((int) (saddrp->sin_port), (*fmt == 'u') ? "udp" : "tcp");
-				if (pp == NULL) {
-					sprintf(str, "%u", (unsigned int) ntohs(saddrp->sin_port));
-					cp = str;
-				} else {
-					cp = pp->s_name;
-				}
+				cp = s_name;
+				(void) ServicePortNumberToName(ntohs(saddrp->sin_port), s_name, sizeof(s_name), (int) *fmt);
 				for ( ; *cp != '\0'; cp++)
 					if (dp < dlim)
 						*dp++ = *cp;

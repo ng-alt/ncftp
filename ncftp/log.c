@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "util.h"
 #include "log.h"
@@ -64,7 +67,7 @@ LogOpen(const char *const host)
 void
 EndLog(void)
 {
-	FILE *new, *old;
+	FILE *newfp, *oldfp;
 	struct Stat st;
 	long fat;
 	char str[512];
@@ -83,7 +86,7 @@ EndLog(void)
 	if ((size_t)st.st_size < (size_t)gMaxLogSize)
 		return;						   /* Log size not over limit yet. */
 
-	if ((old = fopen(gLogFileName, FOPEN_READ_TEXT)) == NULL)
+	if ((oldfp = fopen(gLogFileName, FOPEN_READ_TEXT)) == NULL)
 		return;
 
 	/* Want to make it so we're about 30% below capacity.
@@ -91,32 +94,32 @@ EndLog(void)
 	 */
 	fat = (long) st.st_size - (long) gMaxLogSize + (long) (0.30 * gMaxLogSize);
 	while (fat > 0L) {
-		if (fgets(str, (int) sizeof(str), old) == NULL)
+		if (fgets(str, (int) sizeof(str), oldfp) == NULL)
 			return;
 		fat -= (long) strlen(str);
 	}
 	/* skip lines until a new site was opened */
 	for (;;) {
-		if (fgets(str, (int) sizeof(str), old) == NULL) {
-			(void) fclose(old);
+		if (fgets(str, (int) sizeof(str), oldfp) == NULL) {
+			(void) fclose(oldfp);
 			(void) remove(gLogFileName);
 			return;					   /* Nothing left, start anew next time. */
 		}
-		if (! isspace(*str))
+		if (! isspace((int) *str))
 			break;
 	}
 
 	/* Copy the remaining lines in "old" to "new" */
 	OurDirectoryPath(tmpLog, sizeof(tmpLog), "log.tmp");
-	if ((new = fopen(tmpLog, FOPEN_WRITE_TEXT)) == NULL) {
-		(void) fclose(old);
+	if ((newfp = fopen(tmpLog, FOPEN_WRITE_TEXT)) == NULL) {
+		(void) fclose(oldfp);
 		return;
 	}
-	(void) fputs(str, new);
-	while (fgets(str, (int) sizeof(str), old) != NULL)
-		(void) fputs(str, new);
-	(void) fclose(old);
-	(void) fclose(new);
+	(void) fputs(str, newfp);
+	while (fgets(str, (int) sizeof(str), oldfp) != NULL)
+		(void) fputs(str, newfp);
+	(void) fclose(oldfp);
+	(void) fclose(newfp);
 	if (remove(gLogFileName) < 0)
 		return;
 	if (rename(tmpLog, gLogFileName) < 0)

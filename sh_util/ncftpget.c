@@ -8,16 +8,11 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #if defined(WIN32) || defined(_WINDOWS)
-#	include "..\ncftp\getopt.h"
-#	define getopt Getopt
-#	define optarg gOptArg
-#	define optind gOptInd
-	WSADATA wsaData;
-	int wsaInit = 0;
-
-	__inline void DisposeWinsock(int aUNUSED) { if (wsaInit > 0) WSACleanup(); wsaInit--; }
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
@@ -42,10 +37,7 @@ extern char gFirewallPass[32];
 extern unsigned int gFirewallPort;
 extern char gFirewallExceptionList[256];
 extern int gFwDataPortMode;
-extern char gOS[], gVersion[];
-
-extern char *optarg;
-extern int optind;
+extern const char gOS[], gVersion[];
 
 static void
 Usage(void)
@@ -103,7 +95,7 @@ Usage(void)
 	(void) fprintf(fp, "This was built using LibNcFTP (http://www.ncftp.com/libncftp).\n");
 
 	ClosePager(fp);
-	DisposeWinsock(0);
+	DisposeWinsock();
 	exit(kExitUsage);
 }	/* Usage */
 
@@ -111,10 +103,9 @@ Usage(void)
 
 
 static void
-Abort(int UNUSED(sigNum))
+Abort(int sigNum)
 {
-	LIBNCFTP_USE_VAR(sigNum);
-	signal(SIGINT, Abort);
+	signal(sigNum, Abort);
 
 	/* Hopefully the I/O operation in progress
 	 * will complete, and we'll abort before
@@ -127,14 +118,14 @@ Abort(int UNUSED(sigNum))
 	 * next ^C abends the program.
 	 */
 	if (fi.cancelXfer >= 2)
-		signal(SIGINT, SIG_DFL);
+		signal(sigNum, SIG_DFL);
 }	/* Abort */
 
 
 
 
 static int 
-Copy(FTPCIPtr cip, char *dstdir, const char ** volatile files, int rflag, int xtype, int resumeflag, int appendflag, int deleteflag, int tarflag, const char *const perfilecmd)
+Copy(FTPCIPtr cip, char *dstdir, const char **files, int rflag, int xtype, int resumeflag, int appendflag, int deleteflag, int tarflag, const char *const perfilecmd)
 {
 	int i;
 	int result;
@@ -145,7 +136,7 @@ Copy(FTPCIPtr cip, char *dstdir, const char ** volatile files, int rflag, int xt
 		file = files[i];
 		if (file == NULL)
 			break;
-		result = FTPGetFiles3(cip, file, dstdir, rflag, kGlobYes, xtype, resumeflag, appendflag, deleteflag, tarflag, NoConfirmResumeDownloadProc, 0);
+		result = FTPGetFiles3(cip, file, dstdir, rflag, kGlobYes, xtype, resumeflag, appendflag, deleteflag, tarflag, kNoFTPConfirmResumeDownloadProc, 0);
 		if (result != 0) {
 			FTPPerror(cip, result, kErrCouldNotStartDataTransfer, "ncftpget", file);
 			if (result != kErrLocalSameAsRemote) {
@@ -162,21 +153,20 @@ Copy(FTPCIPtr cip, char *dstdir, const char ** volatile files, int rflag, int xt
 
 
 
-int
+main_void_return_t
 main(int argc, char **argv)
 {
 	int result, c;
-	volatile int rflag = 0;
-	volatile int xtype = kTypeBinary;
-	volatile int appendflag = kAppendNo;
-	volatile int resumeflag = kResumeYes;
-	volatile int deleteflag = kDeleteNo;
-	volatile int tarflag = kTarYes;
+	int rflag = 0;
+	int xtype = kTypeBinary;
+	int appendflag = kAppendNo;
+	int resumeflag = kResumeYes;
+	int deleteflag = kDeleteNo;
+	int tarflag = kTarYes;
 	int progmeters;
 	char *dstdir = NULL;
 	const char **flist;
-	const char *errstr;
-	volatile ExitStatus es;
+	ExitStatus es;
 	char url[512];
 	char urlfile[256];
 	char urldir[512];
@@ -192,6 +182,7 @@ main(int argc, char **argv)
 	char *urlfilep;
 	const char *urldirp;
 	char precmd[320], postcmd[320], perfilecmd[320];
+	GetoptInfo opt;
 
 	InitWinsock();
 #if (defined(SOCKS)) && (SOCKS >= 5)
@@ -230,54 +221,55 @@ main(int argc, char **argv)
 	postcmd[0] = '\0';
 	perfilecmd[0] = '\0';
 
-	while ((c = getopt(argc, argv, "P:u:j:p:e:d:t:aRTr:vVf:ADzZEFbcB:W:X:Y:")) > 0) switch(c) {
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:t:aRTr:vVf:ADzZEFbcB:W:X:Y:")) > 0) switch(c) {
 		case 'P':
-			fi.port = atoi(optarg);	
+			fi.port = atoi(opt.arg);	
 			break;
 		case 'u':
-			(void) STRNCPY(fi.user, optarg);
-			memset(optarg, '*', strlen(fi.user));
+			(void) STRNCPY(fi.user, opt.arg);
+			memset(opt.arg, '*', strlen(fi.user));
 			break;
 		case 'j':
-			(void) STRNCPY(fi.acct, optarg);
-			memset(optarg, '*', strlen(fi.acct));
+			(void) STRNCPY(fi.acct, opt.arg);
+			memset(opt.arg, '*', strlen(fi.acct));
 			break;
 		case 'p':
-			(void) STRNCPY(fi.pass, optarg);	/* Don't recommend doing this! */
-			memset(optarg, '*', strlen(fi.pass));
+			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			memset(opt.arg, '*', strlen(fi.pass));
 			break;
 		case 'e':
-			if (strcmp(optarg, "stdout") == 0)
+			if (strcmp(opt.arg, "stdout") == 0)
 				fi.errLog = stdout;
-			else if (optarg[0] == '-')
+			else if (opt.arg[0] == '-')
 				fi.errLog = stdout;
-			else if (strcmp(optarg, "stderr") == 0)
+			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.errLog = stderr;
 			else
-				fi.errLog = fopen(optarg, FOPEN_APPEND_TEXT);
+				fi.errLog = fopen(opt.arg, FOPEN_APPEND_TEXT);
 			break;
 		case 'D':
 			/* Require two -D's in case they typo. */
 			nD++;
 			break;
 		case 'd':
-			if (strcmp(optarg, "stdout") == 0)
+			if (strcmp(opt.arg, "stdout") == 0)
 				fi.debugLog = stdout;
-			else if (optarg[0] == '-')
+			else if (opt.arg[0] == '-')
 				fi.debugLog = stdout;
-			else if (strcmp(optarg, "stderr") == 0)
+			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.debugLog = stderr;
 			else
-				fi.debugLog = fopen(optarg, FOPEN_APPEND_TEXT);
+				fi.debugLog = fopen(opt.arg, FOPEN_APPEND_TEXT);
 			break;
 		case 't':
-			SetTimeouts(&fi, optarg);
+			SetTimeouts(&fi, opt.arg);
 			break;
 		case 'a':
 			xtype = kTypeAscii;
 			break;
 		case 'r':
-			SetRedial(&fi, optarg);
+			SetRedial(&fi, opt.arg);
 			break;
 		case 'R':
 			rflag = 1;
@@ -292,7 +284,7 @@ main(int argc, char **argv)
 			progmeters = 0;
 			break;
 		case 'f':
-			ReadConfigFile(optarg, &fi);
+			ReadConfigFile(opt.arg, &fi);
 			break;
 		case 'A':
 			appendflag = kAppendYes;
@@ -313,18 +305,18 @@ main(int argc, char **argv)
 			batchmode++;
 			break;
 		case 'B':
-			fi.dataSocketRBufSize = (size_t) atol(optarg);	
+			fi.dataSocketRBufSize = (size_t) atol(opt.arg);	
 			break;
 		case 'W':
-			STRNCAT(precmd, optarg);
+			STRNCAT(precmd, opt.arg);
 			STRNCAT(precmd, "\n");
 			break;
 		case 'X':
-			STRNCAT(perfilecmd, optarg);
+			STRNCAT(perfilecmd, opt.arg);
 			STRNCAT(perfilecmd, "\n");
 			break;
 		case 'Y':
-			STRNCAT(postcmd, optarg);
+			STRNCAT(postcmd, opt.arg);
 			STRNCAT(postcmd, "\n");
 			break;
 		case 'c':
@@ -333,7 +325,7 @@ main(int argc, char **argv)
 		default:
 			Usage();
 	}
-	if (optind > argc - 1)
+	if (opt.ind > argc - 1)
 		Usage();
 
 	if ((ftpcat != 0) && (batchmode != 0))
@@ -343,7 +335,7 @@ main(int argc, char **argv)
 		fi.progress = PrStatBar;
 
 	if (fi.host[0] == '\0') {
-		(void) STRNCPY(url, argv[optind]);
+		(void) STRNCPY(url, argv[opt.ind]);
 		rc = FTPDecodeURL(&fi, url, &cdlist, urlfile, sizeof(urlfile), (int *) &urlxtype, NULL);
 		if (rc == kMalformedURL) {
 			(void) fprintf(stderr, "Malformed URL: %s\n", url);
@@ -351,22 +343,22 @@ main(int argc, char **argv)
 		} else if (rc == kNotURL) {
 			/* This is what should happen most of the time. */
 			if (ftpcat == 0) {
-				if (optind > argc - 3)
+				if (opt.ind > argc - 3)
 					Usage();
-				(void) STRNCPY(fi.host, argv[optind]);
-				dstdir = StrDup(argv[optind + 1]);
+				(void) STRNCPY(fi.host, argv[opt.ind]);
+				dstdir = StrDup(argv[opt.ind + 1]);
 				if (dstdir == NULL) {
 					(void) fprintf(stderr, "Out of memory?\n");
 					exit(kExitNoMemory);
 				}
 				StrRemoveTrailingLocalPathDelim(dstdir);
-				flist = (const char **) argv + optind + 2;
+				flist = (const char **) argv + opt.ind + 2;
 			} else {
-				if (optind > argc - 2)
+				if (opt.ind > argc - 2)
 					Usage();
-				(void) STRNCPY(fi.host, argv[optind]);
+				(void) STRNCPY(fi.host, argv[opt.ind]);
 				dstdir = NULL;
-				flist = (const char **) argv + optind + 1;
+				flist = (const char **) argv + opt.ind + 1;
 			}
 		} else {
 			/* URL okay */
@@ -389,20 +381,20 @@ main(int argc, char **argv)
 	} else {
 		/* login.cfg being used, so no remote-host argument. */
 		if (ftpcat == 0) {
-			if (optind > argc - 2)
+			if (opt.ind > argc - 2)
 				Usage();
-			dstdir = StrDup(argv[optind + 0]);
+			dstdir = StrDup(argv[opt.ind + 0]);
 			if (dstdir == NULL) {
 				(void) fprintf(stderr, "Out of memory?\n");
 				exit(kExitNoMemory);
 			}
 			StrRemoveTrailingLocalPathDelim(dstdir);
-			flist = (const char **) argv + optind + 1;
+			flist = (const char **) argv + opt.ind + 1;
 		} else {
-			if (optind > argc - 1)
+			if (opt.ind > argc - 1)
 				Usage();
 			dstdir = NULL;
-			flist = (const char **) argv + optind + 0;
+			flist = (const char **) argv + opt.ind + 0;
 		}
 	}
 
@@ -516,66 +508,60 @@ main(int argc, char **argv)
 			if (batchmode == 1) {
 				RunBatch();
 			}
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit(kExitSuccess);
 		}
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit(kExitSpoolFailed);
 	}
 	
 	es = kExitOpenTimedOut;
-	errstr = "could not open remote host";
 	if ((result = FTPOpenHost(&fi)) < 0) {
 		(void) fprintf(stderr, "ncftpget: cannot open %s: %s.\n", fi.host, FTPStrError(result));
 		es = kExitOpenFailed;
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit((int) es);
 	}
 	if (fi.hasCLNT != kCommandNotAvailable)
 		(void) FTPCmd(&fi, "CLNT NcFTPGet %.5s %s", gVersion + 11, gOS);
 
-	errstr = "could not run pre-command remote host";
 	(void) AdditionalCmd(&fi, precmd, NULL);
 
 	if (flist == NULL) {
 		/* URL mode */
-		errstr = "could not change directory on remote host";
 		es = kExitChdirTimedOut;
 		if ((rc = FTPChdirList(&fi, &cdlist, NULL, 0, (kChdirFullPath|kChdirOneSubdirAtATime))) != 0) {
 			FTPPerror(&fi, rc, kErrCWDFailed, "ncftpget: Could not change directory", NULL);
 			(void) FTPCloseHost(&fi);
 			es = kExitChdirFailed;
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit((int) es);
 		}
 		
-		errstr = "could not read file from remote host";
 		es = kExitXferTimedOut;
 		(void) signal(SIGINT, Abort);
 		if (ftpcat != 0) {
-			if (FTPGetOneFile3(&fi, urlfile, NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, NoConfirmResumeDownloadProc, 0) == kNoErr) {
+			if (FTPGetOneFile3(&fi, urlfile, NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr) {
 				es = kExitSuccess;
 			} else {
 				FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
 				es = kExitXferFailed;
 			}
 		} else {
-			if ((rc = FTPGetFiles3(&fi, urlfile, ".", rflag, kGlobYes, xtype, resumeflag, appendflag, deleteflag, tarflag, NoConfirmResumeDownloadProc, 0)) < 0) {
+			if ((rc = FTPGetFiles3(&fi, urlfile, ".", rflag, kGlobYes, xtype, resumeflag, appendflag, deleteflag, tarflag, kNoFTPConfirmResumeDownloadProc, 0)) < 0) {
 				FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
 				es = kExitXferFailed;
 			} else {
 				es = kExitSuccess;
 
-				errstr = "could not run per-file-command remote host";
 				(void) AdditionalCmd(&fi, perfilecmd, urlfile);
 			}
 		}
 	} else {
-		errstr = "could not read file from remote host";
 		es = kExitXferTimedOut;
 		(void) signal(SIGINT, Abort);
 		if (ftpcat != 0) {
-			if (FTPGetOneFile3(&fi, flist[0], NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, NoConfirmResumeDownloadProc, 0) == kNoErr)
+			if (FTPGetOneFile3(&fi, flist[0], NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr)
 				es = kExitSuccess;
 			else
 				es = kExitXferFailed;
@@ -587,11 +573,10 @@ main(int argc, char **argv)
 		}
 	}
 
-	errstr = "could not run post-command remote host";
 	(void) AdditionalCmd(&fi, postcmd, NULL);
 	
 	(void) FTPCloseHost(&fi);
-	DisposeWinsock(0);
+	DisposeWinsock();
 	
 	exit((int) es);
 }	/* main */

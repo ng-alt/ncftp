@@ -1,8 +1,7 @@
-#include <sys/types.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include "Strn.h"
+#include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 /*VARARGS*/
 char *
@@ -12,6 +11,7 @@ Dynscat(char **dst, ...)
 	const char *src;
 	char *newdst, *dcp;
 	size_t curLen, catLen, srcLen;
+	int recursive = 0;
 
 	if (dst == (char **) 0)
 		return NULL;
@@ -20,10 +20,24 @@ Dynscat(char **dst, ...)
 	va_start(ap, dst);
 	src = va_arg(ap, char *);
 	while (src != NULL) {
+		if (src == *dst)
+			recursive = 1;
 		catLen += strlen(src);
 		src = va_arg(ap, char *);
 	}
 	va_end(ap);
+
+	if (recursive != 0) {
+		/* Don't allow this:
+		 *
+		 *   Dynscat(&p, "foo", p, "bar", 0);
+		 *
+		 */
+		if (*dst != NULL)
+			free(*dst);
+		*dst = NULL;
+		return NULL;
+	}
 
 	if ((*dst == NULL) || (**dst == '\0'))
 		curLen = 0;

@@ -5,9 +5,11 @@
  *
  */
 
-#define _libncftp_errno_c_ 1
 #include "syshdrs.h"
-	
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
+
 static const char *gErrList[kErrLast - kErrFirst + 2] = {
 	"gethostname() failed",						/* -100 */
 	"hostname does not include domain name",			/* -101 */
@@ -126,6 +128,29 @@ FTPStrError(int e)
 	}
 	return ("unrecognized error number");
 }	/* FTPStrError */
+
+
+
+
+char *
+FTPStrError2(const FTPCIPtr cip, int e, char *const dst, const size_t dstsize, int eerr)
+{
+	LinePtr lp;
+
+	if ((dst == NULL) || (dstsize == 0))
+		return NULL;
+
+	if ((e == eerr) && (e != kNoErr)) {
+		(void) Strncpy(dst, "Server said:", dstsize);
+		for (lp = cip->lastFTPCmdResultLL.first; lp != NULL; lp = lp->next) {
+			(void) Strncat(dst, " ", dstsize);
+			(void) Strncat(dst, lp->line, dstsize);
+		}
+	} else {
+		(void) Strncpy(dst, FTPStrError(e), dstsize);
+	}
+	return (dst);
+}	/* FTPStrError2 */
 
 
 

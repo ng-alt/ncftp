@@ -1,6 +1,7 @@
-#include <sys/types.h>
-#include <string.h>
-#include "Strn.h"
+#include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 /*
  * Copy src to dst, truncating or null-padding to always copy n-1 bytes.

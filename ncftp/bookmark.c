@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "bookmark.h"
 #include "util.h"
@@ -145,7 +148,9 @@ ParseHostLine(char *line, BookmarkPtr bmp)
 
 	SetBookmarkDefaults(bmp);
 	s = line;
-	tokenend = token + sizeof(token) - 1;
+	tokenend = token;
+	tokenend += sizeof(token);
+	--tokenend;
 	result = -1;
 	for (i=1; ; i++) {
 		if (*s == '\0')
@@ -481,7 +486,7 @@ GetBookmark(const char *const bmabbr, Bookmark *bmp)
 static int
 BookmarkSortProc(const void *a, const void *b)
 {
-	return (ISTRCMP((*(Bookmark *)a).bookmarkName, (*(Bookmark *)b).bookmarkName));	
+	return (ISTRCMP((*(const Bookmark *)a).bookmarkName, (*(const Bookmark *)b).bookmarkName));	
 }	/* BookmarkSortProc */
 
 
@@ -489,7 +494,7 @@ BookmarkSortProc(const void *a, const void *b)
 static int
 BookmarkSearchProc(const void *key, const void *b)
 {
-	return (ISTRCMP((char *) key, (*(Bookmark *)b).bookmarkName));	
+	return (ISTRCMP((const char *) key, (*(const Bookmark *)b).bookmarkName));	
 }	/* BookmarkSearchProc */
 
 

@@ -8,23 +8,21 @@
 #define GL_BUF_SIZE 2048
 
 /* Result codes available for gl_get_result() */
-#define GL_OK 0			/* Valid line of input entered */
-#define GL_EOF (-1)		/* End of input */
-#define GL_INTERRUPT (-2)	/* User hit Ctrl+C */
-#define GL_SUSPEND (-3)		/* User hit Ctrl+Z */
+#define GL_OK 0				/* Valid line of input entered */
+#define GL_EOF (-1)			/* End of input */
+#define GL_INTERRUPT (-2)		/* User hit Ctrl+C */
+#define GL_SUSPEND (-3)			/* User hit Ctrl+Z */
 
-typedef size_t (*gl_strwidth_proc)(char *);
 typedef int (*gl_in_hook_proc)(char *);
 typedef int (*gl_out_hook_proc)(char *);
 typedef int (*gl_tab_hook_proc)(char *, int, int *, size_t);
 typedef size_t (*gl_strlen_proc)(const char *);
 typedef char * (*gl_tab_completion_proc)(const char *, int);
 
-char *getline(char *);		/* read a line of input */
-void gl_setwidth(int);		/* specify width of screen */
-void gl_setheight(int);		/* specify height of screen */
-void gl_histadd(char *);		/* adds entries to hist */
-void gl_strwidth(gl_strwidth_proc);	/* to bind gl_strlen */
+char *getline(char *);			/* read a line of input */
+void gl_setwidth(int);			/* specify width of screen */
+void gl_setheight(int);			/* specify height of screen */
+void gl_histadd(const char *const);	/* adds entries to hist */
 void gl_tab_completion(gl_tab_completion_proc);
 char *gl_local_filename_completion_proc(const char *, int);
 void gl_set_home_dir(const char *homedir);

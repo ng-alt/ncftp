@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifdef ncftp
 #include "progress.h"
@@ -68,7 +71,7 @@ int gPrefsDirty = 0;
 
 extern FTPLibraryInfo gLib;
 extern FTPConnectionInfo gConn;
-extern char gOurDirectoryPath[], gUser[], gVersion[];
+extern char gOurDirectoryPath[];
 
 PrefOpt gPrefOpts[] = {
 	{ "anonopen",				PREFOBSELETE },
@@ -115,9 +118,8 @@ int gNumPrefOpts = ((int)(sizeof(gPrefOpts) / sizeof(PrefOpt)) - 1);
 
 
 void
-SetAnonPass(int UNUSED(t), const char *const val, FILE *const fp)
+SetAnonPass(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", gLib.defaultAnonPassword);
 	} else {
@@ -128,9 +130,8 @@ SetAnonPass(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetAutoAscii(int UNUSED(t), const char *const val, FILE *const fp)
+SetAutoAscii(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", gAutoAscii);
 	} else {
@@ -146,9 +147,8 @@ SetAutoAscii(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetAutoResume(int UNUSED(t), const char *const val, FILE *const fp)
+SetAutoResume(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", YESNO(gAutoResume));
 	} else {
@@ -159,9 +159,8 @@ SetAutoResume(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetAutoSaveChangesToExistingBookmarks(int UNUSED(t), const char *const val, FILE *const fp)
+SetAutoSaveChangesToExistingBookmarks(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", YESNO(gAutoSaveChangesToExistingBookmarks));
 	} else {
@@ -172,9 +171,8 @@ SetAutoSaveChangesToExistingBookmarks(int UNUSED(t), const char *const val, FILE
 
 
 void
-SetConfirmClose(int UNUSED(t), const char *const val, FILE *const fp)
+SetConfirmClose(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", YESNO(gConfirmClose));
 	} else {
@@ -185,9 +183,8 @@ SetConfirmClose(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetConnTimeout(int UNUSED(t), const char *const val, FILE *const fp)
+SetConnTimeout(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%d", gConnTimeout);
 	} else {
@@ -198,9 +195,8 @@ SetConnTimeout(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetCtrlTimeout(int UNUSED(t), const char *const val, FILE *const fp)
+SetCtrlTimeout(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%d", gCtrlTimeout);
 	} else {
@@ -211,9 +207,8 @@ SetCtrlTimeout(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetLogSize(int UNUSED(t), const char *const val, FILE *const fp)
+SetLogSize(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%d", gMaxLogSize);
 	} else {
@@ -224,9 +219,8 @@ SetLogSize(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetNoAds(int UNUSED(t), const char *const val, FILE *const fp)
+SetNoAds(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", YESNO(gDoNotDisplayAds));
 	} else {
@@ -237,9 +231,8 @@ SetNoAds(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetOneTimeMessages(int UNUSED(t), const char *const val, FILE *const fp)
+SetOneTimeMessages(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", gOneTimeMessagesSeen);
 	} else {
@@ -250,9 +243,8 @@ SetOneTimeMessages(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetPager(int UNUSED(t), const char *const val, FILE *const fp)
+SetPager(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", gPager);
 	} else {
@@ -263,11 +255,10 @@ SetPager(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetPassive(int UNUSED(t), const char *const val, FILE *const fp)
+SetPassive(const char *const val, FILE *const fp)
 {
 	int m;
 
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		m = (gFwDataPortMode >= 0) ? gFwDataPortMode : gDataPortMode;
 		if (m == kSendPortMode) {
@@ -286,7 +277,7 @@ SetPassive(int UNUSED(t), const char *const val, FILE *const fp)
 			gDataPortMode = kFallBackToSendPortMode;
 		else if (ISTREQ(val, "on"))
 			gDataPortMode = kPassiveMode;
-		else if ((int) isdigit(val[0]))
+		else if (isdigit((int) val[0]))
 			gDataPortMode = atoi(val);
 		else
 			gDataPortMode = kSendPortMode;
@@ -298,9 +289,8 @@ SetPassive(int UNUSED(t), const char *const val, FILE *const fp)
 
 #ifdef ncftp
 void
-SetProgressMeter(int UNUSED(t), const char *const val, FILE *const fp)
+SetProgressMeter(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		if (gProgressMeter == PrStatBar) {
 			(void) fprintf(fp, "%s", "2 (statbar)");
@@ -321,9 +311,8 @@ SetProgressMeter(int UNUSED(t), const char *const val, FILE *const fp)
 }	/* SetProgressMeter */
 #else
 void
-SetProgressMeter(int UNUSED(t), const char *const UNUSED(val), FILE *const UNUSED(fp))
+SetProgressMeter(const char *const UNUSED(val), FILE *const UNUSED(fp))
 {
-	LIBNCFTP_USE_VAR(t);
 	LIBNCFTP_USE_VAR(val);
 	LIBNCFTP_USE_VAR(fp);
 }	/* SetProgressMeter */
@@ -332,11 +321,10 @@ SetProgressMeter(int UNUSED(t), const char *const UNUSED(val), FILE *const UNUSE
 
 
 void
-SetRedialDelay(int UNUSED(t), const char *const val, FILE *const fp)
+SetRedialDelay(const char *const val, FILE *const fp)
 {
 	int i;
 
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%d", gRedialDelay);
 	} else {
@@ -350,9 +338,8 @@ SetRedialDelay(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetSavePasswords(int UNUSED(t), const char *const val, FILE *const fp)
+SetSavePasswords(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		if (gSavePasswords < 0)
 			(void) fprintf(fp, "%s", "ask");
@@ -369,9 +356,8 @@ SetSavePasswords(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetSOBufsize(int UNUSED(t), const char *const val, FILE *const fp)
+SetSOBufsize(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%d", gSOBufsize);
 		if (gSOBufsize <= 0)
@@ -385,9 +371,8 @@ SetSOBufsize(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetXferTimeout(int UNUSED(t), const char *const val, FILE *const fp)
+SetXferTimeout(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%d", gXferTimeout);
 	} else {
@@ -398,9 +383,8 @@ SetXferTimeout(int UNUSED(t), const char *const val, FILE *const fp)
 
 
 void
-SetXtTitle(int UNUSED(t), const char *const val, FILE *const fp)
+SetXtTitle(const char *const val, FILE *const fp)
 {
-	LIBNCFTP_USE_VAR(t);
 	if (fp != NULL) {
 		(void) fprintf(fp, "%s", YESNO(gMaySetXtermTitle));
 	} else {
@@ -418,7 +402,7 @@ Show1(int t)
 
 	(void) printf("%-30s ", p->varname);
 	if (p->proc != (PrefProc) 0)
-		(*p->proc)(t, NULL, stdout);
+		(*p->proc)(NULL, stdout);
 	(void) printf("\n");
 }	/* Show1 */
 
@@ -459,7 +443,7 @@ Set(const char *const tok1, const char *const tok2)
 				if (gPrefOpts[t].visible == kPrefOptObselete) {
 					(void) printf("The \"%s\" option is obselete or not implemented.\n", tok1);
 				} else if (gPrefOpts[t].proc != (PrefProc) 0) {
-					(*gPrefOpts[t].proc)(t, tok2, NULL);
+					(*gPrefOpts[t].proc)(tok2, NULL);
 					gPrefsDirty++;
 				}
 				break;
@@ -540,7 +524,7 @@ ProcessPrefsFile(FILE *const fp)
 					 */
 					gPrefsDirty++;
 				} else if (gPrefOpts[t].proc != (PrefProc) 0) {
-					(*gPrefOpts[t].proc)(t, tok2, NULL);
+					(*gPrefOpts[t].proc)(tok2, NULL);
 				}
 			}
 		}
@@ -631,7 +615,7 @@ InitPrefs(void)
 	gConfirmClose = 1;
 	gAutoSaveChangesToExistingBookmarks = 0;
 	gRedialDelay = kDefaultRedialDelay;
-	STRNCPY(gAutoAscii, "|.txt|.asc|.html|.htm|.css|.xml|.ini|.sh|.pl|.hqx|.cfg|.c|.h|.cpp|.hpp|.bat|.m3u|.pls|");
+	STRNCPY(gAutoAscii, "|.txt|.asc|.html|.htm|.css|.xml|.ini|.pl|.hqx|.cfg|.c|.h|.cpp|.hpp|.bat|.m3u|.pls|");
 
 	/* PLEASE do not change the default from 0, and please
 	 * don't hack out the portion in main.c which displays
@@ -716,7 +700,7 @@ SavePrefs(void)
 		for (t=0; t<gNumPrefOpts; t++) {
 			if (gPrefOpts[t].visible != kPrefOptObselete) {
 				(void) fprintf(fp, "%s=", gPrefOpts[t].varname);
-				(*gPrefOpts[t].proc)(t, NULL, fp);
+				(*gPrefOpts[t].proc)(NULL, fp);
 				(void) fprintf(fp, "\n");
 			}
 		}

@@ -27,7 +27,7 @@
 
 #define kOpenSelectedBookmarkFileName		"bm2open"
 
-typedef void (*PrefProc)(int i, const char *const, FILE *const fp);
+typedef void (*PrefProc)(const char *const, FILE *const fp);
 typedef struct PrefOpt {
 	const char *varname;
 	PrefProc proc;
@@ -41,24 +41,28 @@ typedef struct PrefOpt {
 #define PREFOBSELETE (PrefProc) 0, kPrefOptObselete,
 
 /* pref.c */
-void SetAnonPass(int, const char *const, FILE *const);
-void SetAutoAscii(int t, const char *const val, FILE *const fp);
-void SetAutoResume(int, const char *const, FILE *const);
-void SetAutoSaveChangesToExistingBookmarks(int t, const char *const val, FILE *const fp);
-void SetConfirmClose(int, const char *const, FILE *const);
-void SetConnTimeout(int, const char *const, FILE *const);
-void SetCtrlTimeout(int, const char *const, FILE *const);
-void SetLogSize(int t, const char *const val, FILE *const fp);
-void SetNoAds(int t, const char *const val, FILE *const fp);
-void SetOneTimeMessages(int t, const char *const val, FILE *const);
-void SetPager(int, const char *const, FILE *const);
-void SetPassive(int, const char *const, FILE *const);
-void SetProgressMeter(int, const char *const, FILE *const);
-void SetRedialDelay(int t, const char *const val, FILE *const fp);
-void SetSavePasswords(int, const char *const, FILE *const);
-void SetSOBufsize(int t, const char *const val, FILE *const fp);
-void SetXferTimeout(int, const char *const, FILE *const);
-void SetXtTitle(int, const char *const, FILE *const);
+void SetAnonPass(const char *const, FILE *const);
+void SetAutoAscii(const char *const val, FILE *const fp);
+void SetAutoResume(const char *const, FILE *const);
+void SetAutoSaveChangesToExistingBookmarks(const char *const val, FILE *const fp);
+void SetConfirmClose(const char *const, FILE *const);
+void SetConnTimeout(const char *const, FILE *const);
+void SetCtrlTimeout(const char *const, FILE *const);
+void SetLogSize(const char *const val, FILE *const fp);
+void SetNoAds(const char *const val, FILE *const fp);
+void SetOneTimeMessages(const char *const val, FILE *const);
+void SetPager(const char *const, FILE *const);
+void SetPassive(const char *const, FILE *const);
+#ifdef ncftp
+void SetProgressMeter(const char *const, FILE *const);
+#else
+void SetProgressMeter(const char *const UNUSED(val), FILE *const UNUSED(fp));
+#endif
+void SetRedialDelay(const char *const val, FILE *const fp);
+void SetSavePasswords(const char *const, FILE *const);
+void SetSOBufsize(const char *const val, FILE *const fp);
+void SetXferTimeout(const char *const, FILE *const);
+void SetXtTitle(const char *const, FILE *const);
 void Set(const char *const, const char *const);
 void ProcessPrefsFile(FILE *const fp);
 void LoadPrefs(void);

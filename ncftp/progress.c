@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "util.h"
 #include "trace.h"
@@ -18,8 +21,6 @@
 #endif	/* ncftp */
 
 extern const char *tcap_normal;
-extern const char *tcap_boldface;
-extern const char *tcap_underline;
 extern const char *tcap_reverse;
 extern int gScreenColumns;
 

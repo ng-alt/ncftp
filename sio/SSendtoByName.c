@@ -1,8 +1,11 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
 
 #ifndef NO_SIGNALS
@@ -10,7 +13,9 @@ extern volatile Sjmp_buf gPipeJmp;
 int
 SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *const toAddrStr, int tlen)
 {
-	int nwrote, tleft, result;
+	send_return_t nwrote;
+	alarm_time_t tleft;
+	int result;
 	vsio_sigproc_t sigalrm, sigpipe;
 	time_t done, now;
 	struct sockaddr_in toAddr;
@@ -40,12 +45,12 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 
 	time(&now);
 	done = now + tlen;
-	tleft = (int) (done - now);
+	tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 	forever {
-		(void) alarm((unsigned int) tleft);
-		nwrote = sendto(sfd, buf, size, fl,
+		(void) alarm(tleft);
+		nwrote = sendto(sfd, buf, (send_size_t) size, fl,
 				(struct sockaddr *) &toAddr,
-				(int) sizeof(struct sockaddr_in));
+				(sockaddr_size_t) sizeof(struct sockaddr_in));
 		(void) alarm(0);
 		if (nwrote >= 0)
 			break;
@@ -53,7 +58,7 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (int) (done - now);
+		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
 			nwrote = kTimeoutErr;
 			errno = ETIMEDOUT;
@@ -64,7 +69,7 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
 
-	return (nwrote);
+	return ((int) nwrote);
 }	/* SSendtoByName */
 
 #else
@@ -72,11 +77,11 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 int
 SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *const toAddrStr, int tlen)
 {
-	int nwrote, tleft;
+	send_return_t nwrote;
+	int tleft, result;
 	time_t done, now;
 	fd_set ss;
 	struct timeval tv;
-	int result;
 	struct sockaddr_in toAddr;
 
 	if ((result = AddrStrToAddr(toAddrStr, &toAddr, -1)) < 0) {
@@ -94,9 +99,16 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 			}
 			tleft = (int) (done - now);
 			errno = 0;
-			FD_ZERO(&ss);
-			FD_SET(sfd, &ss);
-			tv.tv_sec = tleft;
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			tv.tv_sec = (tv_sec_t) tleft;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG5 &tv);
 			if (result == 1) {
@@ -112,9 +124,9 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 			time(&now);
 		}
 
-		nwrote = sendto(sfd, buf, size, fl,
+		nwrote = sendto(sfd, buf, (send_size_t) size, fl,
 			(struct sockaddr *) &toAddr,
-			(int) sizeof(struct sockaddr_in));
+			(sockaddr_size_t) sizeof(struct sockaddr_in));
 
 		if (nwrote >= 0)
 			break;
@@ -122,7 +134,7 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 			break;		/* Fatal error. */
 	}
 
-	return (nwrote);
+	return ((int) nwrote);
 }	/* SSendto */
 
 #endif
@@ -140,9 +152,9 @@ SendtoByName(int sfd, const char *const buf, size_t size, const char *const toAd
 	}
 
 	do {
-		result = sendto(sfd, buf, size, 0,
+		result = (int) sendto(sfd, buf, (send_size_t) size, 0,
 				(struct sockaddr *) &toAddr,
-				(int) sizeof(struct sockaddr_in));
+				(sockaddr_size_t) sizeof(struct sockaddr_in));
 	} while ((result < 0) && (errno == EINTR));
 
 	return (result);

@@ -1,4 +1,7 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 int
 SNewStreamClient(void)

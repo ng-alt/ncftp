@@ -1,7 +1,11 @@
 /* wutil.c */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
+#include "../ncftp/util.h"
 #include "wutil.h"
 
 int gWinInit = 0;
@@ -17,7 +21,7 @@ EndWin(void)
 		/* Ideally we would save the whole screen of data before
 		 * starting, and restore it here.
 		 */
-		clear();
+		wclear(stdscr);
 		refresh();
 
 		endwin();
@@ -61,7 +65,7 @@ SaveScreen(void)
 		 * and then a refresh() without us
 		 * re-drawing any windows manually.
 		 */
-		clear();
+		wclear(stdscr);
 		refresh();
  		endwin();
 		fflush(stdout);
@@ -130,6 +134,20 @@ Beep(int on)
 
 
 
+
+#if !defined(HAVE_GETCURX) && defined(HAVE_GETYX)
+static int
+getcurx(WINDOW *const w)
+{
+	int cx, cy;
+	NCFTP_USE_VAR(cy);
+	getyx(w, cy, cx);
+	return (cx);
+}	/* getcurx */
+#endif
+
+
+
 /* Sometimes ncurses' wclrtoeol() gets confused when reverse text was on.
  * This forces is to use space characters to blank out the line instead
  * of the tty's clear-to-end-of-line built-in, if present.
@@ -137,11 +155,11 @@ Beep(int on)
 void
 swclrtoeol(WINDOW *w)
 {
-	int maxy, maxx;
-	int cury, curx;
+	int maxx;
+	int curx;
 
-	getmaxyx(w, maxy, maxx);
-	getyx(w, cury, curx);
+	maxx = getmaxx(w);
+	curx = getcurx(w);
 	for ( ; curx < maxx; curx++)
 		waddch(w, ' ');
 }	/* swclrtoeol */
@@ -240,18 +258,35 @@ WAttr(WINDOW *w, int attr, int on)
 
 
 
+void DrawStrAt(WINDOW *const win, int y, int x, const char *const str)
+{
+#if defined(WADDSTR_TYPE_ARG1_CONST) && !defined(FREEBSD)
+	mvwaddstr(win, y, x, str);
+#else
+	/* Ugly hack for systems whose mvwaddstr takes a (char *) rather than
+	 * a (const char *).
+	 */
+	char *cp = strdup(str);
+	if (cp == NULL)
+		return;
+	mvwaddstr(win, y, x, cp);
+	free(cp);
+#endif
+}	/* DrawStrAt */
+
+
+
 /* Draws a string centered in a window. */
-void WAddCenteredStr(WINDOW *w, int y, const char *str)
+void WAddCenteredStr(WINDOW *const w, int y, const char *const str)
 {
 	int x;
-	int maxy, maxx;
+	int maxx;
 
-	getmaxyx(w, maxy, maxx);
+	maxx = getmaxx(w);
 	x = (maxx - (int) strlen(str)) / 2;
 	if (x < 0)
 		x = 0;
-	wmove(w, y, x);
-	waddstr(w, str);
+	DrawStrAt(w, y, x, str);
 }	/* WAddCenteredStr */
 
 

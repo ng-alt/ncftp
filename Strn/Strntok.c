@@ -1,7 +1,7 @@
-/* Strntok.c */
-
-#include <string.h>
-#include "Strn.h"
+#include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 /* This version of Strtok differs from the regular ANSI strtok in that
  * an empty token can be returned, and consecutive delimiters are not
@@ -111,7 +111,7 @@ Strntok(char *dstTokenStart, size_t tokenSize, char *buf, const char *delims)
 			*dst++ = *end;
 	}
 	*dst = '\0';
-	len = (int) (dst - dstTokenStart);	/* Return length of token. */
+	len = (int) (dst - dstTokenStart);		/* Return length of token. */
 
 #if (STRN_ZERO_PAD == 1)
 	/* Pad with zeros. */

@@ -1,4 +1,7 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 /* 
  * Return zero if the operation timed-out or erred-out, otherwise non-zero.
@@ -22,10 +25,17 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 	tleft = tlen;
 
 	forever {
-		FD_ZERO(&ss);
-		FD_SET(sfd, &ss);
+		MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+		MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
 		ss2 = ss;
-		tv.tv_sec = tleft;
+		tv.tv_sec = (tv_sec_t) tleft;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, &tv);
 		if (result == 1) {
@@ -77,10 +87,17 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 	tleft = tlen;
 
 	forever {
-		FD_ZERO(&ss);
-		FD_SET(sfd, &ss);
+		MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+		MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
 		ss2 = ss;
-		tv.tv_sec = tleft;
+		tv.tv_sec = (tv_sec_t) tleft;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, &tv);
 		if (result == 1) {

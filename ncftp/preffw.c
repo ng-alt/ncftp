@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "pref.h"
 #include "util.h"
@@ -30,8 +33,14 @@ int gDataPortMode;
  */
 int gFwDataPortMode = -1;
 
-extern FTPLibraryInfo gLib;
-extern char gOurDirectoryPath[], gUser[], gVersion[];
+/* Need our full hostname with domain, so we can tell if hosts are
+ * in our domain.
+ */
+char gOurHostName[64];
+int gGetOurHostNameResult = 100;
+
+extern char gOurDirectoryPath[], gUser[];
+extern const char gVersion[];
 
 
 /* Save a sample configuration file for the firewall/proxy setup. */
@@ -41,8 +50,9 @@ WriteDefaultFirewallPrefs(FILE *fp)
 	char *cp;
 	time_t now;
 
-	FTPInitializeOurHostName(&gLib);
-	cp = strchr(gLib.ourHostName, '.');
+	if (gGetOurHostNameResult == 100)
+		gGetOurHostNameResult = GetOurHostName(gOurHostName, sizeof(gOurHostName));
+	cp = strchr(gOurHostName, '.');
 
 	(void) fprintf(fp, "%s", "\
 # NcFTP firewall preferences\n\
@@ -250,7 +260,7 @@ ProcessFirewallPrefFile(FILE *fp)
 				gDataPortMode = gFwDataPortMode = kPassiveMode;
 			} else if (ISTREQ(tok2, "off")) {
 				gDataPortMode = gFwDataPortMode = kSendPortMode;
-			} else if ((int) isdigit(tok2[0])) {
+			} else if ((int) isdigit((int) tok2[0])) {
 				gDataPortMode = gFwDataPortMode = atoi(tok2);
 			}
 		}
@@ -327,8 +337,10 @@ LoadFirewallPrefs(int forceReload)
 	}
 
 	if (gFirewallExceptionList[0] == '\0') {
-		FTPInitializeOurHostName(&gLib);
-		cp = strchr(gLib.ourHostName, '.');
+		if (gGetOurHostNameResult == 100)
+			gGetOurHostNameResult = GetOurHostName(gOurHostName, sizeof(gOurHostName));
+
+		cp = strchr(gOurHostName, '.');
 
 		if (cp != NULL) {
 			(void) STRNCPY(gFirewallExceptionList, cp);

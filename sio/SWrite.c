@@ -1,8 +1,11 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
 
 #ifndef NO_SIGNALS
@@ -10,9 +13,10 @@ extern volatile Sjmp_buf gPipeJmp;
 int
 SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 {
-	volatile int nleft;
 	const char *volatile buf = buf0;
-	int nwrote, tleft;
+	write_return_t nwrote;
+	volatile write_size_t nleft;
+	alarm_time_t tleft;
 	vsio_sigproc_t sigalrm, sigpipe;
 	time_t done, now;
 
@@ -20,9 +24,9 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 		alarm(0);
 		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = size - nleft;
+		nwrote = (write_return_t) size - (write_return_t) nleft;
 		if (nwrote > 0)
-			return (nwrote);
+			return ((int) nwrote);
 		errno = ETIMEDOUT;
 		return (kTimeoutErr);
 	}
@@ -31,9 +35,9 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 		alarm(0);
 		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nwrote = size - nleft;
+		nwrote = (write_return_t) size - (write_return_t) nleft;
 		if (nwrote > 0)
-			return (nwrote);
+			return ((int) nwrote);
 		errno = EPIPE;
 		return (kBrokenPipeErr);
 	}
@@ -41,27 +45,27 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
 	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIOHandler);
 
-	nleft = (int) size;
+	nleft = (write_size_t) size;
 	time(&now);
 	done = now + tlen;
 	forever {
-		tleft = (int) (done - now);
+		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 		if (tleft < 1) {
-			nwrote = size - nleft;
+			nwrote = (write_return_t) size - (write_return_t) nleft;
 			if (nwrote == 0) {
 				nwrote = kTimeoutErr;
 				errno = ETIMEDOUT;
 			}
 			goto done;
 		}
-		(void) alarm((unsigned int) tleft);
+		(void) alarm(tleft);
 		nwrote = write(sfd, buf, nleft);
 		(void) alarm(0);
 		if (nwrote < 0) {
 			if (errno != EINTR) {
-				nwrote = size - nleft;
+				nwrote = (write_return_t) size - (write_return_t) nleft;
 				if (nwrote == 0)
-					nwrote = -1;
+					nwrote = (write_return_t) -1;
 				goto done;
 			} else {
 				errno = 0;
@@ -69,19 +73,19 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 				/* Try again. */
 			}
 		}
-		nleft -= nwrote;
-		if (nleft <= 0)
+		nleft -= (write_size_t) nwrote;
+		if (nleft == 0)
 			break;
 		buf += nwrote;
 		time(&now);
 	}
-	nwrote = size - nleft;
+	nwrote = (write_return_t) size - (write_return_t) nleft;
 
 done:
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
 
-	return (nwrote);
+	return ((int) nwrote);
 }	/* SWrite */
 
 #else
@@ -89,15 +93,16 @@ done:
 int
 SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 {
-	int nleft;
 	const char *buf = buf0;
-	int nwrote, tleft;
+	write_return_t nwrote;
+	write_size_t nleft;
+	int tleft;
 	time_t done, now;
 	fd_set ss;
 	struct timeval tv;
 	int result, firstWrite;
 
-	nleft = (int) size;
+	nleft = (write_size_t) size;
 	time(&now);
 	done = now + tlen;
 	firstWrite = 1;
@@ -105,7 +110,7 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 	forever {
 		tleft = (int) (done - now);
 		if (tleft < 1) {
-			nwrote = size - nleft;
+			nwrote = (write_return_t) size - (write_return_t) nleft;
 			if (nwrote == 0) {
 				nwrote = kTimeoutErr;
 				errno = ETIMEDOUT;
@@ -124,9 +129,16 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 		if (!firstWrite || ((swopts & kNoFirstSelect) == 0)) {
 			forever {
 				errno = 0;
-				FD_ZERO(&ss);
-				FD_SET(sfd, &ss);
-				tv.tv_sec = tlen;
+				MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+				MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+				tv.tv_sec = (tv_sec_t) tlen;
 				tv.tv_usec = 0;
 				result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG5 &tv);
 				if (result == 1) {
@@ -134,9 +146,9 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 					break;
 				} else if (result == 0) {
 					/* timeout */		
-					nwrote = size - nleft;
+					nwrote = (write_return_t) size - (write_return_t) nleft;
 					if (nwrote > 0)
-						return (nwrote);
+						return ((int) nwrote);
 					errno = ETIMEDOUT;
 					SETWSATIMEOUTERR
 						return (kTimeoutErr);
@@ -148,16 +160,16 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 		}
 		
 #if defined(WIN32) || defined(_WINDOWS)
-		nwrote = send(sfd, buf, size, 0);
+		nwrote = send(sfd, buf, (send_size_t) nleft, 0);
 #else
-		nwrote = write(sfd, buf, size);
+		nwrote = write(sfd, buf, nleft);
 #endif
 
 		if (nwrote < 0) {
 			if (errno != EINTR) {
-				nwrote = size - nleft;
+				nwrote = (write_return_t) size - (write_return_t) nleft;
 				if (nwrote == 0)
-					nwrote = -1;
+					nwrote = (write_return_t) -1;
 				goto done;
 			} else {
 				errno = 0;
@@ -165,16 +177,16 @@ SWrite(int sfd, const char *const buf0, size_t size, int tlen, int swopts)
 				/* Try again. */
 			}
 		}
-		nleft -= nwrote;
-		if (nleft <= 0)
+		nleft -= (write_size_t) nwrote;
+		if (nleft == 0)
 			break;
 		buf += nwrote;
 		time(&now);
 	}
-	nwrote = size - nleft;
+	nwrote = (write_return_t) size - (write_return_t) nleft;
 
 done:
-	return (nwrote);
+	return ((int) nwrote);
 }	/* SWrite */
 
 #endif

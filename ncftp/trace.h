@@ -17,7 +17,7 @@ void Trace(const int, const char *const, ...)
 __attribute__ ((format (printf, 2, 3)))
 #endif
 ;
-void ErrorHook(const FTPCIPtr, char *);
+void ErrorHook(const FTPCIPtr UNUSED(cipUnused), char *msg);
 void DebugHook(const FTPCIPtr, char *);
 void SetDebug(int);
 void UseTrace(void);

@@ -1,6 +1,9 @@
 /* bookmark editor */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "../ncftp/util.h"
 #include "../ncftp/trace.h"
@@ -149,13 +152,13 @@ void DrawHostList(void)
 		gHostWin,
 		begy - 1,
 		begx,
-		"%s",
+		strcpy(spec, "%s"),	/* avoid warnings on BSD */
 		"Number of bookmarks"
 	);
 	WAttr(gHostWin, kUnderline, 0);
 	wprintw(
 		gHostWin,
-		": %3d",
+		strcpy(spec, ": %3d"),
 		gNumBookmarks
 	);
 
@@ -168,7 +171,7 @@ void DrawHostList(void)
 				WAttr(gHostListWin, kReverse, 1);
 			sprintf(str, spec, rsip->bookmarkName, rsip->name);
 			str[lmaxx] = '\0';
-			mvwaddstr(gHostListWin, i - gHostListWinStart, 0, str);
+			DrawStrAt(gHostListWin, i - gHostListWinStart, 0, str);
 			swclrtoeol(gHostListWin);
 			if (rsip == gCurHostListItem) {
 				WAttr(gHostListWin, kReverse, 0);
@@ -185,7 +188,7 @@ void DrawHostList(void)
 			STRNCAT(str, url);
 			memset(url, 0, sizeof(url));
 			AbbrevStr(url, str, (size_t) lmaxx, 1);
-			mvwaddstr(gHostListWin, i - gHostListWinStart, 0, url);
+			DrawStrAt(gHostListWin, i - gHostListWinStart, 0, url);
 			swclrtoeol(gHostListWin);
 			if (rsip == gCurHostListItem) {
 				WAttr(gHostListWin, kReverse, 0);
@@ -196,7 +199,7 @@ void DrawHostList(void)
 
 	/* Add 'vi' style empty-lines. */
 	for ( ; i<lastLine; ++i) {
-		mvwaddstr(gHostListWin, i - gHostListWinStart, 0, "~");
+		DrawStrAt(gHostListWin, i - gHostListWinStart, 0, "~");
 		swclrtoeol(gHostListWin);
 	}
 	wmove(gHostWin, maxy - 3, 2);
@@ -228,10 +231,10 @@ int HostWinGetKey(void)
 {
 	int c;
 	int uc;
-	int maxy, maxx;
 	int escmode;
+	int maxy;
 
-	getmaxyx(gHostWin, maxy, maxx);
+	maxy = getmaxy(gHostWin);
 	wmove(gHostWin, maxy - 1, 0);
 	for (escmode = 0; ; escmode++) {
 		uc = (unsigned int) wgetch(gHostWin);
@@ -433,10 +436,10 @@ void HostListPageDown(void)
 /* This displays a message in the Bookmark Options window. */
 void EditHostWinMsg(const char *msg)
 {
-	int maxy, maxx;
+	int maxy;
 
-	getmaxyx(gEditHostWin, maxy, maxx);
-	mvwaddstr(gEditHostWin, maxy - 2, 0, msg);
+	maxy = getmaxy(gEditHostWin);
+	DrawStrAt(gEditHostWin, maxy - 2, 0, msg);
 	wclrtoeol(gEditHostWin);
 	wmove(gEditHostWin, maxy - 1, 0);
 	wrefresh(gEditHostWin);
@@ -454,7 +457,7 @@ void EditHostWinGetStr(char *dst, size_t size, int canBeEmpty, int canEcho)
 
 	WAttr(gEditHostWin, kBold, 1);
 	getmaxyx(gEditHostWin, maxy, maxx);
-	mvwaddstr(gEditHostWin, maxy - 1, 0, "> ");
+	DrawStrAt(gEditHostWin, maxy - 1, 0, "> ");
 	WAttr(gEditHostWin, kBold, 0);
 	wclrtoeol(gEditHostWin);
 	wrefresh(gEditHostWin);
@@ -497,7 +500,7 @@ void EditHostWinGetNum(int *dst)
 
 	getmaxyx(gEditHostWin, maxy, maxx);
 	WAttr(gEditHostWin, kBold, 1);
-	mvwaddstr(gEditHostWin, maxy - 1, 0, "> ");
+	DrawStrAt(gEditHostWin, maxy - 1, 0, "> ");
 	WAttr(gEditHostWin, kBold, 0);
 	wclrtoeol(gEditHostWin);
 	wrefresh(gEditHostWin);
@@ -1029,10 +1032,10 @@ void HostWinNew(void)
  */
 void HostWinMsg(const char *msg)
 {
-	int maxy, maxx;
+	int maxy;
 
-	getmaxyx(gHostWin, maxy, maxx);
-	mvwaddstr(gHostWin, maxy - 2, 0, msg);
+	maxy = getmaxy(gHostWin);
+	DrawStrAt(gHostWin, maxy - 2, 0, msg);
 	wclrtoeol(gHostWin);
 	wmove(gHostWin, maxy - 1, 0);
 	wrefresh(gHostWin);
@@ -1050,7 +1053,7 @@ void HostWinGetStr(char *str, size_t size)
 	int maxy, maxx;
 
 	getmaxyx(gHostWin, maxy, maxx);
-	mvwaddstr(gHostWin, maxy - 1, 0, "/");
+	DrawStrAt(gHostWin, maxy - 1, 0, "/");
 	wclrtoeol(gHostWin);
 	wrefresh(gHostWin);
 	curs_set(1);
@@ -1111,15 +1114,17 @@ LaunchNcFTP(char *bookmarkName)
 
 	EndWin();
 
-	av[0] = (char *) "ncftp";
-	av[1] = bookmarkName;
+	av[0] = strdup("ncftp");
+	av[1] = strdup(bookmarkName);
 	av[2] = NULL;
 
 #ifdef NCFTPPATH
-	execv(NCFTPPATH, av);
+	(void) execv(NCFTPPATH, av);
 #else
-	execvp("ncftp", av);
+	(void) execvp(av[0], av);
 #endif
+	free(av[0]);
+	free(av[1]);
 }	/* LaunchNcFTP */
 
 
@@ -1136,7 +1141,7 @@ int HostWindow(void)
 	volatile BookmarkPtr toOpen;
 	vsigproc_t si;
 	int maxy, maxx;
-	int lmaxy, lmaxx;
+	int lmaxy;
 
 	si = (sigproc_t) (-1);
 	if (gWinInit) {
@@ -1185,18 +1190,18 @@ int HostWindow(void)
 			WAddCenteredStr(gHostWin, 0, "NcFTP Bookmark Editor");
 			WAttr(gHostWin, kBold, 0);
 			
-			mvwaddstr(gHostWin, 3, 2, "Open selected site:       <enter>");
-			mvwaddstr(gHostWin, 4, 2, "Edit selected site:       /ed");
-			mvwaddstr(gHostWin, 5, 2, "Delete selected site:     /del");
-			mvwaddstr(gHostWin, 6, 2, "Duplicate selected site:  /dup");
-			mvwaddstr(gHostWin, 7, 2, "Add a new site:           /new");
-			mvwaddstr(gHostWin, 9, 2, "Up one:                   <u>");
-			mvwaddstr(gHostWin, 10, 2, "Down one:                 <d>");
-			mvwaddstr(gHostWin, 11, 2, "Previous page:            <p>");
-			mvwaddstr(gHostWin, 12, 2, "Next page:                <n>");
-			mvwaddstr(gHostWin, 14, 2, "Capital letters selects first");
-			mvwaddstr(gHostWin, 15, 2, "  site starting with the letter.");
-			mvwaddstr(gHostWin, 17, 2, "Exit the bookmark editor: <x>");
+			DrawStrAt(gHostWin, 3, 2, "Open selected site:       <enter>");
+			DrawStrAt(gHostWin, 4, 2, "Edit selected site:       /ed");
+			DrawStrAt(gHostWin, 5, 2, "Delete selected site:     /del");
+			DrawStrAt(gHostWin, 6, 2, "Duplicate selected site:  /dup");
+			DrawStrAt(gHostWin, 7, 2, "Add a new site:           /new");
+			DrawStrAt(gHostWin, 9, 2, "Up one:                   <u>");
+			DrawStrAt(gHostWin, 10, 2, "Down one:                 <d>");
+			DrawStrAt(gHostWin, 11, 2, "Previous page:            <p>");
+			DrawStrAt(gHostWin, 12, 2, "Next page:                <n>");
+			DrawStrAt(gHostWin, 14, 2, "Capital letters selects first");
+			DrawStrAt(gHostWin, 15, 2, "  site starting with the letter.");
+			DrawStrAt(gHostWin, 17, 2, "Exit the bookmark editor: <x>");
 		
 			/* Initialize the scrolling host list window. */
 			if (maxx < 110) {
@@ -1221,7 +1226,7 @@ int HostWindow(void)
 
 			if (gHostListWin == NULL)
 				return (-1);
-			getmaxyx(gHostListWin, lmaxy, lmaxx);
+			lmaxy = getmaxy(gHostListWin);
 			gHostListPageSize = lmaxy;
 			DrawHostList();
 			wmove(gHostWin, maxy - 1, 0);
@@ -1374,7 +1379,7 @@ done:
 
 
 
-int
+main_void_return_t
 main(int argc, const char **argv)
 {
 	int result;
@@ -1439,7 +1444,6 @@ main(int argc, const char **argv)
 	HostWindow();
 	if (gDebug > 0)
 		CloseTrace();
-	Exit(0);
-	/*NOTREACHED*/
-	return 0;
-}
+	EndWin();
+	exit(0);
+}	/* main */

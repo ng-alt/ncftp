@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifdef HAVE_LONG_FILE_NAMES
 
@@ -48,16 +51,15 @@ void
 SpoolName(char *const sp, const size_t size, const int flag, const int serial, time_t when)
 {
 	char dstr[32];
-	struct tm *ltp;
+	struct tm lt;
 
 	if ((when == (time_t) 0) || (when == (time_t) -1))
 		(void) time(&when);
-	ltp = localtime(&when);
-	if (ltp == NULL) {
+	if (Localtime(when, &lt) == NULL) {
 		/* impossible */
 		(void) Strncpy(dstr, "20010101-000000", size);
 	} else {
-		(void) strftime(dstr, sizeof(dstr), "%Y%m%d-%H%M%S", ltp);
+		(void) strftime(dstr, sizeof(dstr), "%Y%m%d-%H%M%S", &lt);
 	}
 #if defined(WIN32) || defined(_WINDOWS)
 	(void) sprintf(sp, "%c-%s-%08X-%d",
@@ -101,7 +103,7 @@ SpoolX(
 	const char *const xacct,
 	const int xtype,
 	const int recursive,
-	const int delete,
+	const int deleteflag,
 	const int passive,
 	const char *const preftpcmd,
 	const char *const perfileftpcmd,
@@ -156,13 +158,13 @@ SpoolX(
 		goto err;
 	if (fprintf(fp, "op=%s\n", op) < 0)
 		goto err;
-	if ((delaySinceLastFailure > 0) && (fprintf(fp, "delay-since-last-failure=%u\n", delaySinceLastFailure) < 0))
+	if ((delaySinceLastFailure != 0) && (fprintf(fp, "delay-since-last-failure=%u\n", delaySinceLastFailure) < 0))
 		goto err;
 	if (fprintf(fp, "hostname=%s\n", host) < 0)
 		goto err;
 	if ((ip != NULL) && (ip[0] != '\0') && (fprintf(fp, "host-ip=%s\n", ip) < 0))
 		goto err;
-	if ((port > 0) && (port != (unsigned int) kDefaultFTPPort) && (fprintf(fp, "port=%u\n", port) < 0))
+	if ((port != 0) && (port != (unsigned int) kDefaultFTPPort) && (fprintf(fp, "port=%u\n", port) < 0))
 		goto err;
 	if ((user != NULL) && (user[0] != '\0') && (strcmp(user, "anonymous") != 0) && (fprintf(fp, "user=%s\n", user) < 0))
 		goto err;
@@ -181,7 +183,7 @@ SpoolX(
 		goto err;
 	if ((recursive != 0) && (fprintf(fp, "recursive=%s\n", YESNO(recursive)) < 0))
 		goto err;
-	if ((delete != 0) && (fprintf(fp, "delete=%s\n", YESNO(delete)) < 0))
+	if ((deleteflag != 0) && (fprintf(fp, "delete=%s\n", YESNO(deleteflag)) < 0))
 		goto err;
 	if (fprintf(fp, "passive=%d\n", passive) < 0)
 		goto err;
@@ -283,8 +285,8 @@ RunBatch(void)
 	if (pid < 0) {
 		perror("fork");
 	} else if (pid == 0) {
-		argv[0] = (char *) "ncftpbatch";
-		argv[1] = (char *) "-d";
+		argv[0] = strdup("ncftpbatch");
+		argv[1] = strdup("-d");
 		argv[2] = NULL;
 #ifdef BINDIR
 		(void) execv(ncftpbatch, argv);

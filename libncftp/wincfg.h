@@ -1,3 +1,22 @@
+/* #define alarm_time_t unsigned int */ /* leave undefined */
+#define gethost_addrptr_t const char *
+#define gethostname_size_t int
+#define listen_backlog_t int
+#define read_return_t int
+#define read_size_t unsigned int
+#define sockaddr_size_t int
+#define sockopt_size_t int
+#define SETSOCKOPT_ARG4 (char *)
+#define GETSOCKOPT_ARG4 (char *)
+#define write_return_t int
+#define write_size_t unsigned int
+#define tv_sec_t long
+#define tv_usec_t long
+#define recv_return_t int
+#define recv_size_t unsigned int
+#define send_return_t int
+#define send_size_t unsigned int
+
 #define SELECT_TYPE_ARG1 int
 
 /* Define to the type of args 2, 3 and 4 for select(). */

@@ -1,14 +1,18 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
-#if !defined(NO_UNIX_DOMAIN_SOCKETS) && !defined(NO_SIGNALS)
+#ifndef NO_SIGNALS
 
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 
 int
 USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockaddr_un *const toAddr, int ualen, int tlen)
 {
-	int nwrote, tleft;
+	send_return_t nwrote;
+	alarm_time_t tleft;
 	vsio_sigproc_t sigalrm, sigpipe;
 	time_t done, now;
 
@@ -33,11 +37,16 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 
 	time(&now);
 	done = now + tlen;
-	tleft = (int) (done - now);
+	tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 	forever {
-		(void) alarm((unsigned int) tleft);
-		nwrote = sendto(sfd, buf, size, fl,
-			(struct sockaddr *) toAddr, ualen);
+		if (tleft < 1) {
+			nwrote = kTimeoutErr;
+			errno = ETIMEDOUT;
+			break;
+		}
+		(void) alarm(tleft);
+		nwrote = sendto(sfd, buf, (send_size_t) size, fl,
+			(const struct sockaddr *) toAddr, (sockaddr_size_t) ualen);
 		(void) alarm(0);
 		if (nwrote >= 0)
 			break;
@@ -45,18 +54,76 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 			break;		/* Fatal error. */
 		errno = 0;
 		time(&now);
-		tleft = (int) (done - now);
-		if (tleft < 1) {
-			nwrote = kTimeoutErr;
-			errno = ETIMEDOUT;
-			break;
-		}
+		tleft = (done < now) ? ((alarm_time_t) (done - now)) : 0;
 	}
 
 	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
 
-	return (nwrote);
+	return ((int) nwrote);
+}	/* USendto */
+
+#else
+
+int
+USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockaddr_un *const toAddr, int ualen, int tlen)
+{
+	send_return_t nwrote;
+	int tleft;
+	time_t done, now;
+	fd_set ss;
+	struct timeval tv;
+	int result;
+
+	time(&now);
+	done = now + tlen;
+	nwrote = 0;
+	forever {
+		forever {
+			if (now >= done) {
+				errno = ETIMEDOUT;
+				SETWSATIMEOUTERR
+				return (kTimeoutErr);
+			}
+			tleft = (int) (done - now);
+			errno = 0;
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			tv.tv_sec = (tv_sec_t) tleft;
+			tv.tv_usec = 0;
+			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG5 &tv);
+			if (result == 1) {
+				/* ready */
+				break;
+			} else if (result == 0) {
+				/* timeout */		
+				errno = ETIMEDOUT;
+				SETWSATIMEOUTERR
+				return (kTimeoutErr);
+			} else if (errno != EINTR) {
+				return (-1);
+			}
+			time(&now);
+		}
+
+		nwrote = sendto(sfd, buf, (send_size_t) size, fl,
+			(const struct sockaddr *) toAddr,
+			(sockaddr_size_t) ualen);
+
+		if (nwrote >= 0)
+			break;
+		if (errno != EINTR)
+			break;		/* Fatal error. */
+	}
+
+	return ((int) nwrote);
 }	/* USendto */
 
 #endif

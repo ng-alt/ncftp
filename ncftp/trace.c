@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "trace.h"
 #include "util.h"
@@ -18,10 +21,14 @@ FILE *gTraceFile = NULL;
 char gTraceLBuf[256];
 int gDebug = 0;
 
-extern FTPLibraryInfo gLib;
 extern FTPConnectionInfo gConn;
-extern char gVersion[], gOS[];
+extern const char gVersion[], gOS[];
 extern char gOurDirectoryPath[];
+extern char gOurHostName[64];
+extern int gGetOurHostNameResult;
+#ifdef ncftp
+extern int gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk;
+#endif
 
 
 
@@ -31,7 +38,7 @@ Trace(const int level, const char *const fmt, ...)
 {
 	va_list ap;
 	char buf[512];
-	struct tm *ltp;
+	struct tm lt, *ltp;
 
 	if ((gDebug >= level) || (level > 8)) {
 		va_start(ap, fmt);
@@ -43,13 +50,12 @@ Trace(const int level, const char *const fmt, ...)
 #endif
 		va_end(ap);
 
-		(void) time(&gTraceTime);
-		ltp = localtime(&gTraceTime);
+		ltp = Localtime(time(&gTraceTime), &lt);
 		if ((gTraceFile != NULL) && (ltp != NULL)) {
 			(void) fprintf(gTraceFile , "%02d:%02d:%02d  %s",
-				ltp->tm_hour,
-				ltp->tm_min,
-				ltp->tm_sec,
+				lt.tm_hour,
+				lt.tm_min,
+				lt.tm_sec,
 				buf
 			);
 		}
@@ -142,8 +148,9 @@ OpenTrace(void)
 			(void) fprintf(fp, "             Uname:  %.63s|%.63s|%.63s|%.63s|%.63s\r\n", u.sysname, u.nodename, u.release, u.version, u.machine);
 		}
 #endif	/* UNAME */
-		FTPInitializeOurHostName(&gLib);
-		(void) fprintf(fp, "          Hostname:  %s  (rc=%d)\n", gLib.ourHostName, gLib.hresult);
+		if (gGetOurHostNameResult == 100)
+			gGetOurHostNameResult = GetOurHostName(gOurHostName, sizeof(gOurHostName));
+		(void) fprintf(fp, "          Hostname:  %s  (rc=%d)\n", gOurHostName, gGetOurHostNameResult);
 		cp = (const char *) getenv("TERM");
 		if (cp == NULL)
 			cp = "unknown?";
@@ -174,5 +181,13 @@ CloseTrace(void)
 	(void) fclose(gTraceFile);
 
 	(void) unlink(pathName2);
+#ifdef ncftp
+	if (gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk != 0) {
+		(void) unlink(pathName);
+	} else {
+		(void) rename(pathName, pathName2);
+	}
+#else
 	(void) rename(pathName, pathName2);
+#endif
 }	/* CloseTrace */

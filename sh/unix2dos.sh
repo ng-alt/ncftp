@@ -4,7 +4,7 @@ add_ctrlZ=0
 
 es=1
 if [ $# -eq 0 ] ; then
-	exec tr -d '\015\032'
+	exec awk '{ printf("%s\r\n", $0);} END { if (Z == "1") printf("%s", "\032");}' "Z=$add_ctrlZ"
 elif [ ! -f "$1" ] ; then
 	echo "Not found: $1" 1>&2
 else

@@ -5,11 +5,11 @@
 #-----------------------------------------------------------------------------
 
 CC=@CC@
-CFLAGS=@CFLAGS@@NDEFS@
+CFLAGS=@CFLAGS@
 #CC=gcc
 #CFLAGS=-O2 -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion
 VPATH=@srcdir@
-CPPFLAGS=-I. -I../libncftp -I../Strn -I../sio @CPPFLAGS@
+CPPFLAGS=-I@MAINDIR@ -I../libncftp -I../Strn -I../sio @CPPFLAGS@
 prefix=@prefix@
 SYSCONFDIR=@sysconfdir@
 SOCKS_LIBS=@SOCKS_LIBS@
@@ -18,7 +18,7 @@ STRIP=strip
 LDFLAGS=-L../libncftp -L../Strn -L../sio @LDFLAGS@
 
 # Any -D definitions:
-DEFS=-Dsh_util -DOS=\"@OS@\" -DSYSCONFDIR=\"$(SYSCONFDIR)\" @DEFS@
+DEFS=-Dsh_util -DO_S=\"@OS@\" -DSYSCONFDIR=\"$(SYSCONFDIR)\" @DEFS@@NDEFS@
 
 DPROGS=../bin/ncftpget@EXEEXT@ ../bin/ncftpput@EXEEXT@ ../bin/ncftpbatch@EXEEXT@ ../bin/ncftpls@EXEEXT@
 
@@ -26,45 +26,45 @@ all: $(DPROGS)
 	-@echo 'Done making NcFTP shell utilities.'
 
 ../bin/ncftpget@EXEEXT@: ncftpget.c gpshare.@OBJEXT@ preffw.@OBJEXT@ spoolutil.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ gpshare.h syshdrs.h ../ncftp/util.h ../ncftp/pref.h ../ncftp/spool.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h ../libncftp/libncftp.a
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) gpshare.@OBJEXT@ preffw.@OBJEXT@ spoolutil.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ ncftpget.c -o ../bin/ncftpget@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) gpshare.@OBJEXT@ preffw.@OBJEXT@ spoolutil.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ ncftpget.c -o ../bin/ncftpget@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
 	-@$(STRIP) ../bin/ncftpget@EXEEXT@
 
 ../bin/ncftpput@EXEEXT@: ncftpput.c gpshare.@OBJEXT@ preffw.@OBJEXT@ spoolutil.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ gpshare.h syshdrs.h ../ncftp/util.h ../ncftp/pref.h ../ncftp/spool.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h ../libncftp/libncftp.a
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) gpshare.@OBJEXT@ preffw.@OBJEXT@ spoolutil.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ ncftpput.c -o ../bin/ncftpput@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) gpshare.@OBJEXT@ preffw.@OBJEXT@ spoolutil.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ ncftpput.c -o ../bin/ncftpput@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
 	-@$(STRIP) ../bin/ncftpput@EXEEXT@
 
 ../bin/ncftpls@EXEEXT@: ncftpls.c gpshare.@OBJEXT@ preffw.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ gpshare.h syshdrs.h ../ncftp/util.h ../ncftp/pref.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h ../libncftp/libncftp.a
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) gpshare.@OBJEXT@ preffw.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ ncftpls.c -o ../bin/ncftpls@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
-	-@$(STRIP) ../bin/ncftp@EXEEXT@
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) gpshare.@OBJEXT@ preffw.@OBJEXT@ util.@OBJEXT@ getline.@OBJEXT@ version.@OBJEXT@ ncftpls.c -o ../bin/ncftpls@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
+	-@$(STRIP) ../bin/ncftpls@EXEEXT@
 
 ../bin/ncftpbatch@EXEEXT@: ncftpbatch.c preffw.@OBJEXT@ util.@OBJEXT@ spoolutil.@OBJEXT@ version.@OBJEXT@ gpshare.@OBJEXT@ ../ncftp/util.h ../ncftp/pref.h ../ncftp/spool.h gpshare.h syshdrs.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h ../libncftp/libncftp.a
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) preffw.@OBJEXT@ util.@OBJEXT@ spoolutil.@OBJEXT@ version.@OBJEXT@ gpshare.@OBJEXT@ ncftpbatch.c -o ../bin/ncftpbatch@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) preffw.@OBJEXT@ util.@OBJEXT@ spoolutil.@OBJEXT@ version.@OBJEXT@ gpshare.@OBJEXT@ ncftpbatch.c -o ../bin/ncftpbatch@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
 	-@$(STRIP) ../bin/ncftpbatch@EXEEXT@
-	-@( cd ../bin ; rm -f ncftpspooler ; ln -s ncftpbatch ncftpspooler )
+	-@( cd ../bin ; rm -f ncftpspooler@EXEEXT@ ; ln -s ncftpbatch@EXEEXT@ ncftpspooler@EXEEXT@ )
 
 util.@OBJEXT@: ../ncftp/util.c ../ncftp/util.h syshdrs.h
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/util.c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/util.c
 
 getline.@OBJEXT@: ../ncftp/getline.c ../ncftp/getline.h syshdrs.h
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/getline.c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/getline.c
 
 gpshare.@OBJEXT@: gpshare.c gpshare.h syshdrs.h
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c gpshare.c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c gpshare.c
 
 spool.@OBJEXT@: ../ncftp/spool.c ../ncftp/spool.h syshdrs.h
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/spool.c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/spool.c
 
 spoolutil.@OBJEXT@: ../ncftp/spoolutil.c ../ncftp/spool.h syshdrs.h
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/spoolutil.c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/spoolutil.c
 
 preffw.@OBJEXT@: ../ncftp/preffw.c ../ncftp/pref.h syshdrs.h
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/preffw.c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) -c ../ncftp/preffw.c
 
 version.@OBJEXT@: ../ncftp/version.c
-	$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) ../ncftp/version.c -c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) ../ncftp/version.c -c
 
 clean:
-	/bin/rm -f $(DPROGS) $(SPROGS) core *.@OBJEXT@
+	/bin/rm -f $(DPROGS) ../bin/ncftpspooler@EXEEXT@ *.@OBJEXT@ core *.pch
 
 PACKAGE=Makefile.in   gpshare.c     gpshare.h	  ncftpbatch.c \
 	ncftpget.c    ncftpput.c    syshdrs.h	  ncftpls.c

@@ -1,129 +1,70 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
 AC_INIT(ncftp/main.c)
-
+AC_PREREQ(2.13)
 AC_CONFIG_HEADER(config.h)
 nc_cv_curses=yes
 nc_cv_ncurses=yes
 dnl nc_cv_readline=yes
-nc_cv_extra_dirs=yes
-no_signals=yes
+wi_ARG_ENABLE_DEBUG
 AC_ARG_ENABLE(curses,[  --disable-curses        do not try to find and use the curses library],nc_cv_curses=$enableval)
 AC_ARG_ENABLE(ncurses,[  --disable-ncurses       do not try to find and use the ncurses library],nc_cv_ncurses=$enableval)
 dnl AC_ARG_ENABLE(readline,[  --disable-readline      do not try to find and use the readline library],nc_cv_readline=$enableval)
-AC_ARG_ENABLE(signals,[  --disable-select        use alarm() for timeout handling rather than select()],[no_signals=no])
-AC_ARG_ENABLE(extra-dirs,[  --disable-extra-dirs    do not look for extra -I/include and -L/lib dirs],nc_cv_extra_dirs=$enableval)
 wi_ARG_ENABLE_SOCKS5
 
+
+
+dnl ---------------------------------------------------------------------------
+dnl Environment and compiler settings.
+dnl ---------------------------------------------------------------------------
+dnl
 wi_OS_VAR
-
-changequote(<<, >>)dnl
-MAINDIR=`pwd`
-if test -f "$MAINDIR/sh/dos2unix.sh" ; then
-	chmod u+rwx $MAINDIR/sh/dos2unix.sh
-	for dir in . ; do
-		if [ -d "$dir" ] ; then
-			dir=`cd "$dir" ; pwd`
-			find "$dir" -name '*.in' -exec "$MAINDIR/sh/dos2unix.sh" {} \;
-			find "$dir" -name '*.h' -exec "$MAINDIR/sh/dos2unix.sh" {} \;
-			find "$dir" -name '*.c' -exec "$MAINDIR/sh/dos2unix.sh" {} \;
-		fi
-	done
-fi
-MAKE=make
-STATIC=""
-Z30='#'
-Z31=''
-Z32=''
-BDYNAMIC="# -Wl,-Bdynamic"
-BSTATIC="# -Wl,-Bstatic"
-CDYNAMIC=""
-CSTATIC="static"
-LIBSET='$(LIB)'
-LIBCURSES=''
-DREADME=''
-SFLAG='-s'
-
-case "$host" in
-	redwing*)
-			CC=cc
-			LDFLAGS=''
-			Z30='	-@/usr/local/bin/incrementor -d "%B %d %Y, %I:%M %p" -b -f version.c -f version.o'
-			Z31='	-@mv $(TGZFILE) newbin/'
-			Z32='	-@mv $(DTGZFILE) newbin/'
-			;;
-esac
-
-case "$os" in
-	linux)
-		CDYNAMIC="dynamic"
-		CSTATIC="static"
-		BDYNAMIC="-Wl,-Bdynamic"
-		BSTATIC="-Wl,-Bstatic"
-		LIBSET='$(LIBSO) $(LIB)'
-		;;
-	freebsd)
-		CDYNAMIC="dynamic"
-		CSTATIC="static"
-		BDYNAMIC="-Wl,-Bdynamic"
-		BSTATIC="-Wl,-Bstatic"
-		LIBSET='$(LIBSO) $(LIB)'
-		;;
-	macosx*|rhapsody)
-		SFLAG='-Wl,-x'
-		;;
-	irix)
-		# Bug in 6.5, doesn't like -s without crashing.
-		SFLAG=''
-		;;
-esac
-
-DREADME="README.$SYS"
-if [ ! -f "$DREADME" ] ; then
-	DREADME="# $DREADME"
-fi
-
-changequote([, ])dnl
-
-AC_SUBST(CC)
-AC_SUBST(CFLAGS)
-AC_SUBST(CPPFLAGS)
-AC_SUBST(LDFLAGS)
-AC_SUBST(STATIC)
-AC_SUBST(LIBS)
-AC_SUBST(SFLAG)
-AC_SUBST(DEFS)
-AC_SUBST(MAKE)
-AC_SUBST(Z30)
-AC_SUBST(Z31)
-AC_SUBST(Z32)
-AC_SUBST(LIBSET)
-AC_SUBST(BDYNAMIC)
-AC_SUBST(BSTATIC)
-AC_SUBST(CDYNAMIC)
-AC_SUBST(CSTATIC)
-AC_SUBST(DREADME)
-AC_SUBST(MAINDIR)
-
-
-
+if test -f sh/install-sh ; then chmod 755 sh/*.sh sh/config.* sh/install-sh ; fi
+AC_CONFIG_AUX_DIR([sh])
 AC_PROG_CC
+wi_CC_PRECOMP
 wi_REQUEST_NO_Y2K_WARNINGS
 wi_CFLAGS_LFS64
-wi_DEFINE_UNAME
-AC_C_CONST
+wi_CFLAGS_REENTRANT
+wi_SFLAG
 AC_OBJEXT
 AC_EXEEXT
+wi_DEFINE_UNAME
+wi_EXTRA_SYSV_SUNOS_DIRS	dnl	For better curses library on SunOS 4
 
-# See if we should add -I/usr/local/include -L/usr/local/lib, etc.
-if test "$nc_cv_extra_dirs" = yes ; then
-	wi_EXTRA_SYSV_SUNOS_DIRS
-	wi_EXTRA_DIRS(yes, /usr/local /usr/ccs, -)
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for header files.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_HEADER_STDC
+dnl Readline headers #ifdefs for string.h, sio needs strings.h for AIX
+AC_CHECK_HEADERS(arpa/nameser.h locale.h nserve.h resolv.h sgtty.h string.h strings.h sys/ioctl.h syslog.h sys/socket.h sys/time.h sys/types.h sys/utsname.h termio.h termios.h time.h utime.h unistd.h)
+AC_TIME_WITH_SYS_TIME
+
+dnl	# sio
+wi_UNIX_DOMAIN_SOCKETS
+SIO_OBJS_U=''
+SIO_SOBJS_U=''
+if test "$wi_cv_unix_domain_sockets" = yes ; then
+	SIO_OBJS_U='$(OBJS_U) '
+	SIO_SOBJS_U='$(SOBJS_U) '
 fi
+AC_SUBST(SIO_OBJS_U)
+AC_SUBST(SIO_SOBJS_U)
+dnl	# sio
 
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for libraries.
+dnl ---------------------------------------------------------------------------
+dnl
 wi_NET_LIBS
 wi_LIB_SOCKS5
 
+LIBCURSES=''
 if test "$nc_cv_curses" = yes ; then
 	wi_LIB_CURSES
 fi
@@ -131,174 +72,156 @@ dnl if test "$nc_cv_readline" = yes ; then
 dnl 	wi_LIB_READLINE
 dnl fi
 
-if test "$SYS" != sunos ; then
-	# Use getwd on SunOS -- getcwd does a "popen("/bin/pwd")" -- aaaccck.
-	#
-	AC_CHECK_FUNCS(getcwd)
-fi
-AC_CHECK_FUNCS(gethostname getwd strerror strstr waitpid)
-AC_CHECK_FUNCS(getpass getpassphrase strcasecmp getdomainname mktime symlink)
-AC_CHECK_FUNCS(memmove syslog uname setvbuf waitpid strtoq sigaction)
-AC_CHECK_FUNCS(res_init snprintf vsnprintf setsid setpgid setpgrp)
-AC_CHECK_FUNCS(setlocale strcoll strncoll inet_ntop)
-AC_CHECK_FUNCS(open64 stat64 fstat64 lstat64 lseek64 llseek)
-AC_FUNC_SETPGRP
-AC_FUNC_SETVBUF_REVERSED
-wi_FUNC_SIGSETJMP
-wi_CURSES_FEATURES
-if test "$LIBCURSES" = "" ; then
-	VIS_DPROGS="# ../bin/ncftpbookmarks${EXEEXT}"
-else
-	VIS_DPROGS="../bin/ncftpbookmarks${EXEEXT}"
-fi
-AC_SUBST(VIS_DPROGS)
 
-AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h syslog.h utime.h resolv.h arpa/nameser.h sys/utsname.h locale.h)
-AC_CHECK_HEADERS(termios.h termio.h sgtty.h sys/ioctl.h)
-AC_CHECK_HEADERS(sys/types.h sys/time.h sys/socket.h)
-dnl Readline headers #ifdefs for string.h
-AC_CHECK_HEADERS(string.h strings.h)
-wi_HEADER_SYS_SELECT_H
-AC_FUNC_SELECT_ARGTYPES
 
-AC_STRUCT_TM
-AC_STRUCT_ST_BLKSIZE
+dnl ---------------------------------------------------------------------------
+dnl Checks for typedefs, structures, and compiler characteristics.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_C_CONST
 AC_TYPE_SIZE_T
 AC_TYPE_OFF_T
 AC_TYPE_MODE_T
 AC_TYPE_PID_T
 AC_TYPE_UID_T
-wi_TYPE_SIG_ATOMIC_T
-wi_STRUCT_STAT64
+wi_VOID_MAIN_RETURN_TYPE
 wi_USE_LONG_LONG
-wi__RES_DEFDNAME
-dnl wi_TYPE_SIGJMP_BUF
-AC_SYS_LONG_FILE_NAMES
+wi_STRUCT_TIMEVAL_FIELD_TYPES
+wi_UNISTD_FUNC_PARAM_TYPES
+wi_FUNC_SELECT_ARGTYPES
+wi_STRUCT_STAT64
+wi_TYPE_SIG_ATOMIC_T
+wi_GETOPT
+wi__RES_DEFDNAME	dnl				# sio
+wi_STRUCT_CMSGHDR	dnl				# sio
+wi_MSGHDR_CONTROL	dnl				# sio
+wi_MSGHDR_ACCRIGHTS	dnl				# sio
+wi_HEADER_SYS_SELECT_H	dnl				# sio
 
-AC_PROG_RANLIB
-AC_PROG_INSTALL
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for library functions.
+dnl ---------------------------------------------------------------------------
+dnl
+wi_FUNC_GETCWD
+AC_CHECK_FUNCS(fstat64 getdomainname gethostname getpass getpassphrase inet_aton inet_ntop llseek lseek64 lstat64 memmove mktime open64 readlink res_init setlocale setpgid setpgrp setsid setvbuf sigaction stat64 strcasecmp strcoll strdup strerror strncoll strstr strtoq symlink syslog uname waitpid)
+AC_CHECK_FUNCS(gethostbyaddr_r gethostbyname_r getlogin_r getpwnam_r _posix_getpwnam_r getpwuid_r _posix_getpwuid_r getservbyname_r getservbyport_r gmtime_r localtime_r readdir_r)
+wi_SNPRINTF
+wi_FUNC_SIGSETJMP
+AC_FUNC_SETPGRP
+AC_FUNC_SETVBUF_REVERSED
+wi_CURSES_FEATURES
+if test "x$LIBCURSES" = "x" ; then
+	VIS_DPROGS="# ../bin/ncftpbookmarks${EXEEXT}"
+else
+	VIS_DPROGS="../bin/ncftpbookmarks${EXEEXT}"
+fi
+
+
+
+dnl ---------------------------------------------------------------------------
+dnl Checks for system characteristics.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_SYS_LONG_FILE_NAMES
+AC_PROG_MAKE_SET
 wi_PROG_TAR
 wi_CREATE_TAR_FILES
-
-if test "$LONGEST_INT" = "long long" ; then
-	if sed 's/^#define longest_int.*/#define longest_int long long/;
-s/^#define longest_uint.*/#define longest_uint unsigned long long/' libncftp/ncftp.h > libncftp/temp.h ; then
-		mv libncftp/temp.h libncftp/ncftp.h
-		chmod a+r libncftp/ncftp.h
-	fi
-else
-	if sed 's/^#define longest_int.*/#define longest_int long/;
-s/^#define longest_uint.*/#define longest_uint unsigned long/' libncftp/ncftp.h > libncftp/temp.h ; then
-		mv libncftp/temp.h libncftp/ncftp.h
-		chmod a+r libncftp/ncftp.h
-	fi
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+wi_PROG_CCDV
+wi_MANDIR
+wi_SUBST_LONGEST_INT_HEADER([libncftp/ncftp.h])
+wi_SUBST_STAT_HEADER([libncftp/ncftp.h])
+LIBSET='$(LIB)'
+Z30='#'
+if test -x /usr/local/bin/incrementor ; then
+	Z30='	-@/usr/local/bin/incrementor -b -f version.c -f version.o'
 fi
+wi_RESOLVE_PATH([$srcdir], MAINDIR)
+wi_RESOLVE_PATH([$MAINDIR/libncftp/ncftp.h], [libncftp_h])
+wi_DIRNAME(libncftp_h)
+wi_RESOLVE_PATH([$MAINDIR/sio/sio.h], [sio_h])
+wi_DIRNAME(sio_h)
+wi_RESOLVE_PATH([$MAINDIR/Strn/Strn.h], [strn_h])
+wi_DIRNAME(strn_h)
+CPPFLAGS="-I${MAINDIR} -I${libncftp_h} -I${sio_h} -I${strn_h} $CPPFLAGS"
+LDFLAGS="-L${libncftp_h} -L${sio_h} -L${strn_h} $LDFLAGS"
+wi_BEAUTIFY_ENVIRONMENT_VARIABLES
 
-CPPFLAGS="-I$MAINDIR $CPPFLAGS"
 
-if test "$no_signals" = no ; then
-	dv1='#	if 0'
-	dv2='#if 0'
-else
-	dv1='#	if 1'
-	dv2='#if 1'
+
+dnl ---------------------------------------------------------------------------
+dnl Extra steps to work with precompiled headers.
+dnl ---------------------------------------------------------------------------
+dnl
+LIBNCFTP_PRECOMP="libncftp/pch.mk.none"
+SIO_PRECOMP="sio/pch.mk.none"
+if test "${wi_cv_cc_precomp}_${SYS}" = "yes_macosx" ; then
+	LIBNCFTP_PRECOMP="libncftp/pch.mk.$SYS"
+	SIO_PRECOMP="sio/pch.mk.$SYS"
 fi
+AC_SUBST_FILE(LIBNCFTP_PRECOMP)
+AC_SUBST_FILE(SIO_PRECOMP)
 
-if sed "s!^.*/. %config1!${dv1} /* %config1!;s!^.*/. %config2!${dv2} /* %config2!" libncftp/ncftp.h > libncftp/temp.h ; then
-	mv libncftp/temp.h libncftp/ncftp.h
-	chmod a+r libncftp/ncftp.h
-fi
 
-if sed "s!^.*/. %config1!${dv1} /* %config1!;s!^.*/. %config2!${dv2} /* %config2!" libncftp/syshdrs.h > libncftp/temp.h ; then
-	mv libncftp/temp.h libncftp/syshdrs.h
-	chmod a+r libncftp/syshdrs.h
-fi
 
+dnl ---------------------------------------------------------------------------
+dnl Version lookups for Makefile variables.
+dnl ---------------------------------------------------------------------------
+dnl
 changequote(<<, >>)dnl
-#
-# Configure sio specially, like it would do.
-#
-if [ -f ./sio/sio.h ] ; then
-	if sed "s!^.*/. %config1!${dv1} /* %config1!;s!^.*/. %config2!${dv2} /* %config2!" ./sio/sio.h > temp.h ; then
-		mv temp.h ./sio/sio.h
-		chmod a+r ./sio/sio.h
-	fi
-	if sed "s!^.*/. %config1!${dv1} /* %config1!;s!^.*/. %config2!${dv2} /* %config2!" ./sio/usio.h > temp.h ; then
-		mv temp.h ./sio/usio.h
-		chmod a+r ./sio/usio.h
-	fi
+LIBNCFTP_VERSION=`sed -n '/kLibraryVersion/{
+	s/^[^0-9]*//
+	s/\ .*$//
+	p
+	q
+}' libncftp/ncftp.h`
 
-	patterns1=""
-	patterns2=""
-	if [ "$SYS" = solaris ] ; then
-		patterns1='s!/. %configure%.*!#define SAccept SAcceptS!'
-		patterns2='s!/. %configure%.*!#define UAccept UAcceptS!'
-	fi
+NCFTP_VERSION=`sed -n '/gVersion\[\]/{
+	s/^[^0-9]*//
+	s/\/.*$//
+	p
+	q
+}' ncftp/version.c`
 
-	if [ "$patterns1" != "" ] ; then
-		sed "$patterns1" < ./sio/sio.h > tmpfile
-		if [ $? -eq 0 ] ; then
-			mv tmpfile ./sio/sio.h
-			chmod 644 ./sio/sio.h
-		else
-			/bin/rm tmpfile
-		fi
-	fi
+SIO_VERSION=`sed -n '/gSioVersion\[\]/{
+	s/^[^0-9]*//
+	s/\ .*$//
+	p
+	q
+}' sio/SRead.c`
 
-	if [ "$patterns2" != "" ] ; then
-		sed "$patterns2" < ./sio/usio.h > tmpfile
-		if [ $? -eq 0 ] ; then
-			mv tmpfile ./sio/usio.h
-			chmod 644 ./sio/usio.h
-		else
-			/bin/rm tmpfile
-		fi
-	fi
-fi
+STRN_VERSION=`sed -n '/gStrnLibVersion\[\]/{
+	s/^[^0-9]*//
+	s/\".*$//
+	p
+	q
+}' Strn/Strncpy.c`
 changequote([, ])dnl
 
-dnl if test "$wi_cv_lib_readline" = no ; then
-dnl 	AC_MSG_WARN([File completion will not work, since you do not have])
-dnl 	AC_MSG_WARN([the GNU Readline library installed.  You may find it])
-dnl 	AC_MSG_WARN([available at http://www.ncftp.com/download/ .])
-dnl fi
 
-dnl if test -f ./sio/sio.h ; then
-dnl 	ldir=`cd ./sio ; pwd`
-dnl 	LDFLAGS="$LDFLAGS -L${ldir}"
-dnl 	CPPFLAGS="$CPPFLAGS -I${ldir}"
-dnl 	LIBS="$LIBS -lsio"
-dnl fi
 
-dnl if test -f ./Strn/Strn.h ; then
-dnl 	ldir=`cd ./Strn ; pwd`
-dnl 	LDFLAGS="$LDFLAGS -L${ldir}"
-dnl 	CPPFLAGS="$CPPFLAGS -I${ldir}"
-dnl 	LIBS="$LIBS -lStrn"
-dnl fi
-
-if test "x$mandir" = 'x${prefix}/man' ; then
-	# Mandir is at default value -- try to see
-	# if $prefix/share/man would be better.
-	#
-
-	# $prefix is probably set to NONE.
-	#
-	p=`cd / ; cd $prefix 2>/dev/null ; pwd`
-	if test "x$p" = "x/" ; then
-		p="/usr/local"
-	fi
-	if test -d "$p/share/man" ; then
-		mandir="$p/share/man"
-	fi
-fi
-
-LIBS=`echo "$LIBS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-LDFLAGS=`echo "$LDFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-CPPFLAGS=`echo "$CPPFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-CFLAGS=`echo "$CFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-DEFS=`echo "$DEFS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
-
+dnl ---------------------------------------------------------------------------
+dnl Create Makefiles and config.h files.
+dnl ---------------------------------------------------------------------------
+dnl
+AC_SUBST(CC)
+AC_SUBST(CFLAGS)
+AC_SUBST(CPPFLAGS)
+AC_SUBST(LDFLAGS)
+AC_SUBST(LIBS)
+AC_SUBST(SFLAG)
+AC_SUBST(DEFS)
+AC_SUBST(MAKE)
+AC_SUBST(Z30)
+AC_SUBST(LIBSET)
+AC_SUBST(MAINDIR)
+AC_SUBST(NCFTP_VERSION)
+AC_SUBST(LIBNCFTP_VERSION)
+AC_SUBST(SIO_VERSION)
+AC_SUBST(STRN_VERSION)
+AC_SUBST(VIS_DPROGS)
 AC_OUTPUT_COMMANDS([/bin/rm -f ./ncftp/readln.o])
-AC_OUTPUT(Makefile Makefile.bin ncftp/Makefile libncftp/Makefile Strn/Makefile sio/Makefile sh_util/Makefile vis/Makefile)
+AC_OUTPUT([Makefile Makefile.bin ncftp/Makefile libncftp/Makefile Strn/Makefile sio/Makefile sh_util/Makefile vis/Makefile])

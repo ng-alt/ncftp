@@ -1,12 +1,29 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
+
+int _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t saddrsiz, const int tlen);
 
 int
 SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
+{
+	int result;
+	
+	result = _SConnect(sfd, addr, (size_t) sizeof(struct sockaddr_in), tlen);
+	return (result);
+}	/* SConnect */
+
+
+
+
+int
+_SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t saddrsiz, const int tlen)
 {
 #ifndef NO_SIGNALS
 	int result;
@@ -20,12 +37,12 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 	}
 
 	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	alarm((unsigned int) tlen);
+	alarm((alarm_time_t) tlen);
 
 	errno = 0;
 	do {
-		result = connect(sfd, (struct sockaddr *) addr,
-			(int) sizeof(struct sockaddr_in));
+		result = connect(sfd, (const struct sockaddr *) addr,
+			(sockaddr_size_t) saddrsiz);
 	} while ((result < 0) && (errno == EINTR));
 
 	alarm(0);
@@ -39,17 +56,18 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 	int cErrno;
 #if defined(WIN32) || defined(_WINDOWS)
 	int wsaErrno;
-	int soerr, soerrsize;
+	int soerr;
+	sockopt_size_t soerrsize;
 #else
 	int optval;
-	int optlen;
+	sockopt_size_t optlen;
 #endif
 
 	errno = 0;
 	if (tlen <= 0) {
 		do {
-			result = connect(sfd, (struct sockaddr *) addr,
-				(int) sizeof(struct sockaddr_in));
+			result = connect(sfd, (const struct sockaddr *) addr,
+				(sockaddr_size_t) saddrsiz);
 			SETERRNO
 		} while ((result < 0) && (errno == EINTR));
 		return (result);
@@ -57,10 +75,17 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 
 #ifdef FIONBIO
 	opt = 1;
-	if (ioctlsocket(sfd, FIONBIO, &opt) != 0) {
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable intconcastsgn
+#endif
+	if (ioctlsocket(sfd, (int) FIONBIO, &opt) != 0) {
 		SETERRNO
 		return (-1);
 	}
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
 #else
 	if (fcntl(sfd, F_GETFL, &opt) < 0) {
 		SETERRNO
@@ -72,8 +97,8 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 #endif
 
 	errno = 0;
-	result = connect(sfd, (struct sockaddr *) addr,
-			(int) sizeof(struct sockaddr_in));
+	result = connect(sfd, (const struct sockaddr *) addr,
+			(sockaddr_size_t) saddrsiz);
 	if (result == 0) 
 		return 0;	/* Already?!? */
 
@@ -97,10 +122,17 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 #if defined(WIN32) || defined(_WINDOWS)
 		WSASetLastError(0);
 #endif
-		FD_ZERO(&ss);
-		FD_SET(sfd, &ss);
+		MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+		MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
 		xx = ss;
-		tv.tv_sec = tlen;
+		tv.tv_sec = (tv_sec_t) tlen;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &xx, SELECT_TYPE_ARG5 &tv);
 		if (result == 1) {
@@ -126,11 +158,18 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 	 * doing a write on the socket which will err out.
 	 */
 
-	if (FD_ISSET(sfd, &xx)) {
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+	if (MY_FD_ISSET(sfd, &xx)) {
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
 #if defined(WIN32) || defined(_WINDOWS)
 		errno = 0;
 		soerr = 0;
-		soerrsize = sizeof(soerr);
+		soerrsize = (sockopt_size_t) sizeof(soerr);
 		result = getsockopt(sfd, SOL_SOCKET, SO_ERROR, (char *) &soerr, &soerrsize);
 		if ((result >= 0) && (soerr != 0)) {
 			errno = soerr;
@@ -169,7 +208,7 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 		 * reason for the failure).
 	         */
 		optval = 0;
-		optlen = sizeof(optval);
+		optlen = (sockopt_size_t) sizeof(optval);
 		if (getsockopt(sfd, SOL_SOCKET, SO_ERROR, &optval, &optlen) == 0) {
 			errno = optval;
 			if (errno != 0)
@@ -179,12 +218,19 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 #endif
 
 #ifdef FIONBIO
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable intconcastsgn
+#endif
 	opt = 0;
-	if (ioctlsocket(sfd, FIONBIO, &opt) != 0) {
+	if (ioctlsocket(sfd, (int) FIONBIO, &opt) != 0) {
 		SETERRNO
 		shutdown(sfd, 2);
 		return (-1);
 	}
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
 #else
 	if (fcntl(sfd, F_SETFL, opt) < 0) {
 		SETERRNO
@@ -195,4 +241,4 @@ SConnect(int sfd, const struct sockaddr_in *const addr, int tlen)
 
 	return (0);
 #endif	/* NO_SIGNALS */
-}	/* SConnect */
+}	/* _SConnect */

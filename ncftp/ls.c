@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 #include "util.h"
 #include "ls.h"
 #include "trace.h"
@@ -30,7 +33,7 @@ int gLsCacheItemLifetime = kLsCacheItemLifetime;
 extern FTPConnectionInfo gConn;
 extern char gRemoteCWD[512];
 extern int gServerUsesMSDOSPaths;
-extern int gScreenColumns, gDebug;
+extern int gScreenColumns;
 
 
 void
@@ -47,17 +50,15 @@ InitLsCache(void)
  */
 void InitLsMonths(void)
 {
-	time_t now;
-	struct tm *ltp;
+	struct tm lt;
 	int i;
 
-	(void) time(&now);
-	ltp = localtime(&now);	/* Fill up the structure. */
-	ltp->tm_mday = 15;
-	ltp->tm_hour = 12;
+	(void) Localtime(0, &lt);
+	lt.tm_mday = 15;
+	lt.tm_hour = 12;
 	for (i=0; i<12; i++) {
-		ltp->tm_mon = i;
-		(void) strftime(gLsMon[i], sizeof(gLsMon[i]), "%b", ltp);
+		lt.tm_mon = i;
+		(void) strftime(gLsMon[i], sizeof(gLsMon[i]), "%b", &lt);
 		gLsMon[i][sizeof(gLsMon[i]) - 1] = '\0';
 	}
 	(void) strcpy(gLsMon[i], "BUG");
@@ -233,7 +234,9 @@ LsC(FileInfoListPtr dirp, int endChars, FILE *stream)
 				}
 			}
 		}
-		for (cp1 = buf + sizeof(buf); *--cp1 == ' '; ) {}
+		cp1 = buf;
+		cp1 += sizeof(buf) - 1;
+		while (*--cp1 == ' ') {}
 		++cp1;
 		*cp1++ = '\n';
 		*cp1 = '\0';
@@ -250,29 +253,28 @@ LsC(FileInfoListPtr dirp, int endChars, FILE *stream)
 void
 LsDate(char *dstr, time_t ts)
 {
-	struct tm *gtp;
+	struct tm t;
 
 	if (ts == kModTimeUnknown) {
 		(void) strcpy(dstr, "            ");
 		return;
 	}
-	gtp = localtime(&ts);
-	if (gtp == NULL) {
+	if (Localtime(ts, &t) == NULL) {
 		(void) strcpy(dstr, "Jan  0  1900");
 		return;
 	}
 	if ((ts > gNowPlus1Hr) || (ts < gNowMinus6Mon)) {
 		(void) sprintf(dstr, "%s %2d  %4d",
-			gLsMon[gtp->tm_mon],
-			gtp->tm_mday,
-			gtp->tm_year + 1900
+			gLsMon[t.tm_mon],
+			t.tm_mday,
+			t.tm_year + 1900
 		);
 	} else {
 		(void) sprintf(dstr, "%s %2d %02d:%02d",
-			gLsMon[gtp->tm_mon],
-			gtp->tm_mday,
-			gtp->tm_hour,
-			gtp->tm_min
+			gLsMon[t.tm_mon],
+			t.tm_mday,
+			t.tm_hour,
+			t.tm_min
 		);
 	}
 }	/* LsDate */

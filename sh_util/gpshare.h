@@ -32,16 +32,13 @@ typedef enum ExitStatus {
 #endif
 
 /* gpshare.c */
-void AbbrevStr(char *, const char *, size_t, int);
 double FileSize(double size, const char **uStr0, double *uMult0);
 void PrSizeAndRateMeter(const FTPCIPtr, int);
 void PrStatBar(const FTPCIPtr, int);
 void ReadConfigFile(const char *, FTPCIPtr);
-void InitOurDirectory(void);
 void SetRedial(const FTPCIPtr, const char *const);
 void SetTimeouts(const FTPCIPtr, const char *const);
 char *GetPass2(const char *const prompt);
-void InitWinsock(void);
 int GetDefaultProgressMeterSetting(void);
 FILE *OpenPager(void);
 void ClosePager(FILE *fp);

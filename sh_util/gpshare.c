@@ -7,7 +7,17 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 #include "gpshare.h"
+#ifndef ncftp
+#	if defined(WIN32) || defined(_WINDOWS)
+#		include "..\ncftp\util.h"
+#	else
+#		include "../ncftp/util.h"
+#	endif
+#endif
 
 #if defined(WIN32) || defined(_WINDOWS)
 	extern WSADATA wsaData;
@@ -388,20 +398,6 @@ SetTimeouts(const FTPCIPtr cip, const char *const argstr)
 
 
 
-void
-InitWinsock(void)
-{
-#if defined(WIN32) || defined(_WINDOWS)
-	if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0) {
-		fprintf(stderr, "could not initialize winsock\n");
-		exit(1);
-	}
-	wsaInit++;
-#endif
-}	/* InitWinsock */
-
-
-
 int
 GetDefaultProgressMeterSetting(void)
 {
@@ -462,9 +458,10 @@ AdditionalCmd(FTPCIPtr const cip, const char *const spec, const char *const arg)
 	rc = kNoErr;
 	if ((spec != NULL) && (spec[0] != '\0')) {
 		src = spec;
+		dlim = cmd + sizeof(cmd);
+		--dlim;
 		while (*src) {
 			dst = cmd;
-			dlim = cmd + sizeof(cmd) - 1;
 			for ( ; *src != '\0'; src++) {
 				if ((*src == '%') && (src[1] == 's')) {
 					for (s2 = arg; *s2 != '\0'; s2++) {

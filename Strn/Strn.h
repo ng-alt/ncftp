@@ -3,18 +3,19 @@
 #ifndef _Strn_h_
 #define _Strn_h_ 1
 
-/* You should define this from the Makefile. */
+#ifdef __cplusplus
+extern "C"
+{
+#endif	/* __cplusplus */
+
+/* You could define this from the Makefile. */
 #ifndef STRN_ZERO_PAD
 #	define STRN_ZERO_PAD 1
 #endif
 
-/* You should define this from the Makefile. */
+/* You could define this from the Makefile. */
 #ifndef STRNP_ZERO_PAD
 #	define STRNP_ZERO_PAD 0
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 /* Strncat.c */
@@ -35,14 +36,40 @@ int Strntok(char *, size_t, char *, const char *);
 
 /* strtokc.c */
 char *strtokc(char *, const char *, char **);
-int strntokc(char *, size_t, char *, const char *, char **);
+size_t strntokc(char *, size_t, char *, const char *, char **);
 
 /* Dynscat.c */
 char * Dynscat(char **dst, ...);
 
+/* Dynscpy.c */
+char * Dynscpy(char **dst, ...);
+
+/* Dynsrecpy.c */
+char * Dynsrecpy(char **dst, ...);
+
+/* StrFree.c */
+void StrFree(char **dst);
+
+#ifndef _DStrInternal_h_
+typedef struct DStr {
+	const char *s;
+	const size_t len;
+	const size_t allocSize;
+} DStr, *DStrPtr;
+#endif
+
+void DStrInit(DStr *const dst);
+void DStrFree(DStr *const dst);
+void DStrClear(DStr *const dst);
+int DStrNew(DStr *const dst, const size_t srcLen);
+const char *DStrCpy(DStr *const dst, const char *const src);
+const char *DStrCat(DStr *const dst, const char *const src);
+const char *DStrCatList(DStr *const dst, ...);
+const char *DStrCpyList(DStr *const dst, ...);
+
 #ifdef __cplusplus
 }
-#endif
+#endif	/* __cplusplus */
 
 #define STRNCPY(d,s) Strncpy((d), (s), (size_t) sizeof(d))
 #define STRNCAT(d,s) Strncat((d), (s), (size_t) sizeof(d))

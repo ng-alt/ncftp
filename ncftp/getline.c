@@ -22,6 +22,20 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
  */
 
 #if defined(WIN32) || defined(_WINDOWS)
+#	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
+#	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
+#	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
+#	pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
+#	pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
+#	pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
+#	pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
+#	pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
+#	ifndef WINVER
+#		define WINVER 0x0400
+#	endif
+#	ifndef _WIN32_WINNT
+#		define _WIN32_WINNT 0x0400
+#	endif
 #	include <windows.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
@@ -52,6 +66,10 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
 #	ifndef unlink
 #		define unlink remove
 #	endif
+#	define read_return_t int
+#	define read_size_t unsigned int
+#	define write_return_t int
+#	define write_size_t unsigned int
 #	define NO_SIGNALS 1
 #	define LOCAL_PATH_DELIM '\\'
 #	define LOCAL_PATH_DELIM_STR "\\"
@@ -61,18 +79,21 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
 #	define IsUNCPrefixed(s) (IsLocalPathDelim(s[0]) && IsLocalPathDelim(s[1]))
 #	define __windows__ 1
 #else
-#	ifndef __unix__
-#		define __unix__ 1
-#	endif
-#	if defined(AIX) || defined(_AIX)
-#		define _ALL_SOURCE 1
-#	endif
 #	if defined(HAVE_CONFIG_H)
 #		include <config.h>
 #	else
 #		/* guess */
 #		define HAVE_TERMIOS_H 1
 #		define HAVE_UNISTD_H 1
+#	endif
+#	ifdef PRAGMA_HDRSTOP
+#		pragma hdrstop
+#	endif
+#	ifndef __unix__
+#		define __unix__ 1
+#	endif
+#	if defined(AIX) || defined(_AIX)
+#		define _ALL_SOURCE 1
 #	endif
 #	ifdef HAVE_UNISTD_H
 #		include <unistd.h>
@@ -187,7 +208,7 @@ static void     gl_killword(int direction);
 static void     hist_init(void);	/* initializes hist pointers */
 static char    *hist_next(void);	/* return ptr to next item */
 static char    *hist_prev(void);	/* return ptr to prev item */
-static char    *hist_save(char *p);	/* makes copy of a string, without NL */
+static char    *hist_save(const char *const p);	/* makes copy of a string, without NL */
 
 static void     search_addchar(int c);	/* increment search string */
 static void     search_term(void);	/* reset with current contents */
@@ -339,7 +360,7 @@ gl_getc(void)
 
 #ifdef __unix__
     ch = '\0';
-    while ((c = (int) read(0, &ch, 1)) == -1) {
+    while ((c = (int) read(0, &ch, (read_size_t) 1)) == -1) {
 	if (errno != EINTR)
 	    break;
     }
@@ -387,9 +408,16 @@ gl_getcx(int tlen)
 
 	for (errno = 0;;) {
 		FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
 		FD_SET(0, &ss);		/* set STDIN_FILENO */
-		tv.tv_sec = tlen / 10;
-		tv.tv_usec = (tlen % 10) * 100000L;
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+		tv.tv_sec = (tv_sec_t) (tlen / 10);
+		tv.tv_usec = (tv_usec_t) ((tlen % 10) * 100000);
 		result = select(1, &ss, NULL, NULL, &tv);
 		if (result == 1) {
 			/* ready */
@@ -403,7 +431,7 @@ gl_getcx(int tlen)
 	}
 
 	for (errno = 0;;) {
-		c = (int) read(0, &ch, 1);
+		c = (int) read(0, &ch, (read_size_t) 1);
 		if (c == 1)
 			return ((int) ch);
 		if (errno != EINTR)
@@ -454,10 +482,10 @@ gl_putc(int c)
 {
     char   ch = (char) (unsigned char) c;
 
-    write(1, &ch, 1);
+    (void) write(1, &ch, (write_size_t) 1);
     if (ch == '\n') {
 	ch = '\r';
-        write(1, &ch, 1);	/* RAW mode needs '\r', does not hurt */
+        (void) write(1, &ch, (write_size_t) 1);	/* RAW mode needs '\r', does not hurt */
     }
 }
 
@@ -466,21 +494,21 @@ gl_putc(int c)
 static void
 gl_puts(const char *const buf)
 {
-    int len; 
+    write_size_t len; 
     
     if (buf) {
-        len = (int) strlen(buf);
-        write(1, buf, len);
+        len = (write_size_t) strlen(buf);
+        (void) write(1, buf, len);
     }
 }
 
 static void
 gl_error(const char *const buf)
 {
-    int len = (int) strlen(buf);
+    write_size_t len = (write_size_t) strlen(buf);
 
     gl_cleanup();
-    write(2, buf, len);
+    (void) write(2, buf, len);
     exit(1);
 }
 
@@ -585,7 +613,8 @@ gl_setwidth(int w)
     	w = 250;
     if (w > 20) {
 	gl_termw = w;
-	gl_scroll = w / 3;
+	/* gl_scroll = w / 3; */
+	gl_scroll = 1;
     } else {
 	gl_error("\n*** Error: minimum screen width is 21\n");
     }
@@ -1146,18 +1175,18 @@ gl_killword(int direction)
     int i;
 
     if (direction > 0) {		/* forward */
-        while (!isspace(gl_buf[pos]) && pos < gl_cnt) 
+        while (!isspace((int) gl_buf[pos]) && pos < gl_cnt) 
 	    pos++;
-	while (isspace(gl_buf[pos]) && pos < gl_cnt)
+	while (isspace((int) gl_buf[pos]) && pos < gl_cnt)
 	    pos++;
     } else {				/* backward */
 	if (pos > 0)
 	    pos--;
-	while (isspace(gl_buf[pos]) && pos > 0)
+	while (isspace((int) gl_buf[pos]) && pos > 0)
 	    pos--;
-        while (!isspace(gl_buf[pos]) && pos > 0) 
+        while (!isspace((int) gl_buf[pos]) && pos > 0) 
 	    pos--;
-	if (pos < gl_cnt && isspace(gl_buf[pos]))   /* move onto word */
+	if (pos < gl_cnt && isspace((int) gl_buf[pos]))   /* move onto word */
 	    pos++;
     }
     if (pos < startpos) {
@@ -1171,7 +1200,7 @@ gl_killword(int direction)
     }
     memcpy(gl_killbuf, gl_buf + startpos, (size_t) (pos - startpos));
     gl_killbuf[pos - startpos] = '\0';
-    if (isspace(gl_killbuf[pos - startpos - 1]))
+    if (isspace((int) gl_killbuf[pos - startpos - 1]))
     	gl_killbuf[pos - startpos - 1] = '\0';
     gl_fixup(gl_prompt, -1, startpos);
     for (i=0, tmp=pos - startpos; i<tmp; i++)
@@ -1186,18 +1215,18 @@ gl_word(int direction)
     int pos = gl_pos;
 
     if (direction > 0) {		/* forward */
-        while (!isspace(gl_buf[pos]) && pos < gl_cnt) 
+        while (!isspace((int) gl_buf[pos]) && pos < gl_cnt) 
 	    pos++;
-	while (isspace(gl_buf[pos]) && pos < gl_cnt)
+	while (isspace((int) gl_buf[pos]) && pos < gl_cnt)
 	    pos++;
     } else {				/* backword */
 	if (pos > 0)
 	    pos--;
-	while (isspace(gl_buf[pos]) && pos > 0)
+	while (isspace((int) gl_buf[pos]) && pos > 0)
 	    pos--;
-        while (!isspace(gl_buf[pos]) && pos > 0) 
+        while (!isspace((int) gl_buf[pos]) && pos > 0) 
 	    pos--;
-	if (pos < gl_cnt && isspace(gl_buf[pos]))   /* move onto word */
+	if (pos < gl_cnt && isspace((int) gl_buf[pos]))   /* move onto word */
 	    pos++;
     }
     gl_fixup(gl_prompt, -1, pos);
@@ -1246,9 +1275,11 @@ gl_fixup(const char *prompt, int change, int cursor)
 	gl_pos = gl_cnt = gl_shift = off_right = off_left = 0;
 	gl_putc('\r');
 	gl_puts(prompt);
-	strcpy(last_prompt, prompt);
+	strncpy(last_prompt, prompt, sizeof(last_prompt) - 1);
+	last_prompt[sizeof(last_prompt) - 1] = '\0';
 	change = 0;
-        gl_width = gl_termw - (int) gl_strlen(prompt);
+	l2 = (int) gl_strlen(prompt);
+        gl_width = gl_termw - l2;
     } else if (strcmp(prompt, last_prompt) != 0) {
 	l1 = (int) gl_strlen(last_prompt);
 	l2 = (int) gl_strlen(prompt);
@@ -1379,10 +1410,10 @@ hist_init(void)
 }
 
 void
-gl_histadd(char *buf)
+gl_histadd(const char *const buf)
 {
     static char *prev = 0;
-    char *p = buf;
+    const char *p = buf;
     int len;
 
     /* in case we call gl_histadd() before we call getline() */
@@ -1394,7 +1425,7 @@ gl_histadd(char *buf)
 	p++;
     if (*p) {
 	len = (int) strlen(buf);
-	if (strchr(p, '\n')) 	/* previously line already has NL stripped */
+	if (strchr(p, '\n')) 	/* previous line already has NL stripped */
 	    len--;
 	if ((prev == 0) || ((int) strlen(prev) != len) || 
 			    strncmp(prev, buf, (size_t) len) != 0) {
@@ -1446,8 +1477,7 @@ hist_next(void)
 }
 
 static char *
-hist_save(char *p)
-        
+hist_save(const char *const p)
 /* makes a copy of the string */
 {
     char *s = 0;
@@ -1688,8 +1718,8 @@ static int
 gl_display_matches_sort_proc(const void *a, const void *b)
 {
 	return (strcasecmp(
-		* ((const char **) a),
-		* ((const char **) b)
+		* ((const char *const *) a),
+		* ((const char *const *) b)
 	));
 }	/* gl_display_matches_sort_proc */
 
@@ -1728,7 +1758,7 @@ gl_display_matches(int nused)
 		}
 
 		while (glen > 0) {
-			if (!isalnum(gl_matchlist[0][glen - 1]))
+			if (!isalnum((int) gl_matchlist[0][glen - 1]))
 				break;
 			--glen;
 		}
@@ -1769,14 +1799,17 @@ gl_display_matches(int nused)
 				itemp = gl_matchlist[k] + glen;
 				cp1 = buf + l;
 				lim = cp1 + (int) strlen(itemp);
-				if (lim > (buf + sizeof(buf) - 1))
+				if (lim >= (buf + sizeof(buf)))
 					continue;
 				cp2 = itemp;
 				while (cp1 < lim)
 					*cp1++ = *cp2++;
 			}
-			for (cp1 = buf + sizeof(buf); *--cp1 == ' '; )
-				;
+			cp1 = buf;
+			cp1 += sizeof(buf);
+			--cp1;
+			while (*cp1 == ' ')
+				--cp1;
 			++cp1;
 			*cp1 = '\0';
 			gl_puts(buf);
@@ -1938,7 +1971,7 @@ gl_do_tab_completion(char *buf, int *loc, size_t bufsize, int tabtab)
 	} else if (tabtab != 0) {
 		/* TAB-TAB: print all matches */
 		gl_display_matches(nused);
-	} else if ((nused > 1) && (mlen > 0)) {
+	} else if ((nused > 1) && (mlen != 0)) {
 		/* Find the greatest amount that matches. */
 		for (glen = strlen(matchpfx); ; glen++) {
 			allmatch = 1;
@@ -1988,7 +2021,7 @@ gl_do_tab_completion(char *buf, int *loc, size_t bufsize, int tabtab)
 			curposp++;
 			buf[amt + startoff] = (char) gl_completion_exact_match_extra_char;
 			amt++;
-		} else if ((!wasateol) && (!isspace(*curposp))) {
+		} else if ((!wasateol) && (!isspace((int) *curposp))) {
 			/* Not a full match, but insert a
 			 * space for better readability.
 			 */
@@ -2177,7 +2210,7 @@ char *gl_getpass(const char *const prompt, char *const pass, int dsize)
 			}
 		} else if (cp < (pass + dsize)) {
 			_putch('*');
-			*cp++ = c;
+			*cp++ = (char) c;
 		}
 	}
 	_putch('\r');

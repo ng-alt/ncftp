@@ -1,35 +1,15 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
-#if !defined(NO_UNIX_DOMAIN_SOCKETS) && !defined(NO_SIGNALS)
-
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern int _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t saddrsiz, const int tlen);
 
 int
 UConnect(int sfd, const struct sockaddr_un *const addr, int ualen, int tlen)
 {
 	int result;
-	vsio_sigproc_t sigalrm;
-
-	if (SSetjmp(gNetTimeoutJmp) != 0) {
-		alarm(0);
-		(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
-		errno = ETIMEDOUT;
-		return (kTimeoutErr);
-	}
-
-	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
-	alarm((unsigned int) tlen);
-
-	errno = 0;
-	do {
-		result = connect(sfd, (struct sockaddr *) addr, ualen);
-	} while ((result < 0) && (errno == EINTR));
-
-	alarm(0);
-	(void) SSignal(SIGALRM, (sio_sigproc_t) sigalrm);
+	
+	result = _SConnect(sfd, (const struct sockaddr_in *) addr, (size_t) ualen, tlen);
 	return (result);
 }	/* UConnect */
-
-#endif
-

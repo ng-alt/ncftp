@@ -5,38 +5,54 @@
  *
  */
 
-#if defined(HAVE_CONFIG_H)
-#	include <config.h>
-#endif
-
 #if defined(WIN32) || defined(_WINDOWS)
+#	pragma once
+#	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
+#	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
+#	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
+#	pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
+#	pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
+#	pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
+#	pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
+	/* Include "wincfg.h" in place of "config.h" */
 #	include "wincfg.h"
-#	include <winsock2.h>	/* Includes <windows.h> */
-#	include <shlobj.h>
-#	ifdef HAVE_UNISTD_H
-#		include <unistd.h>
+#	ifndef WINVER
+#		define WINVER 0x0400
 #	endif
+#	ifndef _WIN32_WINNT
+#		define _WIN32_WINNT 0x0400
+#	endif
+#	include <windows.h>		/* includes <winsock2.h> if _WIN32_WINNT >= 0x400 */
+#	include <shlobj.h>
+#	include <io.h>
+#	include <conio.h>
+#	include <direct.h>
 #	include <errno.h>
 #	include <stdio.h>
 #	include <string.h>
-#	ifdef HAVE_STRINGS_H
-#		include <strings.h>
-#	endif
 #	include <stddef.h>
 #	include <stdlib.h>
 #	include <ctype.h>
 #	include <stdarg.h>
 #	include <time.h>
-#	include <io.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
+#	include <sys/utime.h>
 #	include <fcntl.h>
 #	define strcasecmp stricmp
 #	define strncasecmp strnicmp
 #	define sleep WinSleep
+#	ifndef mode_t
+#		define mode_t int
+#	endif
 #	ifndef S_ISREG
 #		define S_ISREG(m)      (((m) & _S_IFMT) == _S_IFREG)
 #		define S_ISDIR(m)      (((m) & _S_IFMT) == _S_IFDIR)
+#		define S_ISLNK(m)      (0)
+#	endif
+#	ifndef S_IFREG
+#		define S_IFREG _S_IFREG
+#		define S_IFDIR _S_IFDIR
 #	endif
 #	ifndef open
 #		define open _open
@@ -60,78 +76,135 @@
 #	ifndef snprintf
 #		define snprintf _snprintf
 #	endif
+#	ifndef FOPEN_READ_TEXT
+#		define FOPEN_READ_TEXT "rt"
+#		define FOPEN_WRITE_TEXT "wt"
+#		define FOPEN_APPEND_TEXT "at"
+#	endif
+#	ifndef FOPEN_READ_BINARY
+#		define FOPEN_READ_BINARY "rb"
+#		define FOPEN_WRITE_BINARY "wb"
+#		define FOPEN_APPEND_BINARY "ab"
+#	endif
+#	define MY_FD_ZERO FD_ZERO
+#	define MY_FD_SET(s,set) FD_SET((SOCKET) (s), set)
+#	define MY_FD_CLR(s,set) FD_CLR((SOCKET) (s), set)
+#	define MY_FD_ISSET FD_ISSET
 #	define NO_SIGNALS 1
 #	define USE_SIO 1
-#else	/* UNIX */
-
-#if defined(AIX) || defined(_AIX)
-#	define _ALL_SOURCE 1
-#endif
-#ifdef HAVE_UNISTD_H
-#	include <unistd.h>
-#endif
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#if !defined(HAVE_GETCWD) && defined(HAVE_GETWD)
-#	include <sys/param.h>
-#endif
-
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <arpa/telnet.h>
-#include <netdb.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#ifdef HAVE_STRINGS_H
-#	include <strings.h>
-#endif
-#include <stddef.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <stdarg.h>
-#include <time.h>
-#include <pwd.h>
-#include <dirent.h>
-#include <fcntl.h>
-
-#ifdef HAVE_NET_ERRNO_H
-#	include <net/errno.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#	include <arpa/nameser.h>
-#endif
-#ifdef HAVE_NSERVE_H
-#	include <nserve.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#	include <resolv.h>
-#endif
-#ifdef CAN_USE_SYS_SELECT_H
-#	include <sys/select.h>
-#endif
-
-#ifdef HAVE_GETCWD
-#	ifndef HAVE_UNISTD_H
-		extern char *getcwd();
+#else /* ---------------------------- UNIX ---------------------------- */
+#	if defined(HAVE_CONFIG_H)
+#		include <config.h>
 #	endif
-#else
-#	ifdef HAVE_GETWD
+#	if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#		define _ALL_SOURCE 1
+#	endif
+#	ifdef HAVE_UNISTD_H
+#		include <unistd.h>
+#	endif
+#	include <sys/types.h>
+#	include <sys/stat.h>
+#	include <sys/time.h>
+#	include <sys/socket.h>
+#	include <sys/ioctl.h>
+#	include <sys/wait.h>
+#	if !defined(HAVE_GETCWD) && defined(HAVE_GETWD)
 #		include <sys/param.h>
-#		ifndef MAXPATHLEN
-#			define MAXPATHLEN 1024
-#		endif
-		extern char *getwd(char *);
 #	endif
-#endif
 
-#endif	/* UNIX */
+#	include <netinet/in_systm.h>
+#	include <netinet/in.h>
+#	include <netinet/ip.h>
+#	include <netinet/tcp.h>
+#	include <arpa/inet.h>
+#	include <arpa/telnet.h>
+#	include <netdb.h>
+#	include <errno.h>
+#	include <stdio.h>
+#	include <string.h>
+#	ifdef HAVE_STRINGS_H
+#		include <strings.h>
+#	endif
+#	include <stddef.h>
+#	include <stdlib.h>
+#	include <ctype.h>
+#	include <signal.h>
+#	include <setjmp.h>
+#	include <stdarg.h>
+#	include <time.h>
+#	include <pwd.h>
+#	include <dirent.h>
+#	include <fcntl.h>
+
+#	ifdef HAVE_NET_ERRNO_H
+#		include <net/errno.h>
+#	endif
+#	ifdef HAVE_ARPA_NAMESER_H
+#		include <arpa/nameser.h>
+#	endif
+#	ifdef HAVE_NSERVE_H
+#		ifdef SCO
+#			undef MAXDNAME
+#		endif
+#		include <nserve.h>
+#	endif
+#	ifdef HAVE_RESOLV_H
+#		include <resolv.h>
+#	endif
+
+#	ifdef CAN_USE_SYS_SELECT_H
+#		include <sys/select.h>
+#	endif
+#	define MY_FD_ZERO FD_ZERO
+#	define MY_FD_SET FD_SET
+#	define MY_FD_CLR FD_CLR
+#	define MY_FD_ISSET FD_ISSET
+
+#	ifndef SETSOCKOPT_ARG4
+#		define SETSOCKOPT_ARG4
+#		define GETSOCKOPT_ARG4
+#	endif
+
+#	ifdef HAVE_UTIME_H
+#		include <utime.h>
+#	elif defined(HAVE_SYS_UTIME_H)
+#		include <sys/utime.h>
+#	else
+		struct utimbuf { time_t actime, modtime; };
+#	endif
+
+#	ifdef HAVE_GETCWD
+#		ifndef HAVE_UNISTD_H
+			extern char *getcwd();
+#		endif
+#	else
+#		ifdef HAVE_GETWD
+#			include <sys/param.h>
+#			ifndef MAXPATHLEN
+#				define MAXPATHLEN 1024
+#			endif
+			extern char *getwd(char *);
+#		endif
+#	endif
+#	ifndef FOPEN_READ_TEXT
+#		define FOPEN_READ_TEXT "r"
+#		define FOPEN_WRITE_TEXT "w"
+#		define FOPEN_APPEND_TEXT "a"
+#	endif
+#	ifndef FOPEN_READ_BINARY
+#		define FOPEN_READ_BINARY "r"
+#		define FOPEN_WRITE_BINARY "w"
+#		define FOPEN_APPEND_BINARY "a"
+#	endif
+#	if defined(MACOSX) || defined(BSDOS)
+#		undef SIG_DFL
+#		undef SIG_IGN
+#		undef SIG_ERR
+#		define SIG_DFL         (void (*)(int))0
+#		define SIG_IGN         (void (*)(int))1
+#		define SIG_ERR         (void (*)(int))-1
+#	endif
+#endif /* ---------------------------- UNIX ---------------------------- */
 
 
 #if defined(HAVE_LONG_LONG) && defined(HAVE_OPEN64)
@@ -140,7 +213,11 @@
 #	define Open open
 #endif
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
+#if defined(WIN32) || defined(_WINDOWS)
+#	define Stat WinStat64
+#	define Lstat WinStat64
+#	define Fstat WinFStat64
+#elif defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
 #	define Stat stat64
 #	ifdef HAVE_FSTAT64
 #		define Fstat fstat64
@@ -174,6 +251,16 @@
 #	define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #endif
 
+#if defined(AIX) || defined(_AIX)
+/* AIX 4.3's sys/socket.h doesn't properly prototype these for C */
+extern int naccept(int, struct sockaddr *, socklen_t *);
+extern int ngetpeername(int, struct sockaddr *, socklen_t *);
+extern int ngetsockname(int, struct sockaddr *, socklen_t *);
+extern ssize_t nrecvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+extern ssize_t nrecvmsg(int, struct msghdr *, int);
+extern ssize_t nsendmsg(int, const struct msghdr *, int);
+#endif
+
 
 #ifndef IAC
 
@@ -202,12 +289,6 @@
 #define xEOF    236             /* End of file: EOF is already used... */
 
 #define SYNCH   242             /* for telfunc calls */
-#endif
-
-#ifdef HAVE_UTIME_H
-#	include <utime.h>
-#else
-	struct utimbuf { time_t actime, modtime; };
 #endif
 
 #if (defined(SOCKS)) && (SOCKS >= 5)

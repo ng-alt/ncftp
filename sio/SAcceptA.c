@@ -1,8 +1,11 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifndef NO_SIGNALS
-extern volatile Sjmp_buf gNetTimeoutJmp;
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gNetTimeoutJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
 
 int
@@ -12,13 +15,13 @@ SAcceptA(int sfd, struct sockaddr_in *const addr, int tlen)
 #ifndef NO_SIGNALS
 	vsio_sigproc_t sigalrm, sigpipe;
 #endif
-	size_t size;
+	sockaddr_size_t size;
 
 	if (tlen < 0) {
 		errno = 0;
 		for (;;) {
-			size = sizeof(struct sockaddr_in);
-			result = accept(sfd, (struct sockaddr *) addr, (int *) &size);
+			size = (sockaddr_size_t) sizeof(struct sockaddr_in);
+			result = accept(sfd, (struct sockaddr *) addr, &size);
 			if ((result >= 0) || (errno != EINTR))
 				return (result);
 		}
@@ -34,12 +37,12 @@ SAcceptA(int sfd, struct sockaddr_in *const addr, int tlen)
 
 	sigalrm = (vsio_sigproc_t) SSignal(SIGALRM, SIOHandler);
 	sigpipe = (vsio_sigproc_t) SSignal(SIGPIPE, SIG_IGN);
-	alarm((unsigned int) tlen);
+	alarm((alarm_time_t) tlen);
 
 	errno = 0;
 	do {
-		size = sizeof(struct sockaddr_in);
-		result = accept(sfd, (struct sockaddr *) addr, (int *) &size);
+		size = (sockaddr_size_t) sizeof(struct sockaddr_in);
+		result = accept(sfd, (struct sockaddr *) addr, &size);
 	} while ((result < 0) && (errno == EINTR));
 
 	alarm(0);

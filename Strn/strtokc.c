@@ -1,7 +1,7 @@
-/* strtokc.c */
-
-#include <string.h>
-#include "Strn.h"
+#include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 char *
 strtokc(char *parsestr, const char *delims, char **context)
@@ -88,14 +88,14 @@ starttok:
  * token or NULL for no token.
  */
 
-int
+size_t
 strntokc(char *dstTokenStart, size_t tokenSize, char *parsestr, const char *delims, char **context)
 {
 	char *cp;
 	const char *cp2;
 	char c, c2;
 	char *start;
-	int len;
+	size_t len;
 	char *dst, *lim;
 
 	dst = dstTokenStart;
@@ -170,7 +170,7 @@ starttok:
 
 done:
 	*dst = '\0';
-	len = (int) (dst - dstTokenStart);	/* Return length of token. */
+	len = (size_t) (dst - dstTokenStart);		/* Return length of token. */
 
 #if (STRN_ZERO_PAD == 1)
 	/* Pad with zeros. */

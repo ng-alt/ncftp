@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "shell.h"
 #include "util.h"
@@ -67,12 +70,8 @@ int gCancelCtrl = 0;
 
 extern Command gCommands[];
 extern size_t gNumCommands;
-extern int gStartupUrlParameterGiven;
-extern FTPLibraryInfo gLib;
 extern FTPConnectionInfo gConn;
-extern LineList gStartupURLCdList;
-extern int gNumProgramRuns;
-extern char gCopyright[];
+extern int gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk;
 
 
 /* This is used as the comparison function when we sort the name list. */
@@ -218,7 +217,7 @@ PrintCmdUsage(CommandPtr c)
 
 /* Parse a command line into an array of arguments. */
 int
-MakeArgv(char *line, int *cargc, const char **cargv, int cargcmax, char *dbuf, size_t dbufsize, int *noglobargv, int readlineHacks)
+MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t dbufsize, int *noglobargv, int readlineHacks)
 {
 	int c;
 	int retval;
@@ -226,11 +225,15 @@ MakeArgv(char *line, int *cargc, const char **cargv, int cargcmax, char *dbuf, s
 	char *dcp;
 	char *scp;
 	char *arg;
+	char xclam[4];
 
 	*cargc = 0;
 	scp = line;
 	dlim = dbuf + dbufsize - 1;
 	dcp = dbuf;
+
+	xclam[0] = '!';
+	xclam[1] = '\0';
 
 	for (*cargc = 0; *cargc < cargcmax; ) {
 		/* Eat preceding junk. */
@@ -257,7 +260,7 @@ MakeArgv(char *line, int *cargc, const char **cargv, int cargcmax, char *dbuf, s
 			if (scp[1] == '!') {
 				scp[1] = '\0';
 			} else if ((scp[1] != '\0') && (!isspace((int) scp[1]))) {
-				cargv[0] = "!";
+				cargv[0] = xclam;
 				scp++;
 				arg = dcp;
 				cargv[*cargc] = arg;
@@ -507,6 +510,7 @@ CommandShell(void)
 	int sj;
 #endif
 	time_t cmdStart, cmdStop;
+	int oldcount;
 
 	/* Execution may jump back to this point to restart the shell. */
 #if defined(WIN32) || defined(_WINDOWS)
@@ -565,7 +569,7 @@ CommandShell(void)
 			break;
 		}
 		Trace(0, "> %s\n", lineRead);
-		AddHistory(lineRead);
+		oldcount = gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk;
 		for (tUsed = 0;;) {
 			(void) memset(&ai, 0, sizeof(ai));
 			bUsed = MakeArgv(lineRead + tUsed, &ai.cargc, ai.cargv,
@@ -599,6 +603,10 @@ CommandShell(void)
 			++gEventNumber;
 		}
 
+		if (oldcount == gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk)
+			AddHistory(lineRead);
+		else
+			AddHistory("(line omitted from history because it contained sensitive information)");
 		free(lineRead);
 	}
 

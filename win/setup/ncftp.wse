@@ -1,7 +1,7 @@
 Document Type: WSE
 item: Global
   Version=8.14
-  Title=NcFTP 3.0.4 Installation
+  Title=NcFTP 3.1.0 Installation
   Flags=00010100
   Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
   Copy Default=1
@@ -21,7 +21,7 @@ item: Global
   Patch Flags=0000000000000001
   Patch Threshold=85
   Patch Memory=4000
-  EXE Filename=ncftp-3.0.4-win32.exe
+  EXE Filename=ncftp-3.1.0-win32.exe
   FTP Cluster Size=20
   Per-User Version ID=1
   Dialogs Version=7
@@ -59,6 +59,8 @@ item: Install File
   Source=D:\src\win\ncftp\doc\readme_windows.txt
   Destination=%TEMP%\%READMEFILE%
   Flags=0000000000100010
+  File Size=1108
+  File Date=20010413 171844
 end
 item: Set Variable
   Variable=FIND_DIRECTORY
@@ -115,7 +117,7 @@ item: Remark
 end
 item: Set Variable
   Variable=APPTITLE
-  Value=NcFTP 3.0.4
+  Value=NcFTP 3.1.0
   Flags=10000000
 end
 item: Remark
@@ -1246,6 +1248,62 @@ item: Include Script
   Pathname=%_WISE_%\INCLUDE\uninstal.wse
 end
 item: Install File
+  Source=d:\src\win\ncftp\doc\what_changed_between_v2_v3.txt
+  Destination=%MAINDIR%\doc\what_changed_between_v2_v3.txt
+  Flags=0000000010000010
+  File Size=1284
+  File Date=20011116 074724
+end
+item: Install File
+  Source=d:\src\win\ncftp\doc\readme_windows.txt
+  Destination=%MAINDIR%\doc\readme_windows.txt
+  Flags=0000000010000010
+  File Size=1108
+  File Date=20010413 171844
+end
+item: Install File
+  Source=d:\src\win\ncftp\doc\readme_ncftpget_windows.txt
+  Destination=%MAINDIR%\doc\readme_ncftpget_windows.txt
+  Flags=0000000010000010
+  File Size=420
+  File Date=20000320 012940
+end
+item: Install File
+  Source=d:\src\win\ncftp\doc\READLINE.txt
+  Destination=%MAINDIR%\doc\READLINE.txt
+  Flags=0000000010000010
+  File Size=918
+  File Date=20000306 211442
+end
+item: Install File
+  Source=d:\src\win\ncftp\doc\LICENSE.txt
+  Destination=%MAINDIR%\doc\LICENSE.txt
+  Flags=0000000010000010
+  File Size=6511
+  File Date=20000929 002638
+end
+item: Install File
+  Source=d:\src\win\ncftp\doc\FIREWALLS_AND_PROXIES.txt
+  Destination=%MAINDIR%\doc\FIREWALLS_AND_PROXIES.txt
+  Flags=0000000010000010
+  File Size=973
+  File Date=19990929 212232
+end
+item: Install File
+  Source=d:\src\win\ncftp\doc\CHANGELOG.txt
+  Destination=%MAINDIR%\doc\CHANGELOG.txt
+  Flags=0000000010000010
+  File Size=25546
+  File Date=20011122 181114
+end
+item: Install File
+  Source=d:\src\win\ncftp\README.txt
+  Destination=%MAINDIR%\doc\README.txt
+  Flags=0000000010000010
+  File Size=3540
+  File Date=20011024 164136
+end
+item: Install File
   Source=d:\src\win\ncftp\ncftp\Release\ncftp.exe
   Destination=%MAINDIR%\ncftp.exe
   Flags=0000000010000011
@@ -1430,65 +1488,6 @@ item: Install File
   File Date=20000319 171820
 end
 item: End Block
-end
-item: Create Directory
-  Pathname=%MAINDIR%\doc
-end
-item: Install File
-  Source=d:\src\win\ncftp\doc\readme_ncftpget_windows.txt
-  Destination=%MAINDIR%\doc\readme_ncftpget_windows.txt
-  Flags=0000000010000010
-  File Size=420
-  File Date=20000320 012940
-end
-item: Install File
-  Source=d:\src\win\ncftp\doc\readme_windows.txt
-  Destination=%MAINDIR%\doc\readme_windows.txt
-  Flags=0000000010000010
-  File Size=1108
-  File Date=19990929 212232
-end
-item: Install File
-  Source=d:\src\win\ncftp\Changelog
-  Destination=%MAINDIR%\doc\Changelog.txt
-  Flags=0000000010000010
-  File Size=18023
-  File Date=20000929 023534
-end
-item: Install File
-  Source=d:\src\win\ncftp\Firewall-proxy-readme
-  Destination=%MAINDIR%\doc\Firewall-proxy-readme.txt
-  Flags=0000000010000010
-  File Size=973
-  File Date=19990929 212232
-end
-item: Install File
-  Source=d:\src\win\ncftp\LICENSE.txt
-  Destination=%MAINDIR%\doc\LICENSE.txt
-  Flags=0000000010000010
-  File Size=6511
-  File Date=20000929 002638
-end
-item: Install File
-  Source=d:\src\win\ncftp\Readline-readme
-  Destination=%MAINDIR%\doc\Readline-readme.txt
-  Flags=0000000010000010
-  File Size=918
-  File Date=20000306 211442
-end
-item: Install File
-  Source=d:\src\win\ncftp\Readme
-  Destination=%MAINDIR%\doc\Readme.txt
-  Flags=0000000010000010
-  File Size=3389
-  File Date=20000306 210146
-end
-item: Install File
-  Source=d:\src\win\ncftp\Whatsnew-3.0
-  Destination=%MAINDIR%\doc\Whatsnew-3.0.txt
-  Flags=0000000010000010
-  File Size=1456
-  File Date=19990929 212232
 end
 item: Create Directory
   Pathname=%MAINDIR%\Users

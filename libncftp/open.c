@@ -6,8 +6,11 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
-static void
+void
 FTPDeallocateHost(const FTPCIPtr cip)
 {
 	/* Requires the cip->bufSize field set,
@@ -16,8 +19,10 @@ FTPDeallocateHost(const FTPCIPtr cip)
 	 */
 	if (cip->buf != NULL) {
 		(void) memset(cip->buf, 0, cip->bufSize);
-		free(cip->buf);
-		cip->buf = NULL;
+		if (cip->doAllocBuf != 0) {
+			free(cip->buf);
+			cip->buf = NULL;
+		}
 	}
 
 	if (cip->startingWorkingDirectory != NULL) {
@@ -34,8 +39,7 @@ FTPDeallocateHost(const FTPCIPtr cip)
 
 
 
-
-static int
+int
 FTPAllocateHost(const FTPCIPtr cip)
 {
 	char *buf;
@@ -45,34 +49,24 @@ FTPAllocateHost(const FTPCIPtr cip)
 	 * buffer is not allocated.
 	 */
 	if (cip->buf == NULL) {
-		buf = (char *) calloc((size_t) 1, cip->bufSize);
-		if (buf == NULL) {
-			Error(cip, kDontPerror, "Malloc failed.\n");
-			cip->errNo = kErrMallocFailed;
-			return (kErrMallocFailed);
+		if (cip->doAllocBuf == 0) {
+			/* User must supply buffer! */
+			cip->errNo = kErrBadParameter;
+			return (kErrBadParameter);
+		} else {
+			buf = (char *) calloc((size_t) 1, cip->bufSize);
+			if (buf == NULL) {
+				Error(cip, kDontPerror, "Malloc failed.\n");
+				cip->errNo = kErrMallocFailed;
+				return (kErrMallocFailed);
+			}
+			cip->buf = buf;
 		}
-		cip->buf = buf;
+	} else {
+		(void) memset(cip->buf, 0, cip->bufSize);
 	}
 	return (kNoErr);
 }	/* FTPAllocateHost */
-
-
-
-
-void
-FTPInitializeOurHostName(const FTPLIPtr lip)
-{
-	if (lip == NULL)
-		return;
-	if (strcmp(lip->magic, kLibraryMagic))
-		return;
-
-	if (lip->htried == 0) {
-		(void) memset(lip->ourHostName, 0, sizeof(lip->ourHostName));
-		lip->hresult = GetOurHostName(lip->ourHostName, sizeof(lip->ourHostName));
-	}
-	lip->htried++;
-}	/* FTPInitializeOurHostName */
 
 
 
@@ -85,22 +79,8 @@ FTPInitializeAnonPassword(const FTPLIPtr lip)
 	if (strcmp(lip->magic, kLibraryMagic))
 		return;
 
-	FTPInitializeOurHostName(lip);
-
-	if (lip->defaultAnonPassword[0] == '\0') {
-#ifdef SPAM_PROBLEM_HAS_BEEN_SOLVED_FOREVER
-		GetUsrName(lip->defaultAnonPassword, sizeof(lip->defaultAnonPassword));
-		(void) STRNCAT(lip->defaultAnonPassword, "@");
-
-		/* Default to the "user@" notation
-		 * supported by NcFTPd and wu-ftpd.
-		 */
-		if (lip->htried > 0)
-			(void) STRNCAT(lip->defaultAnonPassword, lip->ourHostName);
-#else
+	if (lip->defaultAnonPassword[0] == '\0')
 		(void) STRNCPY(lip->defaultAnonPassword, "NcFTP@");
-#endif
-	}
 }	/* FTPInitializeAnonPassword */
 
 
@@ -223,7 +203,7 @@ FTPLoginHost(const FTPCIPtr cip)
 				
 			case 331:	/* 331 User name okay, need password. */
 				if ((cip->firewallType == kFirewallNotInUse) || (fwloggedin != 0)) {
-					if ((cip->pass[0] == '\0') && (cip->passphraseProc != NoGetPassphraseProc))
+					if ((cip->pass[0] == '\0') && (cip->passphraseProc != kNoFTPGetPassphraseProc))
 						(*cip->passphraseProc)(cip, &rp->msg, cip->pass, sizeof(cip->pass));
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s", cip->pass);
@@ -251,16 +231,8 @@ FTPLoginHost(const FTPCIPtr cip)
 
 			case 332:	/* 332 Need account for login. */
 			case 532: 	/* 532 Need account for storing files. */
-				if ((cip->firewallType == kFirewallNotInUse) || (fwloggedin != 0)) {
-					ReInitResponse(cip, rp);
-					result = RCmd(cip, rp, "ACCT %s", cip->acct);
-				} else if (cip->firewallType == kFirewallUserAtSiteFwuPassFwp) {
-					ReInitResponse(cip, rp);
-					result = RCmd(cip, rp, "ACCT %s", cip->firewallPass);
-				} else {
-					/* ACCT not supported on firewall. */
-					goto unknown;
-				}
+				ReInitResponse(cip, rp);
+				result = RCmd(cip, rp, "ACCT %s", cip->acct);
 				break;
 
 			case 530:	/* Not logged in. */
@@ -339,10 +311,12 @@ FTPExamineMlstFeatures(const FTPCIPtr cip, const char *features)
 {
 	char buf[256], *feat;
 	int flags;
+	char *ctext;
 
 	flags = 0;
 	STRNCPY(buf, features);
-	feat = strtok(buf, ";*");
+	ctext = NULL;
+	feat = strtokc(buf, ";*", &ctext);
 	while (feat != NULL) {
 		if (ISTRNEQ(feat, "OS.", 3))
 			feat += 3;
@@ -367,7 +341,7 @@ FTPExamineMlstFeatures(const FTPCIPtr cip, const char *features)
 		} else if (ISTREQ(feat, "UNIX.gid")) {
 			flags |= kMlsOptUnique;
 		}
-		feat = strtok(NULL, ";*");
+		feat = strtokc(NULL, ";*", &ctext);
 	}
 
 	cip->mlsFeatures = flags;
@@ -497,7 +471,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 					((p = strstr(cp, "RBUFSIZ")) != NULL) &&
 					(
 					 	(p == cp) ||
-						((p > cp) && (!isupper(p[-1])))
+						((p > cp) && (!isupper((int) p[-1])))
 					)
 				)
 					cip->hasRBUFSIZ = kCommandAvailable;
@@ -556,260 +530,6 @@ FTPCloseHost(const FTPCIPtr cip)
 	FTPDeallocateHost(cip);
 	return (result);
 }	/* FTPCloseHost */
-
-
-
-
-void
-FTPShutdownHost(const FTPCIPtr cip)
-{
-#ifdef SIGPIPE
-	FTPSigProc osigpipe;
-#endif
-
-	if (cip == NULL)
-		return;
-	if (strcmp(cip->magic, kLibraryMagic))
-		return;
-
-#ifdef SIGPIPE
-	osigpipe = signal(SIGPIPE, (FTPSigProc) SIG_IGN);
-#endif
-
-	/* Linger could cause close to block, so unset it. */
-	if (cip->dataSocket != kClosedFileDescriptor)
-		(void) SetLinger(cip, cip->dataSocket, 0);
-	CloseDataConnection(cip);	/* Shouldn't be open normally. */
-
-	/* Linger should already be turned off for this. */
-	CloseControlConnection(cip);
-
-	FTPDeallocateHost(cip);
-
-#ifdef SIGPIPE
-	(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
-#endif
-}	/* FTPShutdownHost */
-
-
-
-
-void
-URLCopyToken(char *dst, size_t dsize, const char *src, size_t howmuch)
-{
-	char *dlim;
-	const char *slim;
-	unsigned int hc;
-	int c;
-	char h[4];
-
-	dlim = dst + dsize - 1;		/* leave room for \0 */
-	slim = src + howmuch;
-	while (src < slim) {
-		c = *src++;
-		if (c == '\0')
-			break;
-		if (c == '%') {
-			/* hex representation */
-			if (src < slim + 2) {
-				h[0] = *src++;
-				h[1] = *src++;
-				h[2] = '\0';
-				hc = 0xeeff;
-				if ((sscanf(h, "%x", &hc) >= 0) && (hc != 0xeeff)) {
-					if (dst < dlim) {
-						*(unsigned char *)dst = (unsigned char) hc;
-						dst++;
-					}
-				}
-			} else {
-				break;
-			}
-		} else {
-			*dst++ = (char) c;
-		}
-	}
-	*dst = '\0';
-}	/* URLCopyToken */
-
-
-
-
-int
-FTPDecodeURL(
-	const FTPCIPtr cip,	/* area pointed to may be modified */
-	char *const url,	/* always modified */
-	LineListPtr cdlist,	/* always modified */
-	char *const fn,		/* always modified */
-	const size_t fnsize,
-	int *const xtype,	/* optional; may be modified */
-	int *const wantnlst	/* optional; always modified */
-)
-{
-	char *cp;
-	char *hstart, *hend;
-	char *h2start;
-	char *at1;
-	char portstr[32];
-	int port;
-	int sc;
-	char *lastslash;
-	char *parsestr;
-	char *tok;
-	char subdir[128];
-	char *semi;
-
-	InitLineList(cdlist);
-	*fn = '\0';
-	if (wantnlst != NULL)
-		*wantnlst = 0;
-	if (xtype != NULL)
-		*xtype = kTypeBinary;
-
-	cp = NULL;	/* shut up warnings */
-#ifdef HAVE_STRCASECMP
-	if (strncasecmp(url, "<URL:ftp://", 11) == 0) {
-		cp = url + strlen(url) - 1;
-		if (*cp != '>')
-			return (kMalformedURL);	/* missing closing > */
-		*cp = '\0';
-		cp = url + 11;
-	} else if (strncasecmp(url, "ftp://", 6) == 0) {
-		cp = url + 6;
-	} else {
-		return (-1);		/* not a RFC 1738 URL */
-	}
-#else	/* HAVE_STRCASECMP */
-	if (strncmp(url, "<URL:ftp://", 11) == 0) {
-		cp = url + strlen(url) - 1;
-		if (*cp != '>')
-			return (kMalformedURL);	/* missing closing > */
-		*cp = '\0';
-		cp = url + 11;
-	} else if (strncmp(url, "ftp://", 6) == 0) {
-		cp = url + 6;
-	} else {
-		return (-1);		/* not a RFC 1738 URL */
-	}
-#endif	/* HAVE_STRCASECMP */
-
-	/* //<user>:<password>@<host>:<port>/<url-path> */
-
-	at1 = NULL;
-	for (hstart = cp; ; cp++) {
-		if (*cp == '@') {
-			if (at1 == NULL)
-				at1 = cp;
-			else 
-				return (kMalformedURL);
-		} else if ((*cp == '\0') || (*cp == '/')) {
-			hend = cp;
-			break;
-		}
-	}
-
-	sc = *hend;
-	*hend = '\0';
-	if (at1 == NULL) {
-		/* no user or password */
-		h2start = hstart;
-	} else {
-		*at1 = '\0';
-		cp = strchr(hstart, ':');
-		if (cp == NULL) {
-			/* whole thing is the user name then */
-			URLCopyToken(cip->user, sizeof(cip->user), hstart, (size_t) (at1 - hstart));
-		} else if (strchr(cp + 1, ':') != NULL) {
-			/* Too many colons */
-			return (kMalformedURL);
-		} else {
-			URLCopyToken(cip->user, sizeof(cip->user), hstart, (size_t) (cp - hstart));
-			URLCopyToken(cip->pass, sizeof(cip->pass), cp + 1, (size_t) (at1 - (cp + 1)));
-		}
-		*at1 = '@';
-		h2start = at1 + 1;
-	}
-
-	cp = strchr(h2start, ':');
-	if (cp == NULL) {
-		/* whole thing is the host then */
-		URLCopyToken(cip->host, sizeof(cip->host), h2start, (size_t) (hend - h2start));
-	} else if (strchr(cp + 1, ':') != NULL) {
-		/* Too many colons */
-		return (kMalformedURL);
-	} else {
-		URLCopyToken(cip->host, sizeof(cip->host), h2start, (size_t) (cp - h2start));
-		URLCopyToken(portstr, sizeof(portstr), cp + 1, (size_t) (hend - (cp + 1)));
-		port = atoi(portstr);
-		if (port > 0)
-			cip->port = port;
-	}
-
-	*hend = (char) sc;
-	if ((*hend == '\0') || ((*hend == '/') && (hend[1] == '\0'))) {
-		/* no path, okay */
-		return (0);
-	}
-
-	lastslash = strrchr(hend, '/');
-	if (lastslash == NULL) {
-		/* no path, okay */
-		return (0);
-	}	
-	*lastslash = '\0';
-
-	if ((semi = strchr(lastslash + 1, ';')) != NULL) {
-		*semi++ = '\0';
-#ifdef HAVE_STRCASECMP
-		if (strcasecmp(semi, "type=i") == 0) {
-			if (xtype != NULL)
-				*xtype = kTypeBinary;
-		} else if (strcasecmp(semi, "type=a") == 0) {
-			if (xtype != NULL)
-				*xtype = kTypeAscii;
-		} else if (strcasecmp(semi, "type=b") == 0) {
-			if (xtype != NULL)
-				*xtype = kTypeBinary;
-		} else if (strcasecmp(semi, "type=d") == 0) {
-			if (wantnlst != NULL) {
-				*wantnlst = 1;
-				if (xtype != NULL)
-					*xtype = kTypeAscii;
-			} else {
-				/* You didn't want these. */
-				return (kMalformedURL);
-			}
-		}
-#else	/* HAVE_STRCASECMP */
-		if (strcmp(semi, "type=i") == 0) {
-			if (xtype != NULL)
-				*xtype = kTypeBinary;
-		} else if (strcmp(semi, "type=a") == 0) {
-			if (xtype != NULL)
-				*xtype = kTypeAscii;
-		} else if (strcmp(semi, "type=b") == 0) {
-			if (xtype != NULL)
-				*xtype = kTypeBinary;
-		} else if (strcmp(semi, "type=d") == 0) {
-			if (wantnlst != NULL) {
-				*wantnlst = 1;
-				if (xtype != NULL)
-					*xtype = kTypeAscii;
-			} else {
-				/* You didn't want these. */
-				return (kMalformedURL);
-			}
-		}
-#endif	/* HAVE_STRCASECMP */
-	}
-	URLCopyToken(fn, fnsize, lastslash + 1, strlen(lastslash + 1));
-	for (parsestr = hend; (tok = strtok(parsestr, "/")) != NULL; parsestr = NULL) {
-		URLCopyToken(subdir, sizeof(subdir), tok, strlen(tok));
-		(void) AddLine(cdlist, subdir);
-	}
-	*lastslash = '/';
-	return (kNoErr);
-}	/* FTPDecodeURL */
 
 
 
@@ -907,81 +627,7 @@ FTPOpenHost(const FTPCIPtr cip)
 
 
 int
-FTPOpenHostNoLogin(const FTPCIPtr cip)
-{
-	int result;
-	time_t t0, t1;
-	int elapsed;
-	int dials;
-
-	if (cip == NULL)
-		return (kErrBadParameter);
-	if (strcmp(cip->magic, kLibraryMagic))
-		return (kErrBadMagic);
-
-	if (cip->host[0] == '\0') {
-		cip->errNo = kErrBadParameter;
-		return (kErrBadParameter);
-	}
-
-	for (	result = kErrConnectMiscErr, dials = 0;
-		cip->maxDials < 0 || dials < cip->maxDials;
-		dials++)
-	{
-
-		/* Allocate (or if the host was closed, reallocate)
-		 * the transfer data buffer.
-		 */
-		result = FTPAllocateHost(cip);
-		if (result < 0)
-			return (result);
-
-		if (dials > 0)
-			PrintF(cip, "Retry Number: %d\n", dials);
-		if (cip->redialStatusProc != 0)
-			(*cip->redialStatusProc)(cip, kRedialStatusDialing, dials);
-		(void) time(&t0);
-		result = OpenControlConnection(cip, cip->host, cip->port);
-		(void) time(&t1);
-		if (result == kNoErr) {
-			/* We were hooked up successfully. */
-			PrintF(cip, "Connected to %s.\n", cip->host);
-
-			/* Not logging in... */
-			if (result == kNoErr)
-				break;
-		} else if ((result != kErrConnectRetryableErr) && (result != kErrConnectRefused) && (result != kErrRemoteHostClosedConnection)) {
-			/* Irrecoverable error, so don't bother redialing.
-			 * The error message should have already been printed
-			 * from OpenControlConnection().
-			 */
-			PrintF(cip, "Cannot recover from miscellaneous open error %d.\n", result);
-			return result;
-		}
-
-		/* Retryable error, wait and then redial. */
-		if (cip->redialDelay > 0) {
-			/* But don't sleep if this is the last loop. */
-			if ((cip->maxDials < 0) || (dials < (cip->maxDials - 1))) {
-				elapsed = (int) (t1 - t0);
-				if (elapsed < cip->redialDelay) {
-					PrintF(cip, "Sleeping %u seconds.\n",
-						(unsigned) cip->redialDelay - elapsed);
-					if (cip->redialStatusProc != 0)
-						(*cip->redialStatusProc)(cip, kRedialStatusSleeping, cip->redialDelay - elapsed);
-					(void) sleep((unsigned) cip->redialDelay - elapsed);
-				}
-			}
-		}
-	}
-	return (result);
-}	/* FTPOpenHostNoLogin */
-
-
-
-
-int
-FTPInitConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip, size_t bufSize)
+FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, size_t bufSize)
 {
 	size_t siz;
 
@@ -994,8 +640,16 @@ FTPInitConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip, size_t bufSize)
 	if (strcmp(lip->magic, kLibraryMagic))
 		return (kErrBadMagic);
 
-	cip->buf = NULL;	/* denote that it needs to be allocated. */
 	cip->bufSize = bufSize;
+	if (buf == NULL) {
+		/* We're responsible for allocating the buffer. */
+		cip->buf = NULL;	/* denote that it needs to be allocated. */
+		cip->doAllocBuf = 1;
+	} else {
+		/* The application is passing us a buffer to use. */
+		cip->buf = buf;
+		cip->doAllocBuf = 0;
+	}
 	cip->port = lip->defaultPort;
 	cip->firewallPort = lip->defaultPort;
 	cip->maxDials = kDefaultMaxDials;
@@ -1006,7 +660,7 @@ FTPInitConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip, size_t bufSize)
 	cip->abortTimeout = kDefaultAbortTimeout;
 	cip->ctrlSocketR = kClosedFileDescriptor;
 	cip->ctrlSocketW = kClosedFileDescriptor;
-	cip->dataPortMode = kSendPortMode;
+	cip->dataPortMode = kFallBackToSendPortMode;
 	cip->dataSocket = kClosedFileDescriptor;
 	cip->lip = lip;
 	cip->hasPASV = kCommandAvailabilityUnknown;
@@ -1032,76 +686,16 @@ FTPInitConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip, size_t bufSize)
 	(void) STRNCPY(cip->magic, kLibraryMagic);
 	(void) STRNCPY(cip->user, "anonymous");
 	return (kNoErr);
-}	/* FTPInitConnectionInfo */
+}	/* FTPInitConnectionInfo2 */
 
 
 
 
 int
-FTPRebuildConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip)
+FTPInitConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip, size_t bufSize)
 {
-	char *buf;
-
-	cip->lip = lip;
-	cip->debugLog = NULL;
-	cip->errLog = NULL;
-	cip->debugLogProc = NULL;
-	cip->errLogProc = NULL;
-	cip->buf = NULL;
-	cip->cin = NULL;
-	cip->cout = NULL;
-	cip->errNo = 0;
-	cip->progress = NULL;
-	cip->rname = NULL;
-	cip->lname = NULL;
-	cip->onConnectMsgProc = NULL;
-	cip->redialStatusProc = NULL;
-	cip->printResponseProc = NULL;
-	cip->onLoginMsgProc = NULL;
-	cip->passphraseProc = NULL;
-	cip->startingWorkingDirectory = NULL;
-	cip->asciiFilenameExtensions = NULL;
-
-	(void) memset(&cip->lastFTPCmdResultLL, 0, sizeof(LineList));
-
-	/* Allocate a new buffer. */
-	buf = (char *) calloc((size_t) 1, cip->bufSize);
-	if (buf == NULL) {
-		cip->errNo = kErrMallocFailed;
-		return (kErrMallocFailed);
-	}
-	cip->buf = buf;
-
-	/* Reattach the FILE pointers for use with the Std I/O library
-	 * routines.
-	 */
-	if ((cip->cin = fdopen(cip->ctrlSocketR, "r")) == NULL) {
-		cip->errNo = kErrFdopenR;
-		cip->ctrlSocketR = kClosedFileDescriptor;
-		cip->ctrlSocketW = kClosedFileDescriptor;
-		return (kErrFdopenR);
-	}
-
-	if ((cip->cout = fdopen(cip->ctrlSocketW, "w")) == NULL) {
-		CloseFile(&cip->cin);
-		cip->errNo = kErrFdopenW;
-		cip->ctrlSocketR = kClosedFileDescriptor;
-		cip->ctrlSocketW = kClosedFileDescriptor;
-		return (kErrFdopenW);
-	}
-
-#if USE_SIO
-	if (InitSReadlineInfo(&cip->ctrlSrl, cip->ctrlSocketR, cip->srlBuf, sizeof(cip->srlBuf), (int) cip->ctrlTimeout, 1) < 0) {
-		cip->errNo = kErrFdopenW;
-		CloseFile(&cip->cin);
-		cip->errNo = kErrFdopenW;
-		cip->ctrlSocketR = kClosedFileDescriptor;
-		cip->ctrlSocketW = kClosedFileDescriptor;
-		return (kErrFdopenW);
-	}
-#endif
-	return (kNoErr);
-}	/* FTPRebuildConnectionInfo */
+	return (FTPInitConnectionInfo2(lip, cip, NULL, bufSize));
+}	/* FTPInitConnectionInfo */
 
 
 
@@ -1109,16 +703,14 @@ FTPRebuildConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip)
 int
 FTPInitLibrary(const FTPLIPtr lip)
 {
-	struct servent *ftp;	
-
 	if (lip == NULL)
 		return (kErrBadParameter);
 
 	(void) memset(lip, 0, sizeof(FTPLibraryInfo));
-	if ((ftp = getservbyname("ftp", "tcp")) == NULL)
+
+	lip->defaultPort = ServiceNameToPortNumber("ftp", 't');
+	if (lip->defaultPort == 0)
 		lip->defaultPort = (unsigned int) kDefaultFTPPort;
-	else
-		lip->defaultPort = (unsigned int) ntohs(ftp->s_port);
 
 	lip->init = 1;
 	(void) STRNCPY(lip->magic, kLibraryMagic);

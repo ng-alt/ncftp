@@ -9,15 +9,34 @@
 #	include <config.h>
 #endif
 
-#if defined(AIX) || defined(_AIX)
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
 #	define _ALL_SOURCE 1
 #endif
 
-#if defined(HPUX) || defined(_HPUX_SOURCE)
-#	ifndef _XOPEN_SOURCE_EXTENDED
-#		define _XOPEN_SOURCE_EXTENDED 1
-#	endif
+#ifdef LINUX
+#	define _GNU_SOURCE 1
 #endif
+
+#if defined(DIGITAL_UNIX) || defined(TRU64UNIX)
+#	define _OSF_SOURCE 1
+#	define _XOPEN_SOURCE 500
+#	define _XOPEN_SOURCE_EXTENDED 1
+#endif
+
+#ifdef HPUX
+#	define _HPUX_SOURCE 1
+#	define _XOPEN_SOURCE 500
+#	define _XOPEN_SOURCE_EXTENDED 1
+#endif
+
+#ifdef IRIX
+#	define _SGI_SOURCE 1
+#endif
+
+#ifdef SOLARIS
+/* #define __EXTENSIONS__ 1 */
+#endif
+
 
 #ifdef HAVE_UNISTD_H
 #	include <unistd.h>
@@ -34,6 +53,26 @@
 #if defined(HAVE_SYS_UTSNAME_H) && defined(HAVE_UNAME)
 #	include <sys/utsname.h>
 #endif
+
+/* The only reason we need to include this junk, is because on some systems
+ * the function killchar() is actually a macro that uses definitions in
+ * termios.h.  Example:  #define killchar()      (__baset.c_cc[VKILL])
+ */
+
+#ifdef HAVE_TERMIOS_H
+#	include <termios.h>
+#else
+#	ifdef HAVE_TERMIO_H
+#		include <termio.h>
+#	else
+#		ifdef HAVE_SYS_IOCTL_H
+#			include <sys/ioctl.h>	/* For TIOxxxx constants. */
+#		endif
+#		ifdef HAVE_SGTTY_H
+#			include <sgtty.h>
+#		endif
+#	endif
+#endif /* !HAVE_TERMIOS_H */
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -58,10 +97,32 @@
 #ifdef HAVE_LOCALE_H
 #	include <locale.h>
 #endif
+#ifdef NEED_GETOPT_H
+#	include <getopt.h>
+#elif defined(NEED_GETOPT_EXTERN_DECLS)
+	extern int optind, opterr, optopt;
+	extern char *optarg;
+#endif
 
-/* Tru64's curses.h uses an "OS" */
-#define XOS OS
-#undef OS
+#ifndef FOPEN_READ_TEXT
+#	define FOPEN_READ_TEXT "r"
+#	define FOPEN_WRITE_TEXT "w"
+#	define FOPEN_APPEND_TEXT "a"
+#endif
+#ifndef FOPEN_READ_BINARY
+#	define FOPEN_READ_BINARY "r"
+#	define FOPEN_WRITE_BINARY "w"
+#	define FOPEN_APPEND_BINARY "a"
+#endif
+
+#if defined(MACOSX) || defined(BSDOS)
+#	undef SIG_DFL
+#	undef SIG_IGN
+#	undef SIG_ERR
+#	define SIG_DFL         (void (*)(int))0
+#	define SIG_IGN         (void (*)(int))1
+#	define SIG_ERR         (void (*)(int))-1
+#endif
 
 #ifdef HAVE_NCURSES_H
 #	include <ncurses.h>
@@ -70,9 +131,6 @@
 #		include <curses.h>
 #	endif
 #endif
-
-#define OS XOS
-#undef XOS
 
 /* These next three sections are mostly for HP-UX 10. */
 #if defined(HAVE___GETCURX) && defined(HAVE___GETCURY)
@@ -226,7 +284,11 @@
 #	define Open open
 #endif
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
+#if defined(WIN32) || defined(_WINDOWS)
+#	define Stat WinStat64
+#	define Lstat WinStat64
+#	define Fstat WinFStat64
+#elif defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
 #	define Stat stat64
 #	ifdef HAVE_FSTAT64
 #		define Fstat fstat64
@@ -267,4 +329,5 @@
 #endif	/* SOCKS */
 
 #include <Strn.h>			/* Library header. */
+#include <sio.h>			/* Because ../ncftp/util.c needs it. */
 #include <ncftp.h>			/* Mostly for utility routines it has. */

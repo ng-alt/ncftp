@@ -4,8 +4,8 @@
 #
 #-----------------------------------------------------------------------------
 
-VER=3.0.4
-#BETA=-DBETA=21
+VER=@NCFTP_VERSION@
+@SET_MAKE@
 CC=@CC@
 CFLAGS=@CFLAGS@@NDEFS@
 #CC=gcc
@@ -23,20 +23,22 @@ INSTALL_DATA=@INSTALL_DATA@
 SHELL=/bin/sh
 
 all:
-	( cd Strn ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	( cd libncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	-mkdir bin 2>/dev/null
-	( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
-	( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
-	( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	@( cd Strn ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@( cd sio ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@( cd libncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@[ -d bin ] || mkdir bin
+	@( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	@( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	@( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	-@/bin/ls -l bin
 	-@echo 'Done.'
 	-@echo
 	-@echo '** Please report any problems to ncftp@ncftp.com **'
 
 install:
-	( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
+	@( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
 	-mkdir "$(prefix)" "$(BINDIR)" "$(SYSCONFDIR)" "$(mandir)" "$(mandir)/man1" 2>/dev/null
 	-@echo '..... Installing the programs .....'
 	$(INSTALL_PROGRAM) bin/ncftp@EXEEXT@ "$(BINDIR)/ncftp@EXEEXT@"
@@ -62,56 +64,41 @@ install:
 	-@echo 'Done installing NcFTP.'
 
 clean:
-	( cd Strn ; $(MAKE) clean )
-	( cd libncftp ; $(MAKE) clean )
-	( cd ncftp ; $(MAKE) clean )
-	( cd sh_util ; $(MAKE) clean )
-	( cd vis ; $(MAKE) clean )
+	/bin/rm -f ncftp_all.ncb ncftp_all.opt ncftp_all.plg *.pch
+	@( cd Strn ; $(MAKE) clean )
+	@( cd sio ; $(MAKE) clean )
+	@( cd libncftp ; $(MAKE) clean )
+	@( cd ncftp ; $(MAKE) clean )
+	@( cd sh_util ; $(MAKE) clean )
+	@( cd vis ; $(MAKE) clean )
 
 distclean: clean
-	/bin/rm -f Makefile config.cache config.h config.log config.status libncftp/Makefile ncftp/Makefile sh_util/Makefile vis/Makefile
+	/bin/rm -f config.cache config.h config.log config.status libncftp/Makefile libncftp/config.h ncftp/Makefile sh_util/Makefile vis/Makefile Makefile.bin Strn/Makefile Strn/config.h sio/Makefile sio/config.h Makefile
+	/bin/rmdir bin
+	@echo "Warning: configure may have automatically patched libncftp/ncftp.h"
 
 TMPDIR=/tmp
 TARDIR=ncftp-$(VER)
-STARFILE=$(TARDIR)-src.tar
 STGZFILE=$(TARDIR)-src.tar.gz
 DTARFILE=$(TARDIR)-@OS@-export.tar
 DTGZFILE=$(TARDIR)-@OS@-export.tar.gz
-DREADME=@DREADME@
+DBGZFILE=$(TARDIR)-@OS@-export.tar.bz2
 
 dtar:
 	-@mkdir $(TMPDIR)/TAR
 	-@mkdir $(TMPDIR)/TAR/$(TARDIR)
 	cp Makefile.bin $(TMPDIR)/TAR/$(TARDIR)/Makefile
-	chmod 644 $(TMPDIR)/TAR/$(TARDIR)/Makefile
-	cp CHANGELOG $(TMPDIR)/TAR/$(TARDIR)/CHANGELOG
-	chmod 644 $(TMPDIR)/TAR/$(TARDIR)/CHANGELOG
-	cp WHATSNEW-3.0 $(TMPDIR)/TAR/$(TARDIR)/WHATSNEW-3.0
-	chmod 644 $(TMPDIR)/TAR/$(TARDIR)/WHATSNEW-3.0
-	cp FIREWALL-PROXY-README $(TMPDIR)/TAR/$(TARDIR)/FIREWALL-PROXY-README
-	chmod 644 $(TMPDIR)/TAR/$(TARDIR)/FIREWALL-PROXY-README
-	cp READLINE-README $(TMPDIR)/TAR/$(TARDIR)/READLINE-README
-	chmod 644 $(TMPDIR)/TAR/$(TARDIR)/READLINE-README
-	cp install-sh $(TMPDIR)/TAR/$(TARDIR)/install-sh
-	chmod 755 $(TMPDIR)/TAR/$(TARDIR)/install-sh
-	-@mkdir $(TMPDIR)/TAR/$(TARDIR)/bin
-	for f in ncftp ncftpget ncftpput ncftpbatch ncftpls ; do \
-		cp bin/$$f $(TMPDIR)/TAR/$(TARDIR)/bin/$$f ; \
-		chmod 755 $(TMPDIR)/TAR/$(TARDIR)/bin/$$f ; \
-		: ; \
-	done
+	-@mkdir $(TMPDIR)/TAR/$(TARDIR)/bin $(TMPDIR)/TAR/$(TARDIR)/doc
+	cp -r bin $(TMPDIR)/TAR/$(TARDIR)
+	chmod 755 $(TMPDIR)/TAR/$(TARDIR)/bin/*
+	-@rm -f $(TMPDIR)/TAR/$(TARDIR)/bin/ncftpspooler
 	-@ln $(TMPDIR)/TAR/$(TARDIR)/bin/ncftpbatch $(TMPDIR)/TAR/$(TARDIR)/bin/ncftpspooler
-	-@cp bin/ncftpbookmarks $(TMPDIR)/TAR/$(TARDIR)/bin/ncftpbookmarks 2>/dev/null
-	-@chmod 755 $(TMPDIR)/TAR/$(TARDIR)/bin/ncftpbookmarks 2>/dev/null
-	-@mkdir $(TMPDIR)/TAR/$(TARDIR)/doc
-	-@mkdir $(TMPDIR)/TAR/$(TARDIR)/doc/man
-	for f in ncftp.1 ncftpget.1 ncftpput.1 ncftpbatch.1 ncftpspooler.1 ncftpls.1 ; do \
-		cp doc/man/$$f $(TMPDIR)/TAR/$(TARDIR)/doc/man/$$f ; \
-		chmod 644 $(TMPDIR)/TAR/$(TARDIR)/doc/man/$$f ; \
-		: ; \
+	for f in CHANGELOG.txt FIREWALLS_AND_PROXIES.txt LICENSE.txt what_changed_between_v2_v3.txt ; do \
+		cp doc/$$f $(TMPDIR)/TAR/$(TARDIR)/doc/$$f ; \
 	done
-	find $(TMPDIR)/TAR/$(TARDIR) -type d -exec chmod 755 {} \;
-	-../ncftp_extra/tar.sh $(TMPDIR)/TAR/$(TARDIR)
+	cp -r doc/man doc/html $(TMPDIR)/TAR/$(TARDIR)/doc
+	find $(TMPDIR)/TAR/$(TARDIR) -type d -exec chmod a+rx {} \;
+	find $(TMPDIR)/TAR/$(TARDIR) -type f -exec chmod a+r {} \;
 	( cd $(TMPDIR)/TAR ; @TAR@ @TARFLAGS@ $(TMPDIR)/TAR/$(DTARFILE) $(TARDIR) )
 	-@cp $(TMPDIR)/TAR/$(DTARFILE) .
 	-@chmod 644 $(DTARFILE)
@@ -119,10 +106,14 @@ dtar:
 	-@/bin/ls -l $(DTARFILE)
 
 dgz: dtar
-	gzip -c $(DTARFILE) > $(DTGZFILE)
-	-@rm $(DTARFILE)
+	gzip $(DTARFILE)
 	-@chmod 644 $(DTGZFILE)
 	-@/bin/ls -l $(DTGZFILE)
 
+dbz: dtar
+	bzip2 $(DTARFILE)
+	-@chmod 644 $(DTBZFILE)
+	-@/bin/ls -l $(DTBZFILE)
+
 sgz gz:
-	./sh/mksrctar.sh $(TARDIR) $(STGZFILE)
+	./sh/mksrctar.sh $(TARDIR) $(STGZFILE) '@TAR@' '@TARFLAGS@'

@@ -8,16 +8,11 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #if defined(WIN32) || defined(_WINDOWS)
-#	include "..\ncftp\getopt.h"
-#	define getopt Getopt
-#	define optarg gOptArg
-#	define optind gOptInd
-	WSADATA wsaData;
-	int wsaInit = 0;
-
-	__inline void DisposeWinsock(int aUNUSED) { if (wsaInit > 0) WSACleanup(); wsaInit--; }
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
@@ -31,7 +26,6 @@
 
 #include "gpshare.h"
 
-
 FTPLibraryInfo gLib;
 FTPConnectionInfo fi;
 
@@ -42,10 +36,7 @@ extern char gFirewallPass[32];
 extern unsigned int gFirewallPort;
 extern char gFirewallExceptionList[256];
 extern int gFwDataPortMode;
-extern char gOS[], gVersion[];
-
-extern char *optarg;
-extern int optind;
+extern const char gOS[], gVersion[];
 
 static void
 Usage(void)
@@ -87,7 +78,7 @@ Usage(void)
 	(void) fprintf(fp, "This was built using LibNcFTP (http://www.ncftp.com/libncftp).\n");
 
 	ClosePager(fp);
-	DisposeWinsock(0);
+	DisposeWinsock();
 	exit(kExitUsage);
 }	/* Usage */
 
@@ -95,10 +86,9 @@ Usage(void)
 
 
 static void
-Abort(int UNUSED(sigNum))
+Abort(int sigNum)
 {
-	LIBNCFTP_USE_VAR(sigNum);
-	signal(SIGINT, Abort);
+	signal(sigNum, Abort);
 
 	/* Hopefully the I/O operation in progress
 	 * will complete, and we'll abort before
@@ -111,7 +101,7 @@ Abort(int UNUSED(sigNum))
 	 * next ^C abends the program.
 	 */
 	if (fi.cancelXfer >= 2)
-		signal(SIGINT, SIG_DFL);
+		signal(sigNum, SIG_DFL);
 }	/* Abort */
 
 
@@ -150,28 +140,28 @@ SetLsFlags(char *dst, size_t dsize, int *longMode, const char *src)
 
 
 
-int
+main_void_return_t
 main(int argc, char **argv)
 {
 	int result, c;
 	FTPConnectionInfo savedfi;
 	FTPConnectionInfo startfi;
-	const char * volatile errstr;
-	volatile ExitStatus es;
+	ExitStatus es;
 	char url[256];
 	char urlfile[128];
 	char rootcwd[256];
 	char curcwd[256];
 	int longMode = 0;
-	volatile int i;
+	int i;
 	char lsflag[32] = "";
 	LineList cdlist;
 	int rc;
-	volatile int ndirs;
+	int ndirs;
 	int dfmode = 0;
 	ResponsePtr rp;
 	FILE *ofp;
 	char precmd[320], postcmd[320], perfilecmd[320];
+	GetoptInfo opt;
 
 	InitWinsock();
 #if (defined(SOCKS)) && (SOCKS >= 5)
@@ -183,13 +173,13 @@ main(int argc, char **argv)
 	result = FTPInitLibrary(&gLib);
 	if (result < 0) {
 		(void) fprintf(stderr, "ncftpls: init library error %d (%s).\n", result, FTPStrError(result));
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit(kExitInitLibraryFailed);
 	}
 	result = FTPInitConnectionInfo(&gLib, &fi, kDefaultFTPBufSize);
 	if (result < 0) {
 		(void) fprintf(stderr, "ncftpls: init connection info error %d (%s).\n", result, FTPStrError(result));
-		DisposeWinsock(0);
+		DisposeWinsock();
 		exit(kExitInitConnInfoFailed);
 	}
 
@@ -213,50 +203,51 @@ main(int argc, char **argv)
 	perfilecmd[0] = '\0';
 	es = kExitSuccess;
 
-	while ((c = getopt(argc, argv, "1lx:P:u:j:p:e:d:t:r:f:EFKW:X:Y:")) > 0) switch(c) {
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "1lx:P:u:j:p:e:d:t:r:f:EFKW:X:Y:")) > 0) switch(c) {
 		case 'P':
-			fi.port = atoi(optarg);	
+			fi.port = atoi(opt.arg);	
 			break;
 		case 'u':
-			(void) STRNCPY(fi.user, optarg);
-			memset(optarg, '*', strlen(fi.user));
+			(void) STRNCPY(fi.user, opt.arg);
+			memset(opt.arg, '*', strlen(fi.user));
 			break;
 		case 'j':
-			(void) STRNCPY(fi.acct, optarg);
-			memset(optarg, '*', strlen(fi.acct));
+			(void) STRNCPY(fi.acct, opt.arg);
+			memset(opt.arg, '*', strlen(fi.acct));
 			break;
 		case 'p':
-			(void) STRNCPY(fi.pass, optarg);	/* Don't recommend doing this! */
-			memset(optarg, '*', strlen(fi.pass));
+			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			memset(opt.arg, '*', strlen(fi.pass));
 			break;
 		case 'e':
-			if (strcmp(optarg, "stdout") == 0)
+			if (strcmp(opt.arg, "stdout") == 0)
 				fi.errLog = stdout;
-			else if (optarg[0] == '-')
+			else if (opt.arg[0] == '-')
 				fi.errLog = stdout;
-			else if (strcmp(optarg, "stderr") == 0)
+			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.errLog = stderr;
 			else
-				fi.errLog = fopen(optarg, "a");
+				fi.errLog = fopen(opt.arg, "a");
 			break;
 		case 'd':
-			if (strcmp(optarg, "stdout") == 0)
+			if (strcmp(opt.arg, "stdout") == 0)
 				fi.debugLog = stdout;
-			else if (optarg[0] == '-')
+			else if (opt.arg[0] == '-')
 				fi.debugLog = stdout;
-			else if (strcmp(optarg, "stderr") == 0)
+			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.debugLog = stderr;
 			else
-				fi.debugLog = fopen(optarg, "a");
+				fi.debugLog = fopen(opt.arg, "a");
 			break;
 		case 't':
-			SetTimeouts(&fi, optarg);
+			SetTimeouts(&fi, opt.arg);
 			break;
 		case 'r':
-			SetRedial(&fi, optarg);
+			SetRedial(&fi, opt.arg);
 			break;
 		case 'f':
-			ReadConfigFile(optarg, &fi);
+			ReadConfigFile(opt.arg, &fi);
 			break;
 		case 'E':
 			fi.dataPortMode = kSendPortMode;
@@ -271,51 +262,51 @@ main(int argc, char **argv)
 			SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-1");
 			break;
 		case 'x':
-			SetLsFlags(lsflag, sizeof(lsflag), &longMode, optarg);
+			SetLsFlags(lsflag, sizeof(lsflag), &longMode, opt.arg);
 			break;
 		case 'K':
 			dfmode++;
 			break;
 		case 'W':
-			STRNCAT(precmd, optarg);
+			STRNCAT(precmd, opt.arg);
 			STRNCAT(precmd, "\n");
 			break;
 		case 'X':
-			STRNCAT(perfilecmd, optarg);
+			STRNCAT(perfilecmd, opt.arg);
 			STRNCAT(perfilecmd, "\n");
 			break;
 		case 'Y':
-			STRNCAT(postcmd, optarg);
+			STRNCAT(postcmd, opt.arg);
 			STRNCAT(postcmd, "\n");
 			break;
 		default:
 			Usage();
 	}
-	if (optind > argc - 1)
+	if (opt.ind > argc - 1)
 		Usage();
 
 	InitOurDirectory();
 
 	startfi = fi;
 	memset(&savedfi, 0, sizeof(savedfi));
-	ndirs = argc - optind;
-	for (i=optind; i<argc; i++) {
+	ndirs = argc - opt.ind;
+	for (i=opt.ind; i<argc; i++) {
 		fi = startfi;
 		(void) STRNCPY(url, argv[i]);
 		rc = FTPDecodeURL(&fi, url, &cdlist, urlfile, sizeof(urlfile), (int *) 0, NULL);
 		(void) STRNCPY(url, argv[i]);
 		if (rc == kMalformedURL) {
 			(void) fprintf(stderr, "Malformed URL: %s\n", url);
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit(kExitMalformedURL);
 		} else if (rc == kNotURL) {
 			(void) fprintf(stderr, "Not a URL: %s\n", url);
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit(kExitMalformedURL);
 		} else if (urlfile[0] != '\0') {
 			/* It not obviously a directory, and they didn't say -R. */
 			(void) fprintf(stderr, "Not a directory URL: %s\n", url);
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit(kExitMalformedURL);
 		}
 		
@@ -326,15 +317,13 @@ main(int argc, char **argv)
 			if (FTPChdir(&fi, rootcwd) < 0) {
 				FTPPerror(&fi, fi.errNo, kErrCWDFailed, "ncftpls: Could not chdir to", rootcwd);
 				es = kExitChdirFailed;
-				DisposeWinsock(0);
+				DisposeWinsock();
 				exit((int) es);
 			}
 		} else {
 			if (savedfi.connected != 0) {
-				errstr = "could not run post-command remote host";
 				(void) AdditionalCmd(&fi, postcmd, NULL);
 
-				errstr = "could not close remote host";
 				(void) FTPCloseHost(&savedfi);
 			}
 			memset(&savedfi, 0, sizeof(savedfi));
@@ -354,54 +343,48 @@ main(int argc, char **argv)
 			}
 			
 			es = kExitOpenTimedOut;
-			errstr = "could not open remote host";
 			if ((result = FTPOpenHost(&fi)) < 0) {
 				(void) fprintf(stderr, "ncftpls: cannot open %s: %s.\n", fi.host, FTPStrError(result));
 				es = kExitOpenFailed;
-				DisposeWinsock(0);
+				DisposeWinsock();
 				exit((int) es);
 			}
 
 			if (fi.hasCLNT != kCommandNotAvailable)
 				(void) FTPCmd(&fi, "CLNT NcFTPLs %.5s %s", gVersion + 11, gOS);
 
-			errstr = "could not run pre-command remote host";
 			(void) AdditionalCmd(&fi, precmd, NULL);
 			
-			errstr = "could not get current remote working directory from remote host";
 			if (FTPGetCWD(&fi, rootcwd, sizeof(rootcwd)) < 0) {
-				FTPPerror(&fi, fi.errNo, kErrPWDFailed, "ncftpls", errstr);
+				FTPPerror(&fi, fi.errNo, kErrPWDFailed, "ncftpls", "could not get current remote working directory");
 				es = kExitChdirFailed;
-				DisposeWinsock(0);
+				DisposeWinsock();
 				exit((int) es);
 			}
 		}
 		
-		errstr = "could not change directory on remote host";
 		es = kExitChdirTimedOut;
 		if ((FTPChdirList(&fi, &cdlist, NULL, 0, (kChdirFullPath|kChdirOneSubdirAtATime))) != 0) {
 			FTPPerror(&fi, fi.errNo, kErrCWDFailed, "ncftpls: Could not change directory", NULL);
 			es = kExitChdirFailed;
-			DisposeWinsock(0);
+			DisposeWinsock();
 			exit((int) es);
 		}
 		
 		if (ndirs > 1) {
 			fprintf(stdout, "%s%s\n\n",
-				(i > optind) ? "\n\n\n" : "", url);
+				(i > opt.ind) ? "\n\n\n" : "", url);
 		}
 		fflush(stdout);
 	
 		if (dfmode != 0) {
-			errstr = "could not get current remote working directory from remote host";
 			if (FTPGetCWD(&fi, curcwd, sizeof(curcwd)) < 0) {
-				FTPPerror(&fi, fi.errNo, kErrPWDFailed, "ncftpls", errstr);
+				FTPPerror(&fi, fi.errNo, kErrPWDFailed, "ncftpls", "could not get current remote working directory from remote host");
 				es = kExitChdirFailed;
-				DisposeWinsock(0);
+				DisposeWinsock();
 				exit((int) es);
 			}
 
-			errstr = "could not get disk usage from remote host";
 			rp = InitResponse();
 			if (rp != NULL) {
 				result = RCmd(&fi, rp, "SITE DF %s", curcwd);
@@ -415,7 +398,6 @@ main(int argc, char **argv)
 				continue;	/* Don't bother with the listing unless -KK. */
 		}
 
-		errstr = "could not read file from remote host";
 		es = kExitXferTimedOut;
 		(void) signal(SIGINT, Abort);
 		if (FTPList(&fi, STDOUT_FILENO, longMode, lsflag) < 0) {
@@ -429,12 +411,10 @@ main(int argc, char **argv)
 		(void) signal(SIGINT, SIG_DFL);
 	}
 
-	errstr = "could not run post-command remote host";
 	(void) AdditionalCmd(&fi, postcmd, NULL);
 	
-	errstr = "could not close remote host";
 	(void) FTPCloseHost(&fi);
 
-	DisposeWinsock(0);
+	DisposeWinsock();
 	exit((int) es);
 }	/* main */

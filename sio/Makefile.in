@@ -3,9 +3,9 @@
 # SocketIO makefile for the platform @OS@, on the host @host@.
 #
 #-----------------------------------------------------------------------------
-VER=6.0.2
+VER=@SIO_VERSION@
 CC=@CC@
-CFLAGS=@CFLAGS@@NDEFS@
+CFLAGS=@CFLAGS@
 #CFLAGS=-O2 -g -W -Wall -Wimplicit -Wstrict-prototypes -Wmissing-prototypes
 VPATH=@srcdir@
 CPPFLAGS=@CPPFLAGS@
@@ -19,37 +19,44 @@ LIBSO=libsio.so.5
 LIBSOS=libsio.so
 STRIP=strip
 
-OBJS=\
-PRead.o		  PWrite.o	    SAcceptA.o	      SAcceptS.o \
-SBind.o		  SClose.o	    SConnect.o	      SConnectByName.o \
-SNew.o		  SRead.o	    SReadline.o       SRecv.o \
-SRecvfrom.o	  SRecvmsg.o	    SSelect.o	      SSend.o \
-SSendto.o	  SSendtoByName.o   SWrite.o	      SocketUtil.o \
-StrAddr.o	  UAcceptA.o	    UAcceptS.o	      UBind.o \
-UConnect.o	  UConnectByName.o  UNew.o	      URecvfrom.o \
-USendto.o	  USendtoByName.o   SError.o          main.o \
-SWait.o
+OBJS_U=\
+UAcceptA.o  UAcceptS.o	UBind.o      UConnectByName.o \
+UConnect.o  UNew.o	URecvfrom.o  USendtoByName.o \
+USendto.o
 
-SOBJS=\
-PRead.so	   PWrite.so	      SAcceptA.so	 SAcceptS.so \
-SBind.so	   SClose.so	      SConnect.so	 SConnectByName.so \
-SNew.so		   SRead.so	      SReadline.so	 SRecv.so \
-SRecvfrom.so	   SRecvmsg.so	      SSelect.so	 SSend.so \
-SSendto.so	   SSendtoByName.so   SWrite.so		 SocketUtil.so \
-StrAddr.so	   UAcceptA.so	      UAcceptS.so	 UBind.so \
-UConnect.so	   UConnectByName.so  UNew.so		 URecvfrom.so \
-USendto.so	   USendtoByName.so   SError.so          main.so \
-SWait.so
+OBJS=@SIO_OBJS_U@\
+main.o	     PRead.o	PWrite.o     SAcceptA.o \
+SAcceptS.o   SBind.o	SClose.o     SConnectByName.o \
+SConnect.o   SError.o	SNew.o	     SocketUtil.o \
+SReadline.o  SRead.o	SRecvfrom.o  SRecvmsg.o \
+SRecv.o      SSelect.o	SSend.o      SSendtoByName.o \
+SSendto.o    StrAddr.o	SWait.o      SWrite.o \
+DNSUtil.o
+
+SOBJS_U=\
+UAcceptA.so  UAcceptS.so  UBind.so	UConnectByName.so \
+UConnect.so  UNew.so	  URecvfrom.so	USendtoByName.so \
+USendto.so
+
+SOBJS=@SIO_SOBJS_U@\
+main.so       PRead.so	  PWrite.so	SAcceptA.so \
+SAcceptS.so   SBind.so	  SClose.so	SConnectByName.so \
+SConnect.so   SError.so   SNew.so	SocketUtil.so \
+SReadline.so  SRead.so	  SRecvfrom.so	SRecvmsg.so \
+SRecv.so      SSelect.so  SSend.so	SSendtoByName.so \
+SSendto.so    StrAddr.so  SWait.so	SWrite.so \
+DNSUtil.so
 
 all: $(LIB)
 	-@/bin/ls -l $(LIB)
 	-@echo 'Done.'
 
 $(LIB): $(OBJS)
-	/bin/rm -f $(LIB)
-	ar rv $(LIB) $(OBJS)
+	-@/bin/rm -f $(LIB)
+	@CCDV@ar r $(LIB) $(OBJS)
 	-@RANLIB@ $(LIB)
-	chmod a+r $(LIB) sio.h usio.h
+	-@echo $(VER) > sio.version
+	-@chmod a+r $(LIB) sio.h usio.h
 
 install: $(LIB)
 	cp $(LIB) $(PREFIX)/lib/$(LIB)
@@ -96,15 +103,15 @@ SHELL=/bin/sh
 .SUFFIXES: .c .o .so
 
 .c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -c
+	@CCDV@$(CC) $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -c
 
 .c.so:
-	$(CC) -fpic $(CFLAGS) $(CPPFLAGS) $(DEFS) $*.c -c -o $*.so
+	@CCDV@$(CC) -fpic $(CFLAGS) $(CPPFLAGS) $(DEFS) $*.c -c -o $*.so
 
 ### Cleaning supplies ########################################################
 
 clean:
-	-/bin/rm -f $(OBJS) $(SOBJS) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s
+	-/bin/rm -f *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch
 
 distclean:	clean
 	-/bin/rm -f config.h Makefile config.status config.cache config.log
@@ -112,14 +119,15 @@ distclean:	clean
 ### Archiving #################################################################
 
 CFILES=\
-PRead.c		  PWrite.c	    SAcceptA.c	      SAcceptS.c \
-SBind.c		  SClose.c	    SConnect.c	      SConnectByName.c \
-SNew.c		  SRead.c	    SReadline.c       SRecv.c \
-SRecvfrom.c	  SRecvmsg.c	    SSelect.c	      SSend.c \
-SSendto.c	  SSendtoByName.c   SWrite.c	      SocketUtil.c \
-StrAddr.c	  UAcceptA.c	    UAcceptS.c	      UBind.c \
-UConnect.c	  UConnectByName.c  UNew.c	      URecvfrom.c \
-USendto.c	  USendtoByName.c   SWait.c           main.c	      
+DNSUtil.c	  main.c	    PRead.c	 PWrite.c \
+SAcceptA.c	  SAcceptS.c	    SBind.c	 SClose.c \
+SConnectByName.c  SConnect.c	    SError.c	 SNew.c \
+SocketUtil.c	  SRead.c	    SReadline.c  SRecv.c \
+SRecvfrom.c	  SRecvmsg.c	    srltest.c	 SSelect.c \
+SSend.c		  SSendtoByName.c   SSendto.c	 StrAddr.c \
+SWait.c		  SWrite.c	    UAcceptA.c	 UAcceptS.c \
+UBind.c		  UConnectByName.c  UConnect.c	 UNew.c \
+URecvfrom.c	  USendtoByName.c   USendto.c
 
 HFILES=sio.h usio.h
 
@@ -146,7 +154,7 @@ tar: $(PACKAGE)
 	-@mkdir $(TMPDIR)/TAR
 	-@mkdir $(TMPDIR)/TAR/$(TARDIR)
 	-@chmod ga+r $(PACKAGE)
-	find . -depth -type f -print | cut -c3- | grep -v '.o$$' | grep -v '.so$$' | grep -v 'core$$' | grep -v 'Makefile$$' | grep -v 'config.log$$' | grep -v 'config.h$$' | grep -v 'config.cache$$' | grep -v 'config.status$$' | grep -v '.a$$' | grep -v '.lib$$' | grep -v '.ncb$$' | grep -v '.opt$$' | grep -v '.zip$$' | grep -v '.gz$$' | grep -v '.swp$$' | grep -v '.tar$$' | cpio -pdm $(TMPDIR)/TAR/$(TARDIR)
+	find . -follow -depth -type f -print | cut -c3- | egrep -i -v '((\.(o|so|log|a|lib|ncb|obj|exe|idb|cache|opt|zip|gz|swp|tar|plg))|(config\.h))$$' | cpio -Lpdm $(TMPDIR)/TAR/$(TARDIR)
 	( cd $(TMPDIR)/TAR ; tar cf $(TARFILE) $(TARDIR) )
 	cp $(TMPDIR)/TAR/$(TARFILE) .
 	-@chmod 644 $(TARFILE)
@@ -161,35 +169,37 @@ gz: tar
 
 ### Dependencies #############################################################
 
-PRead.o: PRead.c sio.h
-PWrite.o: PWrite.c sio.h
-SAcceptA.o: SAcceptA.c sio.h
-SAcceptS.o: SAcceptS.c sio.h
-SBind.o: SBind.c sio.h
-SClose.o: SClose.c sio.h
-SConnect.o: SConnect.c sio.h
-SConnectByName.o: SConnectByName.c sio.h
-SNew.o: SNew.c sio.h
-SRead.o: SRead.c sio.h
-SReadline.o: SReadline.c sio.h
-SRecv.o: SRecv.c sio.h
-SRecvfrom.o: SRecvfrom.c sio.h
-SRecvmsg.o: SRecvmsg.c sio.h
-SSelect.o: SSelect.c sio.h
-SSend.o: SSend.c sio.h
-SSendto.o: SSendto.c sio.h
-SSendtoByName.o: SSendtoByName.c sio.h
-SWrite.o: SWrite.c sio.h
-SWait.o: SWait.c sio.h
-SocketUtil.o: SocketUtil.c sio.h
-StrAddr.o: StrAddr.c sio.h
-UAcceptA.o: UAcceptA.c sio.h usio.h
-UAcceptS.o: UAcceptS.c sio.h usio.h
-UBind.o: UBind.c sio.h usio.h
-UConnect.o: UConnect.c sio.h usio.h
-UConnectByName.o: UConnectByName.c sio.h usio.h
-UNew.o: UNew.c sio.h usio.h
-URecvfrom.o: URecvfrom.c sio.h usio.h
-USendto.o: USendto.c sio.h usio.h
-USendtoByName.o: USendtoByName.c sio.h usio.h
-main.o: main.c sio.h
+@SIO_PRECOMP@
+
+PRead.o: PRead.c $(SYSHDRS_DEP)
+PWrite.o: PWrite.c $(SYSHDRS_DEP)
+SAcceptA.o: SAcceptA.c $(SYSHDRS_DEP)
+SAcceptS.o: SAcceptS.c $(SYSHDRS_DEP)
+SBind.o: SBind.c $(SYSHDRS_DEP)
+SClose.o: SClose.c $(SYSHDRS_DEP)
+SConnect.o: SConnect.c $(SYSHDRS_DEP)
+SConnectByName.o: SConnectByName.c $(SYSHDRS_DEP)
+SNew.o: SNew.c $(SYSHDRS_DEP)
+SRead.o: SRead.c $(SYSHDRS_DEP)
+SReadline.o: SReadline.c $(SYSHDRS_DEP)
+SRecv.o: SRecv.c $(SYSHDRS_DEP)
+SRecvfrom.o: SRecvfrom.c $(SYSHDRS_DEP)
+SRecvmsg.o: SRecvmsg.c $(SYSHDRS_DEP)
+SSelect.o: SSelect.c $(SYSHDRS_DEP)
+SSend.o: SSend.c $(SYSHDRS_DEP)
+SSendto.o: SSendto.c $(SYSHDRS_DEP)
+SSendtoByName.o: SSendtoByName.c $(SYSHDRS_DEP)
+SWrite.o: SWrite.c $(SYSHDRS_DEP)
+SWait.o: SWait.c $(SYSHDRS_DEP)
+SocketUtil.o: SocketUtil.c $(SYSHDRS_DEP)
+StrAddr.o: StrAddr.c $(SYSHDRS_DEP)
+UAcceptA.o: UAcceptA.c $(SYSHDRS_DEP)
+UAcceptS.o: UAcceptS.c $(SYSHDRS_DEP)
+UBind.o: UBind.c $(SYSHDRS_DEP)
+UConnect.o: UConnect.c $(SYSHDRS_DEP)
+UConnectByName.o: UConnectByName.c $(SYSHDRS_DEP)
+UNew.o: UNew.c $(SYSHDRS_DEP)
+URecvfrom.o: URecvfrom.c $(SYSHDRS_DEP)
+USendto.o: USendto.c $(SYSHDRS_DEP)
+USendtoByName.o: USendtoByName.c $(SYSHDRS_DEP)
+main.o: main.c $(SYSHDRS_DEP)

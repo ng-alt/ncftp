@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #ifdef HAVE_LONG_FILE_NAMES
 
@@ -19,10 +22,11 @@ int gUnprocessedJobs = 0;
 int gJobs = 0;
 int gHaveSpool = -1;
 
-extern FTPLibraryInfo gLib;
-extern char gOurDirectoryPath[], gOurInstallationPath[];
+extern char gOurDirectoryPath[];
 extern void CloseControlConnection(const FTPCIPtr);
-extern int gSpoolSerial;
+#if defined(WIN32) || defined(_WINDOWS)
+extern char gOurInstallationPath[];
+#endif
 
 void
 TruncBatchLog(void)
@@ -104,41 +108,6 @@ CanSpool(void)
 
 
 
-#if defined(WIN32) || defined(_WINDOWS)
-#else
-static int
-PWrite(int sfd, const char *const buf0, size_t size)
-{
-	int nleft;
-	const char *buf = buf0;
-	int nwrote;
-
-	nleft = (int) size;
-	for (;;) {
-		nwrote = (int) write(sfd, buf, nleft);
-		if (nwrote < 0) {
-			if (errno != EINTR) {
-				nwrote = (int) size - nleft;
-				if (nwrote == 0)
-					nwrote = -1;
-				return (nwrote);
-			} else {
-				errno = 0;
-				nwrote = 0;
-				/* Try again. */
-			}
-		}
-		nleft -= nwrote;
-		if (nleft <= 0)
-			break;
-		buf += nwrote;
-	}
-	nwrote = (int) size - nleft;
-	return (nwrote);
-}	/* PWrite */
-#endif
-
-
 
 void
 Jobs(void)
@@ -160,8 +129,8 @@ Jobs(void)
 	if (pid < 0) {
 		perror("fork");
 	} else if (pid == 0) {
-		argv[0] = (char *) "ncftpbatch";
-		argv[1] = (char *) "-l";
+		argv[0] = strdup("ncftpbatch");
+		argv[1] = strdup("-l");
 		argv[2] = NULL;
 
 #ifdef BINDIR
@@ -216,18 +185,18 @@ RunBatchWithCore(const FTPCIPtr cip)
 		perror("fork");
 	} else if (pid == 0) {
 		(void) close(pfd[1]);	/* Child closes write end. */
-		argv[0] = (char *) "ncftpbatch";
+		argv[0] = strdup("ncftpbatch");
 #ifdef DEBUG_NCFTPBATCH
-		argv[1] = (char *) "-D";
-		argv[2] = (char *) "-Z";
-		argv[3] = (char *) "15";
-		argv[4] = (char *) "-|";
-		argv[5] = pfdstr;
+		argv[1] = strdup("-D");
+		argv[2] = strdup("-Z");
+		argv[3] = strdup("15");
+		argv[4] = strdup("-|");
+		argv[5] = strdup(pfdstr);
 		argv[6] = NULL;
 #else
-		argv[1] = (char *) "-d";
-		argv[2] = (char *) "-|";
-		argv[3] = pfdstr;
+		argv[1] = strdup("-d");
+		argv[2] = strdup("-|");
+		argv[3] = strdup(pfdstr);
 		argv[4] = NULL;
 #endif
 

@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 #include "shell.h"
 #include "trace.h"
 #include "util.h"
@@ -16,6 +19,7 @@ char gHome[256];
 char gShell[256];
 char gOurDirectoryPath[260];
 char gOurInstallationPath[260];
+int gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
 #ifdef ncftp
 static int gResolveSig;
 #endif
@@ -182,58 +186,18 @@ OutOfMemory(void)
 
 
 void
-MyInetAddr(char *dst, size_t siz, char **src, int i)
+MyInetAddr(char *dst, size_t siz, void *src, int i)
 {
 	struct in_addr *ia;
-#ifndef HAVE_INET_NTOP
-	char *cp;
-#endif
 
 	(void) Strncpy(dst, "???", siz);
-	if (src != (char **) 0) {
-		ia = (struct in_addr *) src[i];
-#ifdef HAVE_INET_NTOP	/* Mostly to workaround bug in IRIX 6.5's inet_ntoa */
-		(void) inet_ntop(AF_INET, ia, dst, siz - 1);
-#else
-		cp = inet_ntoa(*ia);
-		if ((cp != (char *) 0) && (cp != (char *) -1) && (cp[0] != '\0'))
-			(void) Strncpy(dst, cp, siz);
-#endif
+	if (src != NULL) {
+		ia = ((struct in_addr **) src)[i];
+		InetNtoA(dst, ia, siz);
 	}
 }	/* MyInetAddr */
 
 
-
-
-/* On entry, you should have 'host' be set to a symbolic name (like
- * cse.unl.edu), or set to a numeric address (like 129.93.3.1).
- * If the function fails, it will return NULL, but if the host was
- * a numeric style address, you'll have the ip_address to fall back on.
- */
-
-struct hostent *
-GetHostEntry(const char *host, struct in_addr *ip_address)
-{
-	struct in_addr ip;
-	struct hostent *hp;
-	
-	/* See if the host was given in the dotted IP format, like "36.44.0.2."
-	 * If it was, inet_addr will convert that to a 32-bit binary value;
-	 * it not, inet_addr will return (-1L).
-	 */
-	ip.s_addr = inet_addr(host);
-	if (ip.s_addr != INADDR_NONE) {
-		hp = gethostbyaddr((char *) &ip, (int) sizeof(ip), AF_INET);
-	} else {
-		/* No IP address, so it must be a hostname, like ftp.wustl.edu. */
-		hp = gethostbyname(host);
-		if (hp != NULL)
-			ip = * (struct in_addr *) hp->h_addr_list;
-	}
-	if (ip_address != NULL)
-		*ip_address = ip;
-	return (hp);
-}	/* GetHostEntry */
 
 
 
@@ -375,7 +339,7 @@ PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *
 	char tmp[512];
 
 	if (dosCompat != 0) {
-		if ((isalpha(cwd[0])) && (cwd[1] == ':')) {
+		if ((isalpha((int) cwd[0])) && (cwd[1] == ':')) {
 			/* A new fully-qualified DOS path was requested. */
 			CompressPath(dst, src, dsize);
 			return;
@@ -385,7 +349,7 @@ PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *
 		CompressPath(dst, src, dsize);
 		return;
 	}
-	cp = Strnpcpy(tmp, (char *) cwd, sizeof(tmp) - 1);
+	cp = Strnpcpy(tmp, cwd, sizeof(tmp) - 1);
 	if (dosCompat) {
 		if ((dst[1] != ':') || (dst[2] == '/'))
 			*cp++ = '/';
@@ -395,7 +359,7 @@ PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *
 		*cp++ = '/';
 	}
 	*cp = '\0';
-	(void) Strnpcat(cp, (char *) src, sizeof(tmp) - (cp - tmp));
+	(void) Strnpcat(cp, src, sizeof(tmp) - (cp - tmp));
 	CompressPath(dst, tmp, dsize);
 }	/* PathCat */
 
@@ -475,14 +439,14 @@ AbbrevStr(char *dst, const char *src, size_t max, int mode)
 		if (mode == 0) {
 			/* ...Put ellipses at left */
 			(void) strcpy(dst, "...");
-			(void) Strncat(dst, (char *) src + len - (int) max + 3, max + 1);
+			(void) Strncat(dst, src + len - (int) max + 3, max + 1);
 		} else {
 			/* Put ellipses at right... */
-			(void) Strncpy(dst, (char *) src, max + 1);
+			(void) Strncpy(dst, src, max + 1);
 			(void) strcpy(dst + max - 3, "...");
 		}
 	} else {
-		(void) Strncpy(dst, (char *) src, max + 1);
+		(void) Strncpy(dst, src, max + 1);
 	}
 }	/* AbbrevStr */
 
@@ -776,7 +740,6 @@ StrToBool(const char *const s)
 	result = 0;
 	switch (c) {
 		case 'f':			       /* false */
-			/*FALLTHROUGH*/
 		case 'n':			       /* no */
 			break;
 		case 'o':			       /* test for "off" and "on" */
@@ -785,9 +748,9 @@ StrToBool(const char *const s)
 				c = tolower(c);
 			if (c == 'f')
 				break;
-			/*FALLTHROUGH*/
+			result = 1;
+			break;
 		case 't':			       /* true */
-			/*FALLTHROUGH*/
 		case 'y':			       /* yes */
 			result = 1;
 			break;
@@ -843,7 +806,7 @@ CancelGetHostByName(int sigNum)
 
 
 int
-GetHostByName(char *const volatile dst, size_t dsize, const char *const hn, int t)
+MyGetHostByName(char *const volatile dst, size_t dsize, const char *const hn, int t)
 {
 #if defined(WIN32) || defined(_WINDOWS)
 	struct hostent *hp;
@@ -858,7 +821,7 @@ GetHostByName(char *const volatile dst, size_t dsize, const char *const hn, int 
 	hp = gethostbyname(hn);
 	if (hp != NULL) {
 		(void) memcpy(&ina.s_addr, hp->h_addr_list[0], (size_t) hp->h_length);
-		(void) Strncpy(dst, inet_ntoa(ina), dsize);
+		InetNtoA(dst, ((struct in_addr **) hp->h_addr_list)[0], dsize);
 		return (0);
 	}
 
@@ -866,7 +829,7 @@ GetHostByName(char *const volatile dst, size_t dsize, const char *const hn, int 
 	int sj;
 	vsigproc_t osigpipe, osigint, osigalrm;
 	struct hostent *hp;
-#ifndef HAVE_INET_NTOP
+#ifdef HAVE_INET_ATON
 	struct in_addr ina;
 #endif
 
@@ -914,13 +877,7 @@ GetHostByName(char *const volatile dst, size_t dsize, const char *const hn, int 
 		(void) NcSignal(SIGINT, osigint);
 		(void) NcSignal(SIGALRM, osigalrm);
 		if (hp != NULL) {
-#ifdef HAVE_INET_NTOP	/* Mostly to workaround bug in IRIX 6.5's inet_ntoa */
-			(void) memset(dst, 0, dsize);
-			(void) inet_ntop(AF_INET, hp->h_addr_list[0], dst, dsize - 1);
-#else
-			(void) memcpy(&ina.s_addr, hp->h_addr_list[0], (size_t) hp->h_length);
-			(void) Strncpy(dst, inet_ntoa(ina), dsize);
-#endif
+			InetNtoA(dst, ((struct in_addr **) hp->h_addr_list)[0], dsize);
 			return (0);
 		}
 	}
@@ -928,7 +885,7 @@ GetHostByName(char *const volatile dst, size_t dsize, const char *const hn, int 
 
 	*dst = '\0';
 	return (-1);
-}	/* GetHostByName */
+}	/* MyGetHostByName */
 
 
 
@@ -939,19 +896,10 @@ time_t UnDate(char *dstr)
 #ifndef HAVE_MKTIME
 	return ((time_t) -1);
 #else
-	struct tm ut, *t;
-	time_t now;
+	struct tm ut;
 	time_t result = (time_t) -1;
 
-	(void) time(&now);
-	t = localtime(&now);
-
-	/* Copy the whole structure of the 'tm' pointed to by t, so it will
-	 * also set all fields we don't specify explicitly to be the same as
-	 * they were in t.  That way we copy non-standard fields such as
-	 * tm_gmtoff, if it exists or not.
-	 */
-	ut = *t;
+	(void) Localtime(0, &ut);
 
 	/* The time we get back from the server is (should be) in UTC. */
 	if (sscanf(dstr, "%04d%02d%02d%02d%02d%02d",
@@ -1152,7 +1100,7 @@ void SysPerror(const char *const errMsg)
 		NULL
 		);
 
-	if (reason[strlen(reason) - 1] = '\n')
+	if (reason[strlen(reason) - 1] == '\n')
 		reason[strlen(reason) - 1] = '\0';
 	(void) fprintf(stderr, "%s: %s\n", errMsg, reason);
 }	/* SysPerror */

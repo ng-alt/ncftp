@@ -72,10 +72,12 @@ typedef int (*cmp_t)(const void *, const void *);
 
 
 /* Util.c */
-char *FGets(char *, size_t, FILE *);
-struct passwd *GetPwByName(void);
-void GetHomeDir(char *, size_t);
-void GetUsrName(char *, size_t);
+#if defined(WIN32) || defined(_WINDOWS)
+#else
+int GetMyPwEnt(struct passwd *pwp, char *const pwbuf, size_t pwbufsize);
+int GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbufsize);
+int GetPwNam(struct passwd *pwp, const char *const nam, char *const pwbuf, size_t pwbufsize);
+#endif
 void CloseFile(FILE **);
 void PrintF(const FTPCIPtr cip, const char *const fmt, ...)
 #if (defined(__GNUC__)) && (__GNUC__ >= 2)
@@ -87,10 +89,6 @@ void Error(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
 __attribute__ ((format (printf, 3, 4)))
 #endif
 ;
-int GetSockBufSize(int sockfd, size_t *rsize, size_t *ssize);
-int SetSockBufSize(int sockfd, size_t rsize, size_t ssize);
-time_t UnMDTMDate(char *);
-void Scramble(unsigned char *dst, size_t dsize, unsigned char *src, char *key);
 #if defined(WIN32) || defined(_WINDOWS)
 char *StrFindLocalPathDelim(const char *src);
 char *StrRFindLocalPathDelim(const char *src);
@@ -99,10 +97,51 @@ void LocalPathToTVFSPath(char *dst);
 int gettimeofday(struct timeval *const tp, void *junk);
 #endif
 
-#ifdef HAVE_SIGACTION
-void (*NcSignal(int signum, void (*handler)(int)))(int);
-#elif !defined(NcSignal)
-#	define NcSignal signal
-#endif
+/* io_util.c */
+void AutomaticallyUseASCIIModeDependingOnExtension(const FTPCIPtr cip, const char *const pathName, int *const xtype);
+void FTPCheckForRestartModeAvailability(const FTPCIPtr cip);
+int WaitForRemoteInput(const FTPCIPtr cip);
+int WaitForRemoteOutput(const FTPCIPtr cip);
+void FTPSetUploadSocketBufferSize(const FTPCIPtr cip);
+
+/* io_get.c, io_put.c */
+int
+FTPGetOneF(
+	const FTPCIPtr cip,
+	const char *const file,
+	const char *dstfile,
+	int xtype,
+	const int fdtouse,
+	longest_int expectedSize,
+	time_t mdtm,
+	const int resumeflag,
+	const int appendflag,
+	const int deleteflag,
+	const FTPConfirmResumeDownloadProc resumeProc);
+
+int
+FTPPutOneF(
+	const FTPCIPtr cip,
+	const char *const file,
+	const char *volatile dstfile,
+	int xtype,
+	const int fdtouse,
+	const int appendflag,
+	const char *volatile tmppfx,
+	const char *volatile tmpsfx,
+	const int resumeflag,
+	const int deleteflag,
+	const FTPConfirmResumeUploadProc resumeProc);
+
+int FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir);
+
+/* open.c */
+void FTPDeallocateHost(const FTPCIPtr cip);
+int FTPAllocateHost(const FTPCIPtr cip);
+
+/* cmds misc */
+int FTPRmdirRecursive(const FTPCIPtr cip, const char *const dir);
+void FTPRequestMlsOptions(const FTPCIPtr cip);
+void RemoteGlobCollapse(const char *pattern, LineListPtr fileList);
 
 #endif	/* _util_h_ */

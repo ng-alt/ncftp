@@ -16,6 +16,7 @@ void RestoreScreen(int pressKey);
 void Beep(int on);
 void WAttr(WINDOW *w, int attr, int on);
 void swclrtoeol(WINDOW *w);
-void WAddCenteredStr(WINDOW *w, int y, const char *str);
+void DrawStrAt(WINDOW *const win, int y, int x, const char *const str);
+void WAddCenteredStr(WINDOW *const w, int y, const char *const str);
 int PrintDimensions(int);
 int InitWindows(void);

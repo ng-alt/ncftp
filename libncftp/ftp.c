@@ -5,10 +5,12 @@
  *
  */
 
-#define _libncftp_ftp_c_
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
-const char gLibNcFTPVersion[64] = kLibraryVersion;
+const char gLibNcFTPVersion[] = kLibraryVersion;
 
 #ifdef NO_SIGNALS
 static const char gNoSignalsMarker[] = "@(#) LibNcFTP - NO_SIGNALS";
@@ -41,158 +43,6 @@ static const char gCopyright[] = "@(#) LibNcFTP Copyright 1995-2001, by Mike Gle
 #endif
 
 
-
-
-/* On entry, you should have 'host' be set to a symbolic name (like
- * cse.unl.edu), or set to a numeric address (like 129.93.3.1).
- * If the function fails, it will return NULL, but if the host was
- * a numeric style address, you'll have the ip_address to fall back on.
- */
-
-static struct hostent *
-GetHostEntry(char *host, struct in_addr *ip_address)
-{
-	struct in_addr ip;
-	struct hostent *hp;
-	
-	/* See if the host was given in the dotted IP format, like "36.44.0.2."
-	 * If it was, inet_addr will convert that to a 32-bit binary value;
-	 * it not, inet_addr will return (-1L).
-	 */
-	ip.s_addr = inet_addr(host);
-	if (ip.s_addr != INADDR_NONE) {
-		hp = NULL;
-	} else {
-		/* No IP address, so it must be a hostname, like ftp.wustl.edu. */
-		hp = gethostbyname(host);
-		if (hp != NULL)
-			(void) memcpy(&ip.s_addr, hp->h_addr_list[0], (size_t) hp->h_length);
-	}
-	if (ip_address != NULL)
-		*ip_address = ip;
-	return (hp);
-}	/* GetHostEntry */
-
-
-
-
-/* Makes every effort to return a fully qualified domain name. */
-int
-GetOurHostName(char *host, size_t siz)
-{
-#ifdef HOSTNAME
-	/* You can hardcode in the name if this routine doesn't work
-	 * the way you want it to.
-	 */
-	Strncpy(host, HOSTNAME, siz);
-	return (1);		/* Success */
-#else
-	struct hostent *hp;
-	int result;
-	char **curAlias;
-	char domain[64];
-	char *cp;
-	int rc;
-
-	host[0] = '\0';
-	result = gethostname(host, (int) siz);
-	if ((result < 0) || (host[0] == '\0')) {
-		return (-1);
-	}
-
-	if (strchr(host, '.') != NULL) {
-		/* gethostname returned full name (like "cse.unl.edu"), instead
-		 * of just the node name (like "cse").
-		 */
-		return (2);		/* Success */
-	}
-	
-	hp = gethostbyname(host);
-	if (hp != NULL) {
-		/* Maybe the host entry has the full name. */
-		cp = strchr((char *) hp->h_name, '.');
-		if ((cp != NULL) && (cp[1] != '\0')) {
-			/* The 'name' field for the host entry had full name. */
-			(void) Strncpy(host, (char *) hp->h_name, siz);
-			return (3);		/* Success */
-		}
-
-		/* Now try the list of aliases, to see if any of those look real. */
-		for (curAlias = hp->h_aliases; *curAlias != NULL; curAlias++) {
-			cp = strchr(*curAlias, '.');
-			if ((cp != NULL) && (cp[1] != '\0')) {
-				(void) Strncpy(host, *curAlias, siz);
-				return (4);		/* Success */
-			}
-		}
-	}
-
-	/* Otherwise, we just have the node name.  See if we can get the
-	 * domain name ourselves.
-	 */
-#ifdef DOMAINNAME
-	(void) STRNCPY(domain, DOMAINNAME);
-	rc = 5;
-#else
-	rc = -1;
-	domain[0] = '\0';
-#	if defined(HAVE_RES_INIT) && defined(HAVE__RES_DEFDNAME)
-	if (domain[0] == '\0') {
-		(void) res_init();
-		if ((_res.defdname != NULL) && (_res.defdname[0] != '\0')) {
-			(void) STRNCPY(domain, _res.defdname);
-			rc = 6;
-		}
-	}
-#	endif	/* HAVE_RES_INIT && HAVE__RES_DEFDNAME */
-	
-	if (domain[0] == '\0') {
-		FILE *fp;
-		char line[256];
-		char *tok;
-
-		fp = fopen("/etc/resolv.conf", "r");
-		if (fp != NULL) {
-			(void) memset(line, 0, sizeof(line));
-			while (fgets(line, sizeof(line) - 1, fp) != NULL) {
-				if (!isalpha((int) line[0]))
-					continue;	/* Skip comment lines. */
-				tok = strtok(line, " \t\n\r");
-				if (tok == NULL)
-					continue;	/* Impossible */
-				if (strcmp(tok, "domain") == 0) {
-					tok = strtok(NULL, " \t\n\r");
-					if (tok == NULL)
-						continue;	/* syntax error */
-					(void) STRNCPY(domain, tok);
-					rc = 7;
-					break;	/* Done. */
-				}
-			}
-			(void) fclose(fp);
-		}
-	}
-#endif	/* DOMAINNAME */
-
-	if (domain[0] != '\0') {
-		/* Supposedly, it's legal for a domain name with
-		 * a period at the end.
-		 */
-		cp = domain + strlen(domain) - 1;
-		if (*cp == '.')
-			*cp = '\0';
-		if (domain[0] != '.')
-			(void) Strncat(host, ".", siz);
-		(void) Strncat(host, domain, siz);
-	}
-	if (rc < 0)
-		host[0] = '\0';
-	return(rc);	/* Success */
-#endif	/* !HOSTNAME */
-}	/* GetOurHostName */
-
-
-
 void
 CloseControlConnection(const FTPCIPtr cip)
 {
@@ -221,7 +71,7 @@ CloseControlConnection(const FTPCIPtr cip)
 static int
 GetSocketAddress(const FTPCIPtr cip, int sockfd, struct sockaddr_in *saddr)
 {
-	int len = (int) sizeof (struct sockaddr_in);
+	sockaddr_size_t len = (sockaddr_size_t) sizeof (struct sockaddr_in);
 	int result = 0;
 
 	if (getsockname(sockfd, (struct sockaddr *)saddr, &len) < 0) {
@@ -231,97 +81,6 @@ GetSocketAddress(const FTPCIPtr cip, int sockfd, struct sockaddr_in *saddr)
 	}
 	return (result);
 }	/* GetSocketAddress */
-
-
-
-
-int
-SetKeepAlive(const FTPCIPtr cip, int sockfd)
-{
-#ifndef SO_KEEPALIVE
-	cip->errNo = kErrSetKeepAlive;
-	return (kErrSetKeepAlive);
-#else
-	int opt;
-
-	opt = 1;
-
-	if (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt, (int) sizeof(opt)) < 0) {
-		/* Error(cip, kDoPerror, "Could not set keep-alive mode.\n"); */
-		cip->errNo = kErrSetKeepAlive;
-		return (kErrSetKeepAlive);
-	}
-	return (kNoErr);
-#endif	/* SO_KEEPALIVE */
-}	/* SetKeepAlive */
-
-
-
-
-int
-SetLinger(const FTPCIPtr cip, int sockfd, int onoff)
-{
-#ifndef SO_LINGER
-	cip->errNo = kErrSetLinger;
-	return (kErrSetLinger);
-#else
-	struct linger li;
-
-	if (onoff != 0) {
-		li.l_onoff = 1;
-		li.l_linger = 120;	/* 2 minutes, but system ignores field. */
-	} else {
-		li.l_onoff = 0;
-		li.l_linger = 0;
-	}
-	/* Have the system make an effort to deliver any unsent data,
-	 * even after we close the connection.
-	 */
-	if (setsockopt(sockfd, SOL_SOCKET, SO_LINGER, (char *) &li, (int) sizeof(li)) < 0) {
-		/* Error(cip, kDoPerror, "Could not set linger mode.\n"); */
-		cip->errNo = kErrSetLinger;
-		return (kErrSetLinger);
-	}
-	return (kNoErr);
-#endif	/* SO_LINGER */
-}	/* SetLinger */
-
-
-
-
-#ifdef IP_TOS
-int
-SetTypeOfService(const FTPCIPtr cip, int sockfd, int tosType)
-{
-	/* Specify to the router what type of connection this is, so it
-	 * can prioritize packets.
-	 */
-	if (setsockopt(sockfd, IPPROTO_IP, IP_TOS, (char *) &tosType, (int) sizeof(tosType)) < 0) {
-		/* Error(cip, kDoPerror, "Could not set type of service.\n"); */
-		cip->errNo = kErrSetTypeOfService;
-		return (kErrSetTypeOfService);
-	}
-	return (kNoErr);
-}	/* SetTypeOfService */
-#endif	/* IP_TOS */
-
-
-
-
-#ifdef SO_OOBINLINE
-int
-SetInlineOutOfBandData(const FTPCIPtr cip, int sockfd)
-{
-	int on = 1;
-
-	if (setsockopt(sockfd, SOL_SOCKET, SO_OOBINLINE, (char *) &on, (int) sizeof(on)) < 0) {
-		Error(cip, kDoPerror, "Could not set out of band inline mode.\n");
-		cip->errNo = kErrSetOutOfBandInline;
-		return (kErrSetOutOfBandInline);
-	}
-	return (kNoErr);
-}	/* SetInlineOutOfBandData */
-#endif /* SO_OOBINLINE */
 
 
 
@@ -354,7 +113,8 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	volatile int sock2fd = -1;
 	ResponsePtr rp;
 	char **volatile curaddr;
-	struct hostent *hp;
+	int hpok;
+	struct hostent hp;
 	char *volatile fhost;
 	unsigned int fport;
 #ifndef NO_SIGNALS
@@ -393,9 +153,8 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 
 	cip->servCtlAddr.sin_port = (unsigned short) fport;
 
-	hp = GetHostEntry(fhost, &ip_address);
-
-	if (hp == NULL) {
+	if (GetHostEntry(&hp, fhost, &ip_address, cip->buf, cip->bufSize) != 0) {
+		hpok = 0;
 		/* Okay, no Host entry, but maybe we have a numeric address
 		 * in ip_address we can try.
 		 */
@@ -407,7 +166,8 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		cip->servCtlAddr.sin_family = AF_INET;
 		cip->servCtlAddr.sin_addr.s_addr = ip_address.s_addr;
 	} else {
-		cip->servCtlAddr.sin_family = hp->h_addrtype;
+		hpok = 1;
+		cip->servCtlAddr.sin_family = hp.h_addrtype;
 		/* We'll fill in the rest of the structure below. */
 	}
 	
@@ -417,7 +177,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	 * every address in the list from the host entry.
 	 */
 
-	if (hp == NULL) {
+	if (hpok == 0) {
 		/* Since we're given a single raw address, and not a host entry,
 		 * we can only try this one address and not any other addresses
 		 * that could be present for a site with a host entry.
@@ -434,7 +194,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		 * tries to set the buffer size to the
 		 * size specified.
 		 */
-		(void) SetSockBufSize(sockfd, cip->ctrlSocketRBufSize, cip->ctrlSocketSBufSize);
+		(void) SetSocketBufSize(sockfd, cip->ctrlSocketRBufSize, cip->ctrlSocketSBufSize);
 
 #ifdef NO_SIGNALS
 		err = SConnect(sockfd, &cip->servCtlAddr, (int) cip->connTimeout);
@@ -502,7 +262,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 		/* We can try each address in the list.  We'll quit when we
 		 * run out of addresses to try or get a successful connection.
 		 */
-		for (curaddr = hp->h_addr_list; *curaddr != NULL; curaddr++) {
+		for (curaddr = hp.h_addr_list; *curaddr != NULL; curaddr++) {
 			if ((sockfd = socket(cip->servCtlAddr.sin_family, SOCK_STREAM, 0)) < 0) {
 				Error(cip, kDoPerror, "Could not get a socket.\n");
 				cip->errNo = kErrNewStreamSocket;
@@ -512,14 +272,14 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 			 * but this is okay because the structure has a junk field
 			 * just for this purpose.
 			 */
-			(void) memcpy(&cip->servCtlAddr.sin_addr, *curaddr, (size_t) hp->h_length);
+			(void) memcpy(&cip->servCtlAddr.sin_addr, *curaddr, (size_t) hp.h_length);
 
 			/* This doesn't do anything if you left these
 			 * at their defaults (zero).  Otherwise it
 			 * tries to set the buffer size to the
 			 * size specified.
 			 */
-			(void) SetSockBufSize(sockfd, cip->ctrlSocketRBufSize, cip->ctrlSocketSBufSize);
+			(void) SetSocketBufSize(sockfd, cip->ctrlSocketRBufSize, cip->ctrlSocketSBufSize);
 
 #ifdef NO_SIGNALS
 			err = SConnect(sockfd, &cip->servCtlAddr, (int) cip->connTimeout);
@@ -645,21 +405,17 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	if ((result = GetSocketAddress(cip, sockfd, &cip->ourCtlAddr)) < 0)
 		goto fatal;
 
-#ifdef SO_OOBINLINE
 	/* We want Out-of-band data to appear in the regular stream,
 	 * since we can handle TELNET.
 	 */
-	(void) SetInlineOutOfBandData(cip, sockfd);
-#endif
-	(void) SetKeepAlive(cip, sockfd);
-	(void) SetLinger(cip, sockfd, 0);	/* Don't need it for ctrl. */
+	(void) SetSocketInlineOutOfBandData(sockfd, 1);
+	(void) SetSocketKeepAlive(sockfd, 1);
+	(void) SetSocketLinger(sockfd, 0, 0);	/* Don't need it for ctrl. */
 
-#if defined(IP_TOS) && defined(IPTOS_LOWDELAY)
 	/* Control connection is somewhat interactive, so quick response
 	 * is desired.
 	 */
-	(void) SetTypeOfService(cip, sockfd, IPTOS_LOWDELAY);
-#endif
+	(void) SetSocketTypeOfService(sockfd, IPTOS_LOWDELAY);
 
 #ifdef NO_SIGNALS
 	cip->ctrlSocketR = sockfd;
@@ -717,16 +473,11 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 #endif
 #endif	/* NO_SIGNALS */
 
-#ifdef HAVE_INET_NTOP	/* Mostly to workaround bug in IRIX 6.5's inet_ntoa */
-	(void) memset(cip->ip, 0, sizeof(cip->ip));
-	(void) inet_ntop(AF_INET, &cip->servCtlAddr.sin_addr, cip->ip, sizeof(cip->ip) - 1);
-#else
-	(void) STRNCPY(cip->ip, inet_ntoa(cip->servCtlAddr.sin_addr));
-#endif
-	if ((hp == NULL) || (hp->h_name == NULL))
+	InetNtoA(cip->ip, &cip->servCtlAddr.sin_addr, sizeof(cip->ip));
+	if ((hpok == 0) || (hp.h_name == NULL))
 		(void) STRNCPY(cip->actualHost, fhost);
 	else
-		(void) STRNCPY(cip->actualHost, (char *) hp->h_name);
+		(void) STRNCPY(cip->actualHost, (char *) hp.h_name);
 
 	/* Read the startup message from the server. */	
 	rp = InitResponse();
@@ -832,7 +583,10 @@ CloseDataConnection(const FTPCIPtr cip)
 {
 	if (cip->dataSocket != kClosedFileDescriptor) {
 #ifdef NO_SIGNALS
-		SClose(cip->dataSocket, 3);
+		/* This could block, but only if
+		 * linger mode was set.
+		 */
+		(void) closesocket(cip->dataSocket);
 #else	/* NO_SIGNALS */
 		if (cip->xferTimeout > 0)
 			(void) alarm(cip->xferTimeout);
@@ -845,6 +599,7 @@ CloseDataConnection(const FTPCIPtr cip)
 	memset(&cip->ourDataAddr, 0, sizeof(cip->ourDataAddr));
 	memset(&cip->servDataAddr, 0, sizeof(cip->servDataAddr));
 }	/* CloseDataConnection */
+
 
 
 
@@ -1079,7 +834,7 @@ tryPort2:
 	 * tries to set the buffer size to the
 	 * size specified.
 	 */
-	(void) SetSockBufSize(dataSocket, cip->dataSocketRBufSize, cip->dataSocketSBufSize);
+	(void) SetSocketBufSize(dataSocket, cip->dataSocketRBufSize, cip->dataSocketSBufSize);
 
 	if ((cip->hasPASV == kCommandNotAvailable) || (mode == kSendPortMode)) {
 tryPort:
@@ -1224,16 +979,13 @@ tryPort:
 		cip->hasPASV = kCommandAvailable;
 	}
 
-	(void) SetLinger(cip, dataSocket, 1);
-	(void) SetKeepAlive(cip, dataSocket);
+	(void) SetSocketKeepAlive(dataSocket, 1);
 
-#if defined(IP_TOS) && defined(IPTOS_THROUGHPUT)
 	/* Data connection is a non-interactive data stream, so
 	 * high throughput is desired, at the expense of low
 	 * response time.
 	 */
-	(void) SetTypeOfService(cip, dataSocket, IPTOS_THROUGHPUT);
-#endif
+	(void) SetSocketTypeOfService(dataSocket, IPTOS_THROUGHPUT);
 
 	cip->dataSocket = dataSocket;
 	return (0);
@@ -1327,7 +1079,7 @@ HangupOnServer(const FTPCIPtr cip)
 void
 SendTelnetInterrupt(const FTPCIPtr cip)
 {
-	char msg[4];
+	unsigned char msg[4];
 
 	/* 1. User system inserts the Telnet "Interrupt Process" (IP) signal
 	 *    in the Telnet stream.
@@ -1336,27 +1088,22 @@ SendTelnetInterrupt(const FTPCIPtr cip)
 	if (cip->cout != NULL)
 		(void) fflush(cip->cout);
 	
-	msg[0] = (char) (unsigned char) IAC;
-	msg[1] = (char) (unsigned char) IP;
-	(void) send(cip->ctrlSocketW, msg, 2, 0);
-
-	/* 2. User system sends the Telnet "Sync" signal. */
-#if 1
-	msg[0] = (char) (unsigned char) IAC;
-	msg[1] = (char) (unsigned char) DM;
-	if (send(cip->ctrlSocketW, msg, 2, MSG_OOB) != 2)
-		Error(cip, kDoPerror, "Could not send an urgent message.\n");
+	msg[0] = (unsigned char) IAC;
+	msg[1] = (unsigned char) IP;
+#if defined(WIN32) || defined(_WINDOWS)
+	(void) send(cip->ctrlSocketW, (const char *) msg, 2, 0);
 #else
-	/* "Send IAC in urgent mode instead of DM because UNIX places oob mark
-	 * after urgent byte rather than before as now is protocol," says
-	 * the BSD ftp code.
-	 */
-	msg[0] = (char) (unsigned char) IAC;
-	if (send(cip->ctrlSocketW, msg, 1, MSG_OOB) != 1)
-		Error(cip, kDoPerror, "Could not send an urgent message.\n");
-	(void) fprintf(cip->cout, "%c", DM);
-	(void) fflush(cip->cout);
+	(void) send(cip->ctrlSocketW, msg, 2, 0);
 #endif
+	/* 2. User system sends the Telnet "Sync" signal. */
+	msg[0] = (unsigned char) IAC;
+	msg[1] = (unsigned char) DM;
+#if defined(WIN32) || defined(_WINDOWS)
+	if (send(cip->ctrlSocketW, (const char *) msg, 2, MSG_OOB) != 2)
+#else
+	if (send(cip->ctrlSocketW, msg, 2, MSG_OOB) != 2)
+#endif
+		Error(cip, kDoPerror, "Could not send an urgent message.\n");
 }	/* SendTelnetInterrupt */
 
 /* eof FTP.c */

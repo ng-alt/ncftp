@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #if !defined(NO_SIGNALS) && (USE_SIO || !defined(SIGALRM) || !defined(SIGPIPE) || !defined(SIGINT))
 #	define NO_SIGNALS 1
@@ -31,6 +34,15 @@ BrokenCtrl(int UNUSED(signumIgnored))
 }	/* BrokenCtrl */
 
 #endif	/* NO_SIGNALS */
+
+
+static int
+SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 2, 0)))
+#endif
+;
+
 
 
 /* A 'Response' parameter block is simply zeroed to be considered init'ed. */
@@ -490,10 +502,11 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 /* This creates the complete command text to send, and writes it
  * on the stream.
  */
+
 #ifdef NO_SIGNALS
 
 static int
-SendCommand(const FTPCIPtr cip, const char *cmdspec, va_list ap)
+SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 {
 	longstring command;
 	int result;
@@ -528,7 +541,7 @@ SendCommand(const FTPCIPtr cip, const char *cmdspec, va_list ap)
 #else	/* NO_SIGNALS */
 
 static int
-SendCommand(const FTPCIPtr cip, const char *cmdspec, va_list ap)
+SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 {
 	longstring command;
 	int result;
@@ -697,9 +710,16 @@ WaitResponse(const FTPCIPtr cip, unsigned int sec)
 #endif	/* NO_SIGNALS */
 	if (fd < 0)
 		return (-1);
-	FD_ZERO(&ss);
-	FD_SET(fd, &ss);
-	tv.tv_sec = (unsigned long) sec;
+	MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+	MY_FD_SET(fd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+	tv.tv_sec = (tv_sec_t) sec;
 	tv.tv_usec = 0;
 	result = select(fd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, &tv);
 	return (result);
@@ -856,6 +876,10 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 	cip->netMode = netMode;
 	if ((result = AcceptDataConnection(cip)) < 0)
 		goto done;
+
+	/* Close the half of the bidirectional pipe that we won't be using. */
+	(void) shutdown(cip->dataSocket, ((netMode == kNetReading) ? 1 : 0));
+
 	return (kNoErr);
 
 done:
@@ -879,17 +903,17 @@ FTPAbortDataTransfer(const FTPCIPtr cip)
 		result = FTPCmdNoResponse(cip, "ABOR");
 		if (result != kNoErr) {
 			/* Linger could cause close to block, so unset it. */
-			(void) SetLinger(cip, cip->dataSocket, 0);
+			(void) SetSocketLinger(cip->dataSocket, 0, 0);
 			CloseDataConnection(cip);
 			PrintF(cip, "Could not send abort command.\n");
 			return;
 		}
 
-		if (cip->abortTimeout > 0) {
+		if (cip->abortTimeout != 0) {
 			result = WaitResponse(cip, (unsigned int) cip->abortTimeout);
 			if (result <= 0) {
 				/* Error or no response received to ABOR in time. */
-				(void) SetLinger(cip, cip->dataSocket, 0);
+				(void) SetSocketLinger(cip->dataSocket, 0, 0);
 				CloseDataConnection(cip);
 				PrintF(cip, "No response received to abort request.\n");
 				return;
@@ -907,7 +931,7 @@ FTPAbortDataTransfer(const FTPCIPtr cip)
 		result = GetResponse(cip, rp);
 		if (result < 0) {
 			/* Shouldn't happen, and doesn't matter if it does. */
-			(void) SetLinger(cip, cip->dataSocket, 0);
+			(void) SetSocketLinger(cip->dataSocket, 0, 0);
 			CloseDataConnection(cip);
 			PrintF(cip, "Invalid response to abort request.\n");
 			DoneWithResponse(cip, rp);
@@ -920,7 +944,7 @@ FTPAbortDataTransfer(const FTPCIPtr cip)
 		 * connection, making sure to turn off linger mode
 		 * since we don't care about straggling data bits.
 		 */
-		(void) SetLinger(cip, cip->dataSocket, 0);
+		(void) SetSocketLinger(cip->dataSocket, 0, 0);
 		CloseDataConnection(cip);		/* Must close (by protocol). */
 		PrintF(cip, "End abort.\n");
 	}

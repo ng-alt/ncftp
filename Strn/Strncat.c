@@ -1,6 +1,8 @@
-#include <sys/types.h>
-#include <string.h>
-#include "Strn.h"
+#include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
+
 
 /*
  * Concatenate src on the end of dst.  The resulting string will have at most

@@ -5,11 +5,16 @@
  * 
  */
 
-#if defined(HAVE_CONFIG_H)
-#	include <config.h>
-#endif
-
 #if defined(WIN32) || defined(_WINDOWS)
+#	pragma once
+#	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
+#	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
+#	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
+#	pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
+#	pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
+#	pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
+#	pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
+#	pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
 #	define SELECT_TYPE_ARG1 int
 #	define SELECT_TYPE_ARG234 (fd_set *)
 #	define SELECT_TYPE_ARG5 (struct timeval *)
@@ -20,8 +25,17 @@
 #	define HAVE_STRSTR 1
 #	define HAVE_MEMMOVE 1
 #	define HAVE_LONG_FILE_NAMES 1
-#	include <winsock2.h>	/* Includes <windows.h> */
+#	ifndef WINVER
+#		define WINVER 0x0400
+#	endif
+#	ifndef _WIN32_WINNT
+#		define _WIN32_WINNT 0x0400
+#	endif
+#	include <windows.h>		/* includes <winsock2.h> if _WIN32_WINNT >= 0x400 */
 #	include <shlobj.h>
+#	include <process.h>
+#	include <direct.h>
+#	include <io.h>
 #	ifdef HAVE_UNISTD_H
 #		include <unistd.h>
 #	endif
@@ -36,7 +50,6 @@
 #	include <ctype.h>
 #	include <stdarg.h>
 #	include <time.h>
-#	include <io.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
 #	include <fcntl.h>
@@ -91,8 +104,22 @@
 #		define FOPEN_WRITE_BINARY "wb"
 #		define FOPEN_APPEND_BINARY "ab"
 #	endif
+#	define main_void_return_t void
+#	/* define alarm_time_t unsigned int */ /* leave undefined */
+#	define gethost_addrptr_t const char *
+#	define gethostname_size_t int
+#	define listen_backlog_t int
+#	define read_return_t int
+#	define read_size_t unsigned int
+#	define sockaddr_size_t int
+#	define sockopt_size_t int
+#	define write_return_t int
+#	define write_size_t unsigned int
 #else	/* UNIX */
-#	if defined(AIX) || defined(_AIX)
+#	if defined(HAVE_CONFIG_H)
+#		include <config.h>
+#	endif
+#	if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
 #		define _ALL_SOURCE 1
 #	endif
 #	ifdef HAVE_UNISTD_H
@@ -134,6 +161,12 @@
 #	ifdef HAVE_LOCALE_H
 #		include <locale.h>
 #	endif
+#	ifdef NEED_GETOPT_H
+#		include <getopt.h>
+#	elif defined(NEED_GETOPT_EXTERN_DECLS)
+		extern int optind, opterr, optopt;
+		extern char *optarg;
+#	endif
 #	ifdef HAVE_GETCWD
 #		ifndef HAVE_UNISTD_H
 			extern char *getcwd();
@@ -157,6 +190,14 @@
 #		define FOPEN_WRITE_BINARY "w"
 #		define FOPEN_APPEND_BINARY "a"
 #	endif
+#	if defined(MACOSX) || defined(BSDOS)
+#		undef SIG_DFL
+#		undef SIG_IGN
+#		undef SIG_ERR
+#		define SIG_DFL         (void (*)(int))0
+#		define SIG_IGN         (void (*)(int))1
+#		define SIG_ERR         (void (*)(int))-1
+#	endif
 #endif	/* UNIX */
 
 #ifndef STDIN_FILENO
@@ -173,7 +214,11 @@
 #	define Open open
 #endif
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
+#if defined(WIN32) || defined(_WINDOWS)
+#	define Stat WinStat64
+#	define Lstat WinStat64
+#	define Fstat WinFStat64
+#elif defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
 #	define Stat stat64
 #	ifdef HAVE_FSTAT64
 #		define Fstat fstat64
@@ -214,4 +259,5 @@
 #endif	/* SOCKS */
 
 #include <Strn.h>			/* Library header. */
+#include <sio.h>			/* Library header. */
 #include <ncftp.h>			/* Library header. */

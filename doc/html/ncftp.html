@@ -215,7 +215,7 @@ continue browsing the remote filesystem and even open other systems. In
 fact, they are done by a daemon process, so even if you log off your UNIX
 host the daemon should still do your transfers. The daemon will also automatically
 continue to retry the transfers until they finish. To tell when background
-jobs have finished, you have to examine the <I>$HOME/.ncftp/batchlog</I> file,
+jobs have finished, you have to examine the <I>$HOME/.ncftp/spool/log</I> file,
 or run the <I>jobs</I> command from within  <I>NcFTP</I>. </DD>
 
 <dt>&nbsp;</dt>
@@ -1367,10 +1367,6 @@ local network. <P>
  
 <DL>
 
-<DT><tt>$HOME/.ncftp/batchlog</tt></DT>
-<DD>Information for background data
-transfer processes. </DD>
-
 <DT><tt>$HOME/.ncftp/bookmarks</tt></DT>
 <DD>Saves bookmark and host information.
 </DD>
@@ -1382,10 +1378,6 @@ transfer processes. </DD>
 <DD>Program
 preferences. </DD>
 
-<DT><tt>$HOME/.ncftp/spool/</tt></DT>
-<DD>Directory where background jobs are stored
-in the form of spool configuration files. </DD>
-
 <DT><tt>$HOME/.ncftp/trace</tt></DT>
 <DD>Debugging output
 for entire program run. </DD>
@@ -1393,6 +1385,15 @@ for entire program run. </DD>
 <DT><tt>$HOME/.ncftp/v3init</tt></DT>
 <DD>Used to tell if this version of
 the program has run before.  </DD>
+
+<DT><tt>$HOME/.ncftp/spool/</tt></DT>
+<DD>Directory where background jobs are stored
+in the form of spool configuration files. </DD>
+
+<DT><tt>$HOME/.ncftp/spool/log</tt></DT>
+<DD>Information for background data
+transfer processes. </DD>
+
 </DL>
 
 </UL>

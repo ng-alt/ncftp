@@ -318,7 +318,7 @@ your UNIX host the daemon should still do your transfers.
 The daemon will also automatically continue to retry the transfers
 until they finish.
 To tell when background jobs have finished, you have to examine the
-.I $HOME/.ncftp/batchlog
+.I $HOME/.ncftp/spool/log
 file, or run the
 .I jobs
 command from within 
@@ -1126,21 +1126,21 @@ does not use the firewall for hosts on the local network.
 .\"-------
 .SH "FILES"
 .\"-------
-.IP $HOME/\.ncftp/batchlog
-Information for background data transfer processes.
 .IP $HOME/\.ncftp/bookmarks
 Saves bookmark and host information.
 .IP $HOME/\.ncftp/firewall
 Firewall access configuration file.
 .IP $HOME/\.ncftp/prefs
 Program preferences.
-.IP $HOME/\.ncftp/spool/
-Directory where background jobs are stored in the form of
-spool configuration files.
 .IP $HOME/\.ncftp/trace
 Debugging output for entire program run.
 .IP $HOME/\.ncftp/v3init
 Used to tell if this version of the program has run before.
+.IP $HOME/\.ncftp/spool/
+Directory where background jobs are stored in the form of
+spool configuration files.
+.IP $HOME/\.ncftp/spool/log
+Information for background data transfer processes.
 .\"-------
 .SH "ENVIRONMENT"
 .\"-------

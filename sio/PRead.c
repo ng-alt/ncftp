@@ -1,7 +1,10 @@
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #if !defined(NO_SIGNALS) && defined(SIGPIPE)
-extern volatile Sjmp_buf gPipeJmp;
+extern Sjmp_buf gPipeJmp;
 #endif
 
 /* Read up to "size" bytes on sfd.
@@ -18,17 +21,20 @@ extern volatile Sjmp_buf gPipeJmp;
 int
 PRead(int sfd, char *const buf0, size_t size, int retry)
 {
-	int nread;
-	volatile int nleft;
+	read_return_t nread;
+#if defined(NO_SIGNALS) || !defined(SIGPIPE)
+	read_size_t nleft;
+	char *buf = buf0;
+#else
 	char *volatile buf = buf0;
-#if !defined(NO_SIGNALS) && defined(SIGPIPE)
+	volatile read_size_t nleft;
 	vsio_sigproc_t sigpipe;
 
 	if (SSetjmp(gPipeJmp) != 0) {
 		(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
-		nread = size - nleft;
+		nread = (read_return_t) size - (read_return_t) nleft;
 		if (nread > 0)
-			return (nread);
+			return ((int) nread);
 		errno = EPIPE;
 		return (kBrokenPipeErr);
 	}
@@ -37,18 +43,18 @@ PRead(int sfd, char *const buf0, size_t size, int retry)
 #endif
 	errno = 0;
 
-	nleft = (int) size;
+	nleft = (read_size_t) size;
 	forever {
 		nread = read(sfd, buf, nleft);
 		if (nread <= 0) {
 			if (nread == 0) {
 				/* EOF */
-				nread = size - nleft;
+				nread = (read_return_t) size - (read_return_t) nleft;
 				goto done;
 			} else if (errno != EINTR) {
-				nread = size - nleft;
+				nread = (read_return_t) size - (read_return_t) nleft;
 				if (nread == 0)
-					nread = -1;
+					nread = (read_return_t) -1;
 				goto done;
 			} else {
 				errno = 0;
@@ -56,16 +62,16 @@ PRead(int sfd, char *const buf0, size_t size, int retry)
 				/* Try again. */
 			}
 		}
-		nleft -= nread;
-		if ((nleft <= 0) || (retry == 0))
+		nleft -= (read_size_t) nread;
+		if ((nleft == 0) || (retry == 0))
 			break;
 		buf += nread;
 	}
-	nread = size - nleft;
+	nread = (read_return_t) size - (read_return_t) nleft;
 
 done:
 #if !defined(NO_SIGNALS) && defined(SIGPIPE)
 	(void) SSignal(SIGPIPE, (sio_sigproc_t) sigpipe);
 #endif
-	return (nread);
+	return ((int) nread);
 }	/* PRead */

@@ -6,6 +6,9 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 /* Dynamically make a copy of a string. */
 char *
@@ -199,12 +202,13 @@ InitFileInfoList(FileInfoListPtr list)
 
 
 static int
-TimeCmp(const void *a, const void *b)
+TimeCmp(const void *const a, const void *const b)
 {
-	FileInfoPtr *fipa, *fipb;
+	const FileInfo *const *fipa;
+	const FileInfo *const *fipb;
 
-	fipa = (FileInfoPtr *) a;
-	fipb = (FileInfoPtr *) b;
+	fipa = (const FileInfo *const *) a;
+	fipb = (const FileInfo *const *) b;
 	if ((**fipb).mdtm == (**fipa).mdtm)
 		return (0);
 	else if ((**fipb).mdtm < (**fipa).mdtm)
@@ -216,12 +220,13 @@ TimeCmp(const void *a, const void *b)
 
 
 static int
-ReverseTimeCmp(const void *a, const void *b)
+ReverseTimeCmp(const void *const a, const void *const b)
 {
-	FileInfoPtr *fipa, *fipb;
+	const FileInfo *const *fipa;
+	const FileInfo *const *fipb;
 
-	fipa = (FileInfoPtr *) a;
-	fipb = (FileInfoPtr *) b;
+	fipa = (const FileInfo *const *) a;
+	fipb = (const FileInfo *const *) b;
 	if ((**fipa).mdtm == (**fipb).mdtm)
 		return (0);
 	else if ((**fipa).mdtm < (**fipb).mdtm)
@@ -233,12 +238,13 @@ ReverseTimeCmp(const void *a, const void *b)
 
 
 static int
-SizeCmp(const void *a, const void *b)
+SizeCmp(const void *const a, const void *const b)
 {
-	FileInfoPtr *fipa, *fipb;
+	const FileInfo *const *fipa;
+	const FileInfo *const *fipb;
 
-	fipa = (FileInfoPtr *) a;
-	fipb = (FileInfoPtr *) b;
+	fipa = (const FileInfo *const *) a;
+	fipb = (const FileInfo *const *) b;
 	if ((**fipb).size == (**fipa).size)
 		return (0);
 	else if ((**fipb).size < (**fipa).size)
@@ -250,12 +256,13 @@ SizeCmp(const void *a, const void *b)
 
 
 static int
-ReverseSizeCmp(const void *a, const void *b)
+ReverseSizeCmp(const void *const a, const void *const b)
 {
-	FileInfoPtr *fipa, *fipb;
+	const FileInfo *const *fipa;
+	const FileInfo *const *fipb;
 
-	fipa = (FileInfoPtr *) a;
-	fipb = (FileInfoPtr *) b;
+	fipa = (const FileInfo *const *) a;
+	fipb = (const FileInfo *const *) b;
 	if ((**fipa).size == (**fipb).size)
 		return (0);
 	else if ((**fipa).size < (**fipb).size)
@@ -267,12 +274,13 @@ ReverseSizeCmp(const void *a, const void *b)
 
 
 static int
-ReverseNameCmp(const void *a, const void *b)
+ReverseNameCmp(const void *const a, const void *const b)
 {
-	FileInfoPtr *fipa, *fipb;
+	const FileInfo *const *fipa;
+	const FileInfo *const *fipb;
 
-	fipa = (FileInfoPtr *) a;
-	fipb = (FileInfoPtr *) b;
+	fipa = (const FileInfo *const *) a;
+	fipb = (const FileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipb).relname, (**fipa).relname));
 #else
@@ -284,12 +292,13 @@ ReverseNameCmp(const void *a, const void *b)
 
 
 static int
-NameCmp(const void *a, const void *b)
+NameCmp(const void *const a, const void *const b)
 {
-	FileInfoPtr *fipa, *fipb;
+	const FileInfo *const *fipa;
+	const FileInfo *const *fipb;
 
-	fipa = (FileInfoPtr *) a;
-	fipb = (FileInfoPtr *) b;
+	fipa = (const FileInfo *const *) a;
+	fipb = (const FileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipa).relname, (**fipb).relname));
 #else
@@ -301,15 +310,16 @@ NameCmp(const void *a, const void *b)
 
 
 static int
-BreadthFirstCmp(const void *a, const void *b)
+BreadthFirstCmp(const void *const a, const void *const b)
 {
-	FileInfoPtr *fipa, *fipb;
+	const FileInfo *const *fipa;
+	const FileInfo *const *fipb;
 	char *cp, *cpa, *cpb;
 	int depth, deptha, depthb;
 	int c;
 
-	fipa = (FileInfoPtr *) a;
-	fipb = (FileInfoPtr *) b;
+	fipa = (const FileInfo *const *) a;
+	fipb = (const FileInfo *const *) b;
 
 	cpa = (**fipa).relname;
 	cpb = (**fipb).relname;

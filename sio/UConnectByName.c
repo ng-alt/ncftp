@@ -1,6 +1,7 @@
 #include "syshdrs.h"
-
-#if !defined(NO_UNIX_DOMAIN_SOCKETS) && !defined(NO_SIGNALS)
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 int
 UConnectByName(int sfd, const char * const addrStr, const int tlen)
@@ -13,6 +14,3 @@ UConnectByName(int sfd, const char * const addrStr, const int tlen)
 	result = UConnect(sfd, &remoteAddr, ualen, tlen);
 	return (result);
 }	/* UConnectByName */
-
-#endif
-

@@ -6,12 +6,14 @@
  */
 
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 #include "ls.h"
 #include "bookmark.h"
 #include "shell.h"
 #include "cmds.h"
 #include "main.h"
-#include "getopt.h"
 #include "progress.h"
 #include "pref.h"
 #include "readln.h"
@@ -20,15 +22,6 @@
 #include "spool.h"
 #include "util.h"
 
-#if defined(WIN32) || defined(_WINDOWS)
-	WSADATA wsaData;
-	int wsaInit = 0;
-
-	__inline void DisposeWinsock(int aUNUSED) { if (wsaInit > 0) WSACleanup(); wsaInit--; }
-#else
-#	define DisposeWinsock(a)
-#endif
-
 int gStartupUrlParameterGiven = 0;
 int gIsTTY, gIsTTYr;
 int gScreenColumns;
@@ -36,18 +29,17 @@ int gScreenColumns;
 FTPLibraryInfo gLib;
 FTPConnectionInfo gConn;
 LineList gStartupURLCdList;
+char *gXBuf = NULL;
+size_t gXBufSize = 0;
 int gTransferTypeInitialized = 0;
 int gTransferType;
 int gURLMode = 0;
 extern int gUnprocessedJobs;
 char gLocalCWD[512], gPrevLocalCWD[512];
 
-extern char *gOptArg;
-extern int gOptInd;
 extern char gRemoteCWD[512], gPrevRemoteCWD[512];
 extern Bookmark gBm;
 extern int gLoadedBm;
-extern int gFirstTimeUser;
 extern int gFirewallType;
 extern char gAutoAscii[];
 extern char gFirewallHost[64];
@@ -62,6 +54,8 @@ extern int gDebug;
 extern int gNumProgramRuns, gDoNotDisplayAds;
 extern int gSOBufsize;
 extern FTPProgressMeterProc gProgressMeter;
+extern char gOurHostName[64];
+extern int gGetOurHostNameResult;
 
 static void
 Usage(void)
@@ -86,7 +80,8 @@ Usage(void)
 	(void) fprintf(fp, "System:           %s\n", s);
 #endif
 	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (ncftp@ncftp.com).\n");
-	(void) fprintf(fp, "Use ncftpget and ncftpput for command-line FTP.\n\n");
+	(void) fprintf(fp, "A directory URL ends in a slash, i.e. ftp://ftp.freebsd.org/pub/FreeBSD/\n");
+	(void) fprintf(fp, "Use ncftpget and ncftpput for command-line FTP and file URLs.\n\n");
 	exit(2);
 }	/* Usage */
 
@@ -110,7 +105,7 @@ InitConnectionInfo(void)
 {
 	int result;
 
-	result = FTPInitConnectionInfo(&gLib, &gConn, kDefaultFTPBufSize);
+	result = FTPInitConnectionInfo2(&gLib, &gConn, gXBuf, gXBufSize);
 	if (result < 0) {
 		(void) fprintf(stderr, "ncftp: init connection info error %d (%s).\n", result, FTPStrError(result));
 		exit(1);
@@ -268,14 +263,7 @@ PreInit(void)
 {
 	int result;
 
-#if defined(WIN32) || defined(_WINDOWS)
-	if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0) {
-		fprintf(stderr, "could not initialize winsock\n");
-		exit(1);
-	}
-	wsaInit++;
-#endif
-
+	InitWinsock();
 #ifdef HAVE_SETLOCALE
 	setlocale(LC_ALL, "");
 #endif
@@ -289,6 +277,12 @@ PreInit(void)
 #ifdef SIGPOLL
 	(void) NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
 #endif
+	gXBufSize = kDefaultFTPBufSize;
+	gXBuf = malloc(gXBufSize);
+	if (gXBuf == NULL) {
+		perror("malloc");
+		exit(1);
+	}
 	InitUserInfo();
 	result = FTPInitLibrary(&gLib);
 	if (result < 0) {
@@ -310,7 +304,6 @@ PreInit(void)
 	InitCommandList();
 	InitLs();
 	TruncBatchLog();
-	GetoptReset();
 	GetScreenColumns();
 }	/* PreInit */
 
@@ -325,6 +318,8 @@ static void
 PostInit(void)
 {
 	PostInitPrefs();
+	if (gGetOurHostNameResult == 100)	/* avoid doing again */
+		gGetOurHostNameResult = GetOurHostName(gOurHostName, sizeof(gOurHostName));
 	OpenTrace();
 	InitTermcap();
 	InitReadline();
@@ -342,7 +337,7 @@ PostInit(void)
 		gFirewallPort
 	);
 	Trace(0, "FwExceptions: %s\n", gFirewallExceptionList);
-	if (strchr(gLib.ourHostName, '.') == NULL) {
+	if (strchr(gOurHostName, '.') == NULL) {
 		Trace(0, "NOTE:  Your domain name could not be detected.\n");
 		if (gConn.firewallType != kFirewallNotInUse) {
 			Trace(0, "       Make sure you manually add your domain name to firewall-exception-list.\n");
@@ -380,29 +375,32 @@ PostShell(void)
 	SavePrefs();
 	EndLog();
 	Plug();
-	DisposeWinsock(0);
+	DisposeWinsock();
 }	/* PostShell */
 
 
 
 
-int
-main(int argc, const char **const argv)
+main_void_return_t
+main(int argc, char **const argv)
 {
 	int c;
 	int n;
+	GetoptInfo opt;
 
 	PreInit();
-	while ((c = Getopt(argc, argv, "P:u:p:J:rd:g:FVLD")) > 0) switch(c) {
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "P:u:p:j:rd:eg:FVLD")) > 0) switch(c) {
 		case 'P':
 		case 'u':
 		case 'p':
-		case 'J':
+		case 'j':
 			gStartupUrlParameterGiven = 1;
 			break;
 		case 'r':
 		case 'g':
 		case 'd':
+		case 'e':
 		case 'V':
 		case 'L':
 		case 'D':
@@ -412,9 +410,9 @@ main(int argc, const char **const argv)
 			Usage();
 	}
 
-	if (gOptInd < argc) {
+	if (opt.ind < argc) {
 		LoadFirewallPrefs(0);
-		SetStartupURL(argv[gOptInd]);
+		SetStartupURL(argv[opt.ind]);
 	} else if (gStartupUrlParameterGiven != 0) {
 		/* One of the flags they specified
 		 * requires a URL or hostname to
@@ -423,33 +421,39 @@ main(int argc, const char **const argv)
 		Usage();
 	}
 
-	GetoptReset();
 	/* Allow command-line parameters to override
 	 * bookmark settings.
 	 */
-
-	while ((c = Getopt(argc, argv, "P:u:p:j:J:rd:g:FVLD")) > 0) switch(c) {
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, "P:u:p:j:rd:eg:FVLD")) > 0) switch(c) {
 		case 'P':
-			gConn.port = atoi(gOptArg);	
+			gConn.port = atoi(opt.arg);	
 			break;
 		case 'u':
-			(void) STRNCPY(gConn.user, gOptArg);
+			(void) STRNCPY(gConn.user, opt.arg);
+			memset(opt.arg, '*', strlen(opt.arg));
 			break;
 		case 'p':
-			(void) STRNCPY(gConn.pass, gOptArg);	/* Don't recommend doing this! */
+			(void) STRNCPY(gConn.pass, opt.arg);	/* Don't recommend doing this! */
+			memset(opt.arg, '*', strlen(opt.arg));
 			break;
-		case 'J':
 		case 'j':
-			(void) STRNCPY(gConn.acct, gOptArg);
+			(void) STRNCPY(gConn.acct, opt.arg);
+			memset(opt.arg, '*', strlen(opt.arg));
+			break;
+		case 'e':
+			gGetOurHostNameResult = GetOurHostName(gOurHostName, sizeof(gOurHostName));
+			printf("%s\n", gOurHostName);
+			exit(0);
 			break;
 		case 'r':
 			/* redial is always on */
 			break;
 		case 'g':
-			gConn.maxDials = atoi(gOptArg);
+			gConn.maxDials = atoi(opt.arg);
 			break;
 		case 'd':
-			n = atoi(gOptArg);
+			n = atoi(opt.arg);
 			if (n >= 10)
 				gConn.redialDelay = n;
 			break;
