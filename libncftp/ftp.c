@@ -662,7 +662,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	cip->cin = NULL;
 	sock2fd = kClosedFileDescriptor;
 
-	if (InitSReadlineInfo(&cip->ctrlSrl, sockfd, cip->srlBuf, sizeof(cip->srlBuf), (int) cip->ctrlTimeout) < 0) {
+	if (InitSReadlineInfo(&cip->ctrlSrl, sockfd, cip->srlBuf, sizeof(cip->srlBuf), (int) cip->ctrlTimeout, 1) < 0) {
 		result = kErrFdopenW;
 		cip->errNo = kErrFdopenW;
 		Error(cip, kDoPerror, "Could not fdopen.\n");

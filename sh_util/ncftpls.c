@@ -163,6 +163,9 @@ main(int argc, char **argv)
 	char *password;
 
 	InitWinsock();
+#ifdef SIGPOLL
+	NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
+#endif
 	result = FTPInitLibrary(&gLib);
 	if (result < 0) {
 		(void) fprintf(stderr, "ncftpls: init library error %d (%s).\n", result, FTPStrError(result));
@@ -176,6 +179,7 @@ main(int argc, char **argv)
 		exit(kExitInitConnInfoFailed);
 	}
 
+	InitUserInfo();
 	fi.dataPortMode = kFallBackToSendPortMode;
 	LoadFirewallPrefs(0);
 	if (gFwDataPortMode >= 0)
@@ -192,15 +196,21 @@ main(int argc, char **argv)
 	SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-CF");
 	es = kExitSuccess;
 
-	while ((c = getopt(argc, argv, "1lx:P:u:p:e:d:t:r:f:EF")) > 0) switch(c) {
+	while ((c = getopt(argc, argv, "1lx:P:u:j:p:e:d:t:r:f:EF")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(optarg);	
 			break;
 		case 'u':
 			(void) STRNCPY(fi.user, optarg);
+			memset(optarg, '*', strlen(fi.user));
+			break;
+		case 'j':
+			(void) STRNCPY(fi.acct, optarg);
+			memset(optarg, '*', strlen(fi.acct));
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, optarg);	/* Don't recommend doing this! */
+			memset(optarg, '*', strlen(fi.pass));
 			break;
 		case 'e':
 			if (strcmp(optarg, "stdout") == 0)

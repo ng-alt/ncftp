@@ -734,8 +734,8 @@ SaveBookmarkTable(void)
 			}
 		}
 	}
+	CloseBookmarkFile(outfp);
 	if (SwapBookmarkFiles() < 0) {
-		CloseBookmarkFile(outfp);
 		return (-1);
 	}
 	return (0);

@@ -8,7 +8,7 @@
 #ifndef _ncftp_h_
 #define _ncftp_h_ 1
 
-#define kLibraryVersion "@(#) LibNcFTP 3.0.1 (March 27, 2000)"
+#define kLibraryVersion "@(#) LibNcFTP 3.0.4 (October 18, 2000)"
 
 #if defined(WIN32) || defined(_WINDOWS)
 #	define longest_int LONGLONG
@@ -62,7 +62,7 @@
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.0.0"
+#define kLibraryMagic "LibNcFTP 3.0.4"
 
 #ifndef longest_int
 #define longest_int long long
@@ -102,6 +102,7 @@ typedef struct SReadlineInfo {
 	int malloc;		/* If non-zero, malloc() was used for buf. */
 	int fd;			/* File descriptor to use for I/O. */
 	int timeoutLen;		/* Timeout to use, in seconds. */
+	int requireEOLN;	/* When buffer is full, continue reading and discarding until \n? */
 } SReadlineInfo;
 #endif
 
@@ -203,6 +204,7 @@ typedef struct FTPConnectionInfo {
 	const char *lname;			/* Do not modify this field. */
 	struct timeval t0;			/* Do not modify this field. */
 	int stalled;				/* Do not modify this field. */
+	int dataTimedOut;			/* Do not modify this field. */
 	int eofOkay;				/* Do not use or modify. */
 	char lastFTPCmdResultStr[128];		/* You may modify this if you want. */
 	LineList lastFTPCmdResultLL;		/* Use, but do not modify. */
@@ -233,6 +235,9 @@ typedef struct FTPConnectionInfo {
 	SReadlineInfo ctrlSrl;		/* Do not use or modify. */
 #endif
 	FTPGetPassphraseProc passphraseProc;	/* You may modify this. */
+	int iUser;				/* Scratch integer field you can use. */
+	void *pUser;				/* Scratch pointer field you can use. */
+	longest_int llUser;			/* Scratch long long field you can use. */
 	int reserved[32];			/* Do not use or modify. */
 } FTPConnectionInfo;
 
@@ -300,7 +305,7 @@ typedef struct MLstItem{
 
 #define kDefaultFTPPort			21
 
-#define kDefaultFTPBufSize		4096
+#define kDefaultFTPBufSize		32768
 
 #ifdef USE_SIO
 /* This version of the library can handle timeouts without

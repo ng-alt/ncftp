@@ -1,6 +1,35 @@
 Change Log:
 ===========
 
+3.0.2, 2000-10-18:
+
++ Fixed bug introduced in 3.0.1 which stripped off the leading slash
+  for the directory parameter of ncftpget and ncftpput.
+
++ Problem where NcFTP would not timeout a hung data transfer fixed.
+
++ Improved support for large files (> 2 GB).
+
++ Increased some internal buffers to handle longer response lines.
+
++ Pagers are now enabled on the Win32 port.
+
++ Format bug in quote and site commands fixed.
+
++ Possibly fix problem with Solaris 2.5 complaining about "pollable
+  event."
+
++ Win32 port bug fixed where NcFTP was not stripping off the quotation
+  marks on your HOME or NCFTPDIR environment variable.
+
++ Fixed bug where your firewall information could be ignored.
+
++ Utilities now accept a "-j" flag for an account (ACCT) if you need
+  to use that in addition to a USER and PASSword.
+
++ License has been changed.
+
+
 3.0.1, 2000-03-27:
 
 + ncftpput has been changed to cd to the destination directory on the

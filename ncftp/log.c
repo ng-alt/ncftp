@@ -65,7 +65,7 @@ void
 EndLog(void)
 {
 	FILE *new, *old;
-	struct stat st;
+	struct Stat st;
 	long fat;
 	char str[512];
 	char tmpLog[256];
@@ -77,7 +77,7 @@ EndLog(void)
 	 * so it doesn't waste too much disk space.  If the log is too fat, trim the
 	 * older lines (at the top) until we're under the limit.
 	 */
-	if ((gMaxLogSize <= 0) || (stat(gLogFileName, &st) < 0))
+	if ((gMaxLogSize <= 0) || (Stat(gLogFileName, &st) < 0))
 		return;						   /* Never trim, or no log. */
 
 	if ((size_t)st.st_size < (size_t)gMaxLogSize)

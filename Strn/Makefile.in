@@ -25,7 +25,7 @@ static: $(LIB)
 $(LIB): Strncpy.o Strncat.o Strntok.o Strnpcpy.o Strnpcat.o strtokc.o version.o
 	ar rv $(LIB) Strncpy.o Strncat.o Strntok.o Strnpcpy.o Strnpcat.o strtokc.o version.o
 	chmod 644 "$(LIB)"
-	-ranlib "$(LIB)"
+	-@RANLIB@ "$(LIB)"
 	-@/bin/ls -l "$(LIB)"
 
 .c.o:

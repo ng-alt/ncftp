@@ -288,7 +288,7 @@ done:
 int
 GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 {
-	string str;
+	longstring str;
 	int eofError;
 	str16 code;
 	char *cp;
@@ -337,6 +337,19 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 #ifdef NO_SIGNALS
 	cp = str;
 	eofError = 0;
+	if (cip->dataTimedOut > 0) {
+		/* Give up immediately unless the server had already
+		 * sent a message. Odds are since the data is timed
+		 * out, so is the control.
+		 */
+		if (SWaitUntilReadyForReading(cip->ctrlSocketR, 0) == 0) {
+			/* timeout */
+			Error(cip, kDontPerror, "Could not read reply from control connection -- timed out.\n");
+			FTPShutdownHost(vcip);
+			cip->errNo = kErrControlTimedOut;
+			return (cip->errNo);
+		}
+	}
 	result = SReadline(&cip->ctrlSrl, str, sizeof(str) - 1);
 	if (result == kTimeoutErr) {
 		/* timeout */

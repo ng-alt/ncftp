@@ -38,6 +38,7 @@ find . -depth -follow -type f | sed '
 /\.pch$/d
 /\.ilk$/d
 /\.res$/d
+/\.aps$/d
 /\.opt$/d
 /\.plg$/d
 /\.obj$/d

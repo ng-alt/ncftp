@@ -37,6 +37,7 @@ Strn/version.c
 Strn/Makefile.in
 Strn/Strn.3
 Strn/configure.in
+Strn/config.h.in
 sh_util/ncftpget.c
 sh_util/ncftpput.c
 sh_util/gpshare.c
@@ -133,9 +134,8 @@ sh/mksrczip.bat
 sh/mksrctar.sh
 sh/mksrczip.sh
 sh/man2html.sh
-autoconf/aclocal.m4
 autoconf/acconfig.h
-autoconf/configure.in
+autoconf/aclocal.m4
 sio/sio.dsw
 sio/usio.h
 sio/srltest.c
@@ -179,6 +179,7 @@ sio/SRead.c
 sio/SWrite.c
 sio/sio.h
 sio/config.h.in
+sio/SWait.c
 FIREWALL-PROXY-README
 win/bmed/bmed.clw
 win/bmed/util.c

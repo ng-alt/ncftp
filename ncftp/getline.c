@@ -612,7 +612,8 @@ getline(char *prompt)
 
     while ((c = gl_getc()) != (-1)) {
 	gl_extent = 0;  	/* reset to full extent */
-	if ((isprint(c) != 0) || ((c & 0x80) != 0)) {
+	/* Note: \n may or may not be considered printable */
+	if ((c != '\t') && ((isprint(c) != 0) || ((c & 0x80) != 0))) {
 	    if (gl_vi_mode > 0) {
 	    	/* "vi" emulation -- far from perfect,
 		 * but reasonably functional.
@@ -1633,8 +1634,7 @@ gl_display_matches(int nused)
 		qsort(gl_matchlist, (size_t) nused, sizeof(char *), gl_display_matches_sort_proc);
 
 		/* Find the greatest amount that matches. */
-		glen = 1;
-		for (glen = 1; ; glen++) {
+		for (glen = 0; ; glen++) {
 			allmatch = 1;
 			for (i=1; i<nused; i++) {
 				if (gl_matchlist[0][glen] != gl_matchlist[i][glen]) {
@@ -1724,7 +1724,7 @@ gl_do_tab_completion(char *buf, int *loc, size_t bufsize, int tabtab)
 	char *qstart;
 	char *lastspacestart;
 	char *cp;
-	int ntoalloc, nused, nalloced, i;
+	int ntoalloc, nused, nprocused, nalloced, i;
 	char **newgl_matchlist;
 	char *strtoadd, *strtoadd1;
 	int addquotes;
@@ -1812,7 +1812,7 @@ gl_do_tab_completion(char *buf, int *loc, size_t bufsize, int tabtab)
 		gl_matchlist[i] = NULL;
 	
 	gl_completion_exact_match_extra_char = ' ';
-	for (;; nused++) {
+	for (nprocused = 0;; nprocused++) {
 		if (nused == nalloced) {
 			ntoalloc += GL_COMPLETE_VECTOR_BLOCK_SIZE;
 			newgl_matchlist = (char **) realloc((char *) gl_matchlist, (size_t) (sizeof(char *) * (ntoalloc + 1)));
@@ -1831,10 +1831,12 @@ gl_do_tab_completion(char *buf, int *loc, size_t bufsize, int tabtab)
 			for (i=nused; i<=nalloced; i++)
 				gl_matchlist[i] = NULL;
 		}
-	        cp = gl_completion_proc(matchpfx, nused);
-		gl_matchlist[nused] = cp;
+	        cp = gl_completion_proc(matchpfx, nprocused);
 		if (cp == NULL)
 			break;
+		if ((cp[0] == '.') && ((cp[1] == '\0') || ((cp[1] == '.') && (cp[2] == '\0'))))
+			continue;	/* Skip . and .. */
+		gl_matchlist[nused++] = cp;
 	}
 
 	if (gl_ellipses_during_completion != 0) {

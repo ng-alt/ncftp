@@ -558,9 +558,19 @@ InitOurDirectory(void)
 
 	if (gOurInstallationPath[0] != '\0') {
 		if ((cp = getenv("NCFTPDIR")) != NULL) {
+			if (*cp == '"')
+				cp++;
 			(void) STRNCPY(gOurDirectoryPath, cp);
+			cp = strrchr(gOurDirectoryPath, '"');
+			if ((cp != NULL) && (cp[1] == '\0'))
+				*cp = '\0';
 		} else if ((cp = getenv("HOME")) != NULL) {
+			if (*cp == '"')
+				cp++;
 			(void) STRNCPY(gOurDirectoryPath, cp);
+			cp = strrchr(gOurDirectoryPath, '"');
+			if ((cp != NULL) && (cp[1] == '\0'))
+				*cp = '\0';
 		} else {
 			STRNCPY(gOurDirectoryPath, gOurInstallationPath);
 			if (gUser[0] == '\0') {

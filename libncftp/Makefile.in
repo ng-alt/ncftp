@@ -12,7 +12,7 @@ CFLAGS=@CFLAGS@
 #CC=gcc
 #CFLAGS=-g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion
 VPATH=@srcdir@
-CPPFLAGS=@CPPFLAGS@ -I. -I../Strn -I../sio
+CPPFLAGS=-I. -I../Strn -I../sio @CPPFLAGS@
 
 LIB=libncftp.a
 LIBSO=libncftp.so.2

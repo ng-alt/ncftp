@@ -107,7 +107,7 @@ AC_SUBST(MAINDIR)
 
 
 AC_PROG_CC
-wi_CFLAGS
+wi_CFLAGS_LFS64
 wi_DEFINE_UNAME
 AC_C_CONST
 AC_OBJEXT
@@ -138,6 +138,7 @@ AC_CHECK_FUNCS(getpass getpassphrase strcasecmp getdomainname mktime symlink)
 AC_CHECK_FUNCS(memmove syslog uname setvbuf waitpid strtoq sigaction)
 AC_CHECK_FUNCS(res_init snprintf vsnprintf setsid setpgid setpgrp)
 AC_CHECK_FUNCS(setlocale strcoll strncoll inet_ntop)
+AC_CHECK_FUNCS(open64 stat64 fstat64 lstat64 lseek64 llseek)
 AC_FUNC_SETPGRP
 AC_FUNC_SETVBUF_REVERSED
 wi_FUNC_SIGSETJMP

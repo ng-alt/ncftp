@@ -121,7 +121,7 @@ DIR *opendir(const char *const path)
 	char *dirpath;
 	size_t len;
 
-	p = (char *) malloc(sizeof(DIR));
+	p = (DIR *) malloc(sizeof(DIR));
 	if (p == NULL)
 		return NULL;
 	memset(p, 0, sizeof(DIR));
@@ -397,14 +397,14 @@ OpenLog(void)
 {
 	FILE *fp;
 	char pathName[256];
-	struct stat st;
+	struct Stat st;
 	const char *openMode;
 
 	CloseLog();
 	(void) OurDirectoryPath(pathName, sizeof(pathName), kSpoolLog);
 
 	openMode = gLogOpenMode;
-	if ((stat(pathName, &st) == 0) && (st.st_size > 200000L)) {
+	if ((Stat(pathName, &st) == 0) && (st.st_size > 200000L)) {
 		/* Prevent the log file from growing forever. */
 		openMode = FOPEN_WRITE_TEXT;
 	}
@@ -505,6 +505,9 @@ PreInit(void)
 	ZeroMemory(gStatusText, sizeof(gStatusText));
 #else
 	gIsTTY = ((isatty(2) != 0) && (getppid() > 1)) ? 1 : 0;
+#endif
+#ifdef SIGPOLL
+	NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
 #endif
 	InitUserInfo();
 
@@ -671,6 +674,7 @@ DoItem(int iType)
 	int needOpen;
 	int result;
 	int n;
+	int cdflags;
 	
 	fp = fopen(gMyItemPath, FOPEN_READ_TEXT);
 	if (fp == NULL) {
@@ -757,6 +761,7 @@ DoItem(int iType)
 		}
 	}
 
+	cdflags = kChdirOneSubdirAtATime;
 	if (gOperation == 'G') {
 		if (gRecursive != 0) {
 			if (gRFile[0] == '\0') {
@@ -778,6 +783,7 @@ DoItem(int iType)
 			}
 		}
 	} else if (gOperation == 'P') {
+		cdflags = kChdirOneSubdirAtATime|kChdirAndMkdir;
 		if (gRecursive != 0) {
 			if (gLFile[0] == '\0') {
 				Log(0, "batch file parameter missing: %s.\n", "local-file");
@@ -893,7 +899,7 @@ DoItem(int iType)
 		if (gConn.hasCLNT != kCommandNotAvailable)
 			(void) FTPCmd(&gConn, "CLNT NcFTPBatch %.5s %s", gVersion + 11, gOS);
 
-		if (FTPChdir(&gConn, gRDir) < 0) {
+		if (FTPChdir3(&gConn, gRDir, NULL, 0, cdflags) < 0) {
 			Log(1, "Could not remote cd to %s.\n", gRDir);
 
 			/* Leave open, but unspool.
@@ -913,7 +919,7 @@ DoItem(int iType)
 			return (-1);	/* Try again next time, in case conn dropped. */
 		}
 
-		if (FTPChdir(&gConn, gRDir) < 0) {
+		if (FTPChdir3(&gConn, gRDir, NULL, 0, cdflags) < 0) {
 			Log(1, "Could not remote cd to %s.\n", gRDir);
 			return (-1);	/* Try again next time, in case conn dropped. */
 		}
@@ -1032,7 +1038,7 @@ EventShell(volatile unsigned int sleepval)
 {
 	int nItems;
 	struct dirent *direntp;
-	struct stat st;
+	struct Stat st;
 	char *cp;
 	int iType;
 	int iyyyymmdd, ihhmmss, nyyyymmdd, nhhmmss;
@@ -1108,7 +1114,7 @@ EventShell(volatile unsigned int sleepval)
 			(void) STRNCPY(gItemPath, gSpoolDir);
 			(void) STRNCAT(gItemPath, LOCAL_PATH_DELIM_STR);
 			(void) STRNCAT(gItemPath, direntp->d_name);
-			if ((stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
+			if ((Stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
 				/* Item may have been
 				 * deleted by another
 				 * process.
@@ -1213,7 +1219,7 @@ ListQueue(void)
 {
 	int nItems;
 	struct dirent *direntp;
-	struct stat st;
+	struct Stat st;
 	DIR *DIRp;
 	char *cp;
 	int iyyyymmdd, ihhmmss;
@@ -1235,7 +1241,7 @@ ListQueue(void)
 		(void) STRNCPY(gItemPath, gSpoolDir);
 		(void) STRNCAT(gItemPath, LOCAL_PATH_DELIM_STR);
 		(void) STRNCAT(gItemPath, direntp->d_name);
-		if ((stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
+		if ((Stat(gItemPath, &st) < 0) || (S_ISREG(st.st_mode) == 0)) {
 			/* Item may have been
 			 * deleted by another
 			 * process.
@@ -1692,14 +1698,13 @@ Daemon(void)
 			continue;
 		if (gConn.ctrlSocketW == i)
 			continue;
-		if (isatty(1) > 0) {
-			/* Close tty files and replace
-			 * with /dev/null.
-			 */
-			(void) close(i);
-			if (devnull >= 0)
-				(void) dup2(devnull, i);
-		}
+
+		/* Close standard descriptors and replace
+		 * with /dev/null.
+		 */
+		(void) close(i);
+		if (devnull >= 0)
+			(void) dup2(devnull, i);
 	}
 
 	if (devnull >= 0)

@@ -71,12 +71,14 @@ find . -depth -follow -type f | sed '
 /\/config\./d
 /\/Makefile$/d
 /\/OLD/d
-/\/old/d' | cut -c3- | tee "$wd/doc/manifest" | cpio -Lpdm $TMPDIR/TAR/$TARDIR
+/\/old/d' | cut -c3- > "$wd/doc/manifest"
 
 if [ -f "$wd/sh/unix2dos.sh" ] ; then
 	cp "$wd/doc/manifest" "$wd/doc/manifest.txt" 
 	$wd/sh/unix2dos.sh "$wd/doc/manifest.txt"
 fi
+
+cpio -Lpdm $TMPDIR/TAR/$TARDIR < "$wd/doc/manifest"
 
 x=`tar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
 case "$x" in

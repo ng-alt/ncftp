@@ -94,7 +94,7 @@ fi
 AC_SUBST(PROBE)
 
 AC_PROG_CC
-wi_CFLAGS
+wi_CFLAGS_LFS64
 wi_DEFINE_UNAME
 
 if test -f /usr/src/include/eos.h ; then
@@ -158,6 +158,7 @@ fi
 AC_CHECK_FUNCS(getwd gethostname socket strerror strstr)
 AC_CHECK_FUNCS(getpass strcasecmp getdomainname mktime symlink inet_ntop)
 AC_CHECK_FUNCS(res_init snprintf vsnprintf strtoq sigaction waitpid)
+AC_CHECK_FUNCS(open64 stat64 fstat64 lstat64 lseek64 llseek)
 wi_FUNC_SIGSETJMP
 AC_FUNC_SETVBUF_REVERSED
 

@@ -782,7 +782,7 @@ MkDirs(const char *const newdir, int mode1)
 	struct _stat st;
 	char *share;
 #else
-	struct stat st;
+	struct Stat st;
 	mode_t mode = (mode_t) mode1;
 #endif
 
@@ -815,7 +815,7 @@ MkDirs(const char *const newdir, int mode1)
 	}
 #else
 	if (access(newdir, F_OK) == 0) {
-		if (stat(newdir, &st) < 0)
+		if (Stat(newdir, &st) < 0)
 			return (-1);
 		if (! S_ISDIR(st.st_mode)) {
 			errno = ENOTDIR;

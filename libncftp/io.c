@@ -43,8 +43,8 @@ static int gCanBrokenDataJmp;
 #	endif
 #endif
 
-static void WaitForRemoteInput(const FTPCIPtr cip);
-static void WaitForRemoteOutput(const FTPCIPtr cip);
+static int WaitForRemoteInput(const FTPCIPtr cip);
+static int WaitForRemoteOutput(const FTPCIPtr cip);
 
 
 #ifndef NO_SIGNALS
@@ -82,6 +82,7 @@ FTPInitIOTimer(const FTPCIPtr cip)
 	cip->secLeft = -1.0;
 	cip->nextProgressUpdate = 0;
 	cip->stalled = 0;
+	cip->dataTimedOut = 0;
 	cip->useProgressMeter = 1;
 	(void) gettimeofday(&cip->t0, NULL);
 }	/* FTPInitIOTimer */
@@ -201,7 +202,7 @@ FTPList(const FTPCIPtr cip, const int outfd, const int longMode, const char *con
 #ifdef NO_SIGNALS
 
 	if (result == 0) {
-		if (InitSReadlineInfo(&lsSrl, cip->dataSocket, secondaryBuf, sizeof(secondaryBuf), (int) cip->xferTimeout) < 0) {
+		if (InitSReadlineInfo(&lsSrl, cip->dataSocket, secondaryBuf, sizeof(secondaryBuf), (int) cip->xferTimeout, 1) < 0) {
 			/* Not really fdopen, but close in what we're trying to do. */
 			result = kErrFdopenR;
 			cip->errNo = kErrFdopenR;
@@ -440,7 +441,7 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const LineListPt
 #ifdef NO_SIGNALS
 
 	if (result == 0) {
-		if (InitSReadlineInfo(&lsSrl, cip->dataSocket, secondaryBuf, sizeof(secondaryBuf), (int) cip->xferTimeout) < 0) {
+		if (InitSReadlineInfo(&lsSrl, cip->dataSocket, secondaryBuf, sizeof(secondaryBuf), (int) cip->xferTimeout, 1) < 0) {
 			/* Not really fdopen, but close in what we're trying to do. */
 			result = kErrFdopenR;
 			cip->errNo = kErrFdopenR;
@@ -562,9 +563,9 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const LineListPt
 
 
 /* The purpose of this is to provide updates for the progress meters
- * during lags.
+ * during lags.  Return zero if the operation timed-out.
  */
-static void
+static int
 WaitForRemoteOutput(const FTPCIPtr cip)
 {
 	fd_set ss, ss2;
@@ -576,19 +577,22 @@ WaitForRemoteOutput(const FTPCIPtr cip)
 	int ocancelXfer;
 
 	xferTimeout = cip->xferTimeout;
-	if (xferTimeout == 1)
-		return;
+	if (xferTimeout < 1)
+		return (1);
 
 	fd = cip->dataSocket;
 	if (fd < 0)
-		return;
+		return (1);
 
 	ocancelXfer = cip->cancelXfer;
 	wsecs = 0;
+	cip->stalled = 0;
 
 	while ((xferTimeout <= 0) || (wsecs < xferTimeout)) {
-		if ((cip->cancelXfer != 0) && (ocancelXfer == 0))
-			return;
+		if ((cip->cancelXfer != 0) && (ocancelXfer == 0)) {
+			/* leave cip->stalled -- could have been stalled and then canceled. */
+			return (1);
+		}
 		FD_ZERO(&ss);
 		FD_SET(fd, &ss);
 		ss2 = ss;
@@ -598,16 +602,16 @@ WaitForRemoteOutput(const FTPCIPtr cip)
 		if (result == 1) {
 			/* ready */
 			cip->stalled = 0;
-			return;
+			return (1);
 		} else if (result < 0) {
-			cip->stalled = 0;
 			if (errno != EINTR) {
 				perror("select");
-				return;
+				cip->stalled = 0;
+				return (1);
 			}
 		} else {
-			cip->stalled++;
 			wsecs++;
+			cip->stalled = wsecs;
 		}
 		FTPUpdateIOTimer(cip);
 	}
@@ -618,6 +622,9 @@ WaitForRemoteOutput(const FTPCIPtr cip)
 	 */
 	(void) kill(getpid(), SIGALRM);
 #endif	/* NO_SIGNALS */
+
+	cip->dataTimedOut = 1;
+	return (0);	/* timed-out */
 }	/* WaitForRemoteOutput */
 
 
@@ -653,7 +660,7 @@ FTPPutOneF(
 #endif
 	int fstatrc, statrc;
 	longest_int startPoint = 0;
-	struct stat st;
+	struct Stat st;
 	time_t mdtm;
 #if !defined(NO_SIGNALS)
 	int sj;
@@ -672,7 +679,7 @@ FTPPutOneF(
 
 	cip->usingTAR = 0;
 	if (fdtouse < 0) {
-		fd = open(file, O_RDONLY|O_BINARY, 0);
+		fd = Open(file, O_RDONLY|O_BINARY, 0);
 		if (fd < 0) {
 			Error(cip, kDoPerror, "Cannot open local file %s for reading.\n", file);
 			cip->errNo = kErrOpenFailed;
@@ -682,7 +689,7 @@ FTPPutOneF(
 		fd = fdtouse;
 	}
 
-	fstatrc = fstat(fd, &st);
+	fstatrc = Fstat(fd, &st);
 	if ((fstatrc == 0) && (S_ISDIR(st.st_mode))) {
 		if (fdtouse < 0) {
 			(void) close(fd);
@@ -791,12 +798,12 @@ FTPPutOneF(
 					}
 				}
 				return (kNoErr);
-			} else if (lseek(fd, (off_t) startPoint, SEEK_SET) != (off_t) -1) {
+			} else if (Lseek(fd, (off_t) startPoint, SEEK_SET) != (off_t) -1) {
 				cip->startPoint = startPoint;
 			}
 		} else if (zaction == kConfirmResumeProcSaidAppend) {
 			/* append: leave startPoint at zero, we will append everything. */
-			cip->startPoint = startPoint;
+			cip->startPoint = startPoint = 0;
 		} else /* if (zaction == kConfirmResumeProcSaidOverwrite) */ {
 			/* overwrite: leave startPoint at zero */
 			cip->startPoint = startPoint = 0;
@@ -902,7 +909,7 @@ FTPPutOneF(
 		 *
 		 * So now we have to undo our seek.
 		 */
-		if (lseek(fd, (off_t) 0, SEEK_SET) != (off_t) 0) {
+		if (Lseek(fd, (off_t) 0, SEEK_SET) != (off_t) 0) {
 			cip->errNo = kErrLseekFailed;
 			if (fdtouse < 0) {
 				(void) close(fd);
@@ -976,7 +983,11 @@ FTPPutOneF(
 				(void) alarm(cip->xferTimeout);
 #endif	/* NO_SIGNALS */
 			do {
-				WaitForRemoteOutput(cip);		/* may set cancelXfer */
+				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
+					cip->errNo = result = kErrDataTimedOut;
+					Error(cip, kDontPerror, "Remote write timed out.\n");
+					goto brk;
+				}
 				if (cip->cancelXfer > 0) {
 					FTPAbortDataTransfer(cip);
 					result = cip->errNo = kErrDataTransferAborted;
@@ -1054,7 +1065,11 @@ FTPPutOneF(
 				(void) alarm(cip->xferTimeout);
 #endif	/* NO_SIGNALS */
 			do {
-				WaitForRemoteOutput(cip);		/* may set cancelXfer */
+				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
+					cip->errNo = result = kErrDataTimedOut;
+					Error(cip, kDontPerror, "Remote write timed out.\n");
+					goto brk;
+				}
 				if (cip->cancelXfer > 0) {
 					FTPAbortDataTransfer(cip);
 					result = cip->errNo = kErrDataTransferAborted;
@@ -1078,6 +1093,7 @@ FTPPutOneF(
 						Error(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
+					cip->dataSocket = -1;
 					goto brk;
 				}
 #else	/* NO_SIGNALS */
@@ -1094,6 +1110,7 @@ FTPPutOneF(
 						Error(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
+					cip->dataSocket = -1;
 					goto brk;
 				}
 #endif	/* NO_SIGNALS */
@@ -1106,10 +1123,9 @@ FTPPutOneF(
 brk:
 
 	if (fdtouse < 0) {
-		(void) fstat(fd, &st);
+		(void) Fstat(fd, &st);
 	}
 
-	WaitForRemoteOutput(cip);	/* Close could block. */
 	if (fdtouse < 0) {
 		if (shutdown(fd, 1) == 0) {
 			/* This looks very bizarre, since
@@ -1126,7 +1142,7 @@ brk:
 			 * the whole socket, which tells
 			 * us that the file was completed.
 			 */
-			WaitForRemoteInput(cip);	/* Close could block. */
+			(void) WaitForRemoteInput(cip);	/* Close could block. */
 		}
 	}
 
@@ -1146,7 +1162,13 @@ brk:
 		 * leave it open, otherwise we opened it, so
 		 * we need to dispose of it.
 		 */
+#ifdef NO_SIGNALS
+		SClose(fd, 3);
+#else	/* NO_SIGNALS */
+		/* Close could block. */
 		(void) close(fd);
+#endif
+		fd = -1;
 	}
 
 	if (result == kNoErr) {
@@ -1354,9 +1376,9 @@ FTPPutFiles3(
 
 
 /* The purpose of this is to provide updates for the progress meters
- * during lags.
+ * during lags.  Return zero if the operation timed-out.
  */
-static void
+static int
 WaitForRemoteInput(const FTPCIPtr cip)
 {
 	fd_set ss, ss2;
@@ -1368,19 +1390,22 @@ WaitForRemoteInput(const FTPCIPtr cip)
 	int ocancelXfer;
 
 	xferTimeout = cip->xferTimeout;
-	if (xferTimeout == 1)
-		return;
+	if (xferTimeout < 1)
+		return (1);
 
 	fd = cip->dataSocket;
 	if (fd < 0)
-		return;
+		return (1);
 
 	ocancelXfer = cip->cancelXfer;
 	wsecs = 0;
+	cip->stalled = 0;
 
 	while ((xferTimeout <= 0) || (wsecs < xferTimeout)) {
-		if ((cip->cancelXfer != 0) && (ocancelXfer == 0))
-			return;
+		if ((cip->cancelXfer != 0) && (ocancelXfer == 0)) {
+			/* leave cip->stalled -- could have been stalled and then canceled. */
+			return (1);
+		}
 		FD_ZERO(&ss);
 		FD_SET(fd, &ss);
 		ss2 = ss;
@@ -1389,14 +1414,17 @@ WaitForRemoteInput(const FTPCIPtr cip)
 		result = select(fd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, &tv);
 		if (result == 1) {
 			/* ready */
-			return;
+			cip->stalled = 0;
+			return (1);
 		} else if (result < 0) {
 			if (result != EINTR) {
 				perror("select");
-				return;
+				cip->stalled = 0;
+				return (1);
 			}
 		} else {
 			wsecs++;
+			cip->stalled = wsecs;
 		}
 		FTPUpdateIOTimer(cip);
 	}
@@ -1407,6 +1435,9 @@ WaitForRemoteInput(const FTPCIPtr cip)
 	 */
 	(void) kill(getpid(), SIGALRM);
 #endif	/* NO_SIGNALS */
+
+	cip->dataTimedOut = 1;
+	return (0);	/* timed-out */
 }	/* WaitForRemoteInput */
 
 
@@ -1629,7 +1660,11 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 
 	/* Binary */
 	for (;;) {
-		WaitForRemoteInput(cip);		/* could set cancelXfer */
+		if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
+			cip->errNo = result = kErrDataTimedOut;
+			Error(cip, kDontPerror, "Remote read timed out.\n");
+			break;
+		}
 		if (cip->cancelXfer > 0) {
 			FTPAbortDataTransfer(cip);
 			result = cip->errNo = kErrDataTransferAborted;
@@ -1644,7 +1679,7 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 		nread = SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 		if (nread == kTimeoutErr) {
 			cip->errNo = result = kErrDataTimedOut;
-			Error(cip, kDontPerror, "Remote write timed out.\n");
+			Error(cip, kDontPerror, "Remote read timed out.\n");
 			break;
 		} else if (nread < 0) {
 			if (errno == EINTR)
@@ -1757,7 +1792,7 @@ FTPGetOneF(
 #endif
 	volatile longest_int startPoint = 0;
 	struct utimbuf ut;
-	struct stat st;
+	struct Stat st;
 #if !defined(NO_SIGNALS)
 	volatile FTPSigProc osigpipe;
 	volatile FTPCIPtr vcip;
@@ -1825,7 +1860,7 @@ FTPGetOneF(
 			zaction = kConfirmResumeProcSaidOverwrite;
 		}
 
-		statrc = stat(dstfile, &st);
+		statrc = Stat(dstfile, &st);
 		if (statrc == 0) {
 			if (resumeProc != NULL) {
 				zaction = (*resumeProc)(
@@ -1953,15 +1988,15 @@ FTPGetOneF(
 				cip->errNo = result = kErrSetStartPoint;
 				return (result);
 			}
-			fd = open(dstfile, O_WRONLY|O_APPEND|O_BINARY, 00666);
+			fd = Open(dstfile, O_WRONLY|O_APPEND|O_BINARY, 00666);
 		} else if (zaction == kConfirmResumeProcSaidAppend) {
 			/* leave startPoint at zero, we will append everything. */
 			startPoint = (longest_int) 0;
-			fd = open(dstfile, O_WRONLY|O_CREAT|O_APPEND|O_BINARY, 00666);
+			fd = Open(dstfile, O_WRONLY|O_CREAT|O_APPEND|O_BINARY, 00666);
 		} else /* if (zaction == kConfirmResumeProcSaidOverwrite) */ {
 			created = 1;
 			startPoint = (longest_int) 0;
-			fd = open(dstfile, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 00666);
+			fd = Open(dstfile, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 00666);
 		}
 
 		if (fd < 0) {
@@ -2053,7 +2088,7 @@ FTPGetOneF(
 		 *
 		 * So now we have to undo our seek.
 		 */
-		if (lseek(fd, (off_t) 0, SEEK_SET) != (off_t) 0) {
+		if (Lseek(fd, (off_t) 0, SEEK_SET) != (off_t) 0) {
 			cip->errNo = kErrLseekFailed;
 			if (fdtouse < 0) {
 				(void) close(fd);
@@ -2084,7 +2119,11 @@ FTPGetOneF(
 	if (xtype == kTypeAscii) {
 		/* Ascii */
 		for (;;) {
-			WaitForRemoteInput(cip);		/* could set cancelXfer */
+			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
+				cip->errNo = result = kErrDataTimedOut;
+				Error(cip, kDontPerror, "Remote read timed out.\n");
+				break;
+			}
 			if (cip->cancelXfer > 0) {
 				FTPAbortDataTransfer(cip);
 				result = cip->errNo = kErrDataTransferAborted;
@@ -2102,7 +2141,7 @@ FTPGetOneF(
 			nread = SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 			if (nread == kTimeoutErr) {
 				cip->errNo = result = kErrDataTimedOut;
-				Error(cip, kDontPerror, "Remote write timed out.\n");
+				Error(cip, kDontPerror, "Remote read timed out.\n");
 				break;
 			} else if (nread < 0) {
 				if ((gGotBrokenData != 0) || (errno == EPIPE)) {
@@ -2206,7 +2245,11 @@ FTPGetOneF(
 	{
 		/* Binary */
 		for (;;) {
-			WaitForRemoteInput(cip);		/* could set cancelXfer */
+			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
+				cip->errNo = result = kErrDataTimedOut;
+				Error(cip, kDontPerror, "Remote read timed out.\n");
+				break;
+			}
 			if (cip->cancelXfer > 0) {
 				FTPAbortDataTransfer(cip);
 				result = cip->errNo = kErrDataTransferAborted;
@@ -2224,7 +2267,7 @@ FTPGetOneF(
 			nread = SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 			if (nread == kTimeoutErr) {
 				cip->errNo = result = kErrDataTimedOut;
-				Error(cip, kDontPerror, "Remote write timed out.\n");
+				Error(cip, kDontPerror, "Remote read timed out.\n");
 				break;
 			} else if (nread < 0) {
 				if ((gGotBrokenData != 0) || (errno == EPIPE)) {
@@ -2308,8 +2351,14 @@ brk:
 		 * leave it open, otherwise we opened it, so
 		 * we need to close it.
 		 */
+#ifdef NO_SIGNALS
+		SClose(fd, 3);
+#else	/* NO_SIGNALS */
 		(void) close(fd);
+#endif
+		fd = -1;
 	}
+
 	tmpResult = FTPEndDataCmd(cip, 1);
 	if ((tmpResult < 0) && (result == 0)) {
 		result = kErrRETRFailed;

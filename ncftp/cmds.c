@@ -16,6 +16,7 @@
 #include "log.h"
 #include "pref.h"
 #include "spool.h"
+#include "getline.h"
 #include "readln.h"
 #include "getopt.h"
 
@@ -90,9 +91,6 @@ extern jmp_buf gCancelJmp;
 static FILE *
 OpenPager(void)
 {
-#if defined(WIN32) || defined(_WINDOWS)
-	return (stdout);
-#else
 	FILE *fp;
 	char *pprog;
 
@@ -102,7 +100,6 @@ OpenPager(void)
 	if (fp == NULL)
 		return (stdout);
 	return (fp);
-#endif
 }	/* OpenPager */
 
 
@@ -112,11 +109,19 @@ OpenPager(void)
 static void
 ClosePager(FILE *pagerfp)
 {
-#if defined(WIN32) || defined(_WINDOWS)
-#else
-	if ((pagerfp != NULL) && (pagerfp != stdout))
-		(void) pclose(pagerfp);
+#ifdef SIGPIPE
+	sigproc_t osigpipe;
 #endif
+
+	if ((pagerfp != NULL) && (pagerfp != stdout)) {
+#ifdef SIGPIPE
+		osigpipe = (sigproc_t) NcSignal(SIGPIPE, SIG_IGN);
+#endif
+		(void) pclose(pagerfp);
+#ifdef SIGPIPE
+		(void) NcSignal(SIGPIPE, osigpipe);
+#endif
+	}
 }	/* ClosePager */
 
 
@@ -1057,11 +1062,17 @@ PrintHosts(void)
 	int nbm = 0;
 	Bookmark bm;
 	char url[128];
+#ifdef SIGPIPE
+	sigproc_t osigpipe;
+#endif
 
 	bookmarks = OpenBookmarkFile(NULL);
 	if (bookmarks == NULL)
 		return (0);
 
+#ifdef SIGPIPE
+	osigpipe = (sigproc_t) NcSignal(SIGPIPE, SIG_IGN);
+#endif
 	pager = OpenPager();
 
 	while (GetNextBookmark(bookmarks, &bm) == 0) {
@@ -1077,6 +1088,9 @@ PrintHosts(void)
 	ClosePager(pager);
 	CloseBookmarkFile(bookmarks);
 
+#ifdef SIGPIPE
+	(void) NcSignal(SIGPIPE, osigpipe);
+#endif
 	return (nbm);
 }	/* PrintHosts */
 
@@ -1525,8 +1539,7 @@ LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 
 #else
 	FILE *volatile outfp;
-	FILE *infp;
-	volatile int paging = 0;
+	FILE *volatile infp;
 	int i;
 	int sj;
 	int dashopts;
@@ -1535,11 +1548,8 @@ LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 	vsigproc_t osigpipe, osigint;
 
 	ARGSUSED(gUnusedArg);
+	(void) fflush(stdin);
 	outfp = OpenPager();
-	if (outfp == NULL)
-		outfp = stdout;
-	else
-		paging = 1;
 
 	(void) STRNCPY(incmd, "/bin/ls");
 	for (i=1, dashopts=0; i<argc; i++) {
@@ -1557,7 +1567,6 @@ LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 		}
 	}
 
-	(void) fflush(stdin);
 	infp = popen(incmd, "r");
 	if (infp == NULL) {
 		ClosePager(outfp);
@@ -1575,7 +1584,8 @@ LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 		/* Caught a signal. */
 		(void) NcSignal(SIGPIPE, (FTPSigProc) SIG_IGN);
 		ClosePager(outfp);
-		(void) pclose(infp);
+		if (infp != NULL)
+			(void) pclose(infp);
 		(void) NcSignal(SIGPIPE, (sigproc_t) osigpipe);
 		(void) NcSignal(SIGINT, (sigproc_t) osigint);
 		(void) fprintf(stderr, "Canceled.\n");
@@ -1590,10 +1600,12 @@ LocalListCmd(const int argc, const char **const argv, const CommandPtr cmdp, con
 
 	while (fgets(line, sizeof(line) - 1, infp) != NULL)
 		(void) fputs(line, outfp);
+	(void) fflush(outfp);
 
 	(void) pclose(infp);
-	if (paging != 0)
-		ClosePager(outfp);
+	infp = NULL;
+	ClosePager(outfp);
+	outfp = NULL;
 
 	(void) NcSignal(SIGPIPE, (sigproc_t) osigpipe);
 	(void) NcSignal(SIGINT, (sigproc_t) osigint);
@@ -2087,7 +2099,7 @@ NcFTPGetPassphraseProc(const FTPCIPtr cip, LineListPtr pwPrompt, char *pass, siz
 
 /* Attempts to establish a new FTP connection to a remote host. */
 int
-Open(void)
+DoOpen(void)
 {
 	int result;
 	char ipstr[128];
@@ -2426,7 +2438,7 @@ OpenCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 #endif	/* HAVE_GETPASSPHRASE */
 	}
 
-	rc = Open();
+	rc = DoOpen();
 	if ((rc >= 0) && (directoryURL != 0)) {
 		for (lp = cdlist.first; lp != NULL; lp = lp->next) {
 			rc = FTPChdir(&gConn, lp->line);
@@ -2865,7 +2877,7 @@ QuoteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const A
 		(void) STRNCAT(cmdbuf, " ");
 		(void) STRNCAT(cmdbuf, argv[i]);
 	}
-	(void) FTPCmd(&gConn, cmdbuf);
+	(void) FTPCmd(&gConn, "%s", cmdbuf);
 	PrintResp(&gConn.lastFTPCmdResultLL);
 }	/* QuoteCmd */
 
@@ -3077,7 +3089,7 @@ SiteCmd(const int argc, const char **const argv, const CommandPtr cmdp, const Ar
 		(void) STRNCAT(cmdbuf, " ");
 		(void) STRNCAT(cmdbuf, argv[i]);
 	}
-	(void) FTPCmd(&gConn, cmdbuf);
+	(void) FTPCmd(&gConn, "%s", cmdbuf);
 	PrintResp(&gConn.lastFTPCmdResultLL);
 }	/* SiteCmd */
 

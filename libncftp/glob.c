@@ -1042,7 +1042,7 @@ goback:
 #if defined(WIN32) || defined(_WINDOWS)
 
 static void
-Traverse(FTPCIPtr cip, char *fullpath, struct stat *st, char *relpath, FileInfoListPtr filp)
+Traverse(FTPCIPtr cip, char *fullpath, struct Stat *st, char *relpath, FileInfoListPtr filp)
 {
 	WIN32_FIND_DATA ffd;
 	HANDLE searchHandle;
@@ -1091,7 +1091,7 @@ Traverse(FTPCIPtr cip, char *fullpath, struct stat *st, char *relpath, FileInfoL
 		(void) strcpy(cp, file);	/* append name after slash */
 		(void) strcpy(c2, file);	
 
-		if (lstat(fullpath, st) < 0) {
+		if (Lstat(fullpath, st) < 0) {
 			Error(cip, kDoPerror, "could not stat %s.\n", fullpath);
 			goto next;
 		}
@@ -1131,7 +1131,7 @@ next:
 #else
 
 static void
-Traverse(FTPCIPtr cip, char *fullpath, struct stat *st, char *relpath, FileInfoListPtr filp)
+Traverse(FTPCIPtr cip, char *fullpath, struct Stat *st, char *relpath, FileInfoListPtr filp)
 {
 	char *dname;
 	struct dirent *dirp;
@@ -1176,7 +1176,7 @@ Traverse(FTPCIPtr cip, char *fullpath, struct stat *st, char *relpath, FileInfoL
 
 		(void) strcpy(cp, dirp->d_name);	/* append name after slash */
 		(void) strcpy(c2, dirp->d_name);	
-		if (lstat(fullpath, st) < 0) {
+		if (Lstat(fullpath, st) < 0) {
 			Error(cip, kDoPerror, "could not stat %s.\n", fullpath);
 			continue;
 		}
@@ -1233,7 +1233,7 @@ FTPLocalRecursiveFileList2(FTPCIPtr cip, LineListPtr fileList, FileInfoListPtr f
 	char fullpath[512];	
 	char relpath[512];
 #endif
-	struct stat st;
+	struct Stat st;
 	FileInfo fi;
 	char *cp;
 
@@ -1252,7 +1252,7 @@ FTPLocalRecursiveFileList2(FTPCIPtr cip, LineListPtr fileList, FileInfoListPtr f
 			(void) STRNCPY(relpath, filePtr->line);
 		else
 			(void) STRNCPY(relpath, cp + 1);
-		if (lstat(fullpath, &st) < 0) {
+		if (Lstat(fullpath, &st) < 0) {
 			Error(cip, kDoPerror, "could not stat %s.\n", fullpath);
 			continue;
 		}

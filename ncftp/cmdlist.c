@@ -225,8 +225,6 @@ Examples:\n\
 		2, kNoMax,
 	},
 #endif
-#if defined(WIN32) || defined(_WINDOWS)
-#else
 	{ "less",
 		PageCmd,
 		"file1 [file2...]",
@@ -234,7 +232,6 @@ Examples:\n\
 		kCmdMustBeConnected | kCmdHidden | kCompleteRemoteFile,
 		1, kNoMax,
 	},
-#endif
 	{ "lls",
 		LocalListCmd,
 		"[items to list]",
@@ -322,8 +319,6 @@ Examples:\n\
 		kCmdMustBeConnected | kCompleteRemoteDir | kCmdHidden,
 		kNoMin, kNoMax,
 	},
-#if defined(WIN32) || defined(_WINDOWS)
-#else
 	{ "more",
 		PageCmd,
 		"file1 [file2...]",
@@ -331,7 +326,6 @@ Examples:\n\
 		kCmdMustBeConnected | kCmdHidden | kCompleteRemoteFile,
 		1, kNoMax,
 	},
-#endif
 	{ "mput",
 		PutCmd,
 		"file1 [file2...]\n",
@@ -339,8 +333,6 @@ Examples:\n\
 		kCmdMustBeConnected | kCompleteLocalFile | kCmdHidden,
 		1, kNoMax,
 	},
-#if defined(WIN32) || defined(_WINDOWS)
-#else
 	{ "page",
 		PageCmd,
 		"file1 [file2...]",
@@ -348,7 +340,6 @@ Examples:\n\
 		kCmdMustBeConnected | kCompleteRemoteFile,
 		1, kNoMax,
 	},
-#endif
 	{ "open",
 		OpenCmd,
 "[-flags] [sitename]\n\
@@ -365,8 +356,6 @@ Examples:\n\
 		kCompleteBookmark,
 		kNoMin, kNoMax,
 	},
-#if defined(WIN32) || defined(_WINDOWS)
-#else
 	{ "pdir",
 		ListCmd,
 		"[items to list]",
@@ -381,7 +370,6 @@ Examples:\n\
 		kCmdMustBeConnected | kCompleteRemoteDir,
 		kNoMin, kNoMax,
 	},
-#endif
 	{ "prefs",
 		(CmdProc) SetCmd,
 		"",

@@ -1,6 +1,6 @@
 #include "syshdrs.h"
 
-static char gSioVersion[] = "@(#) sio 6.0 ** Copyright 1992-1999 Mike Gleason. All rights reserved.";
+static char gSioVersion[] = "@(#) sio 6.0.2 ** Copyright 1992-2000 Mike Gleason. All rights reserved.";
 
 #ifdef NO_SIGNALS
 static char gNoSignalsMarker[] = "@(#) sio - NO_SIGNALS";

@@ -1,3 +1,24 @@
+AC_DEFUN(wi_ARG_ENABLE_DEBUG, [
+# if DEBUGBUILD is yes, other macros try to set up a compilation environment
+# with debugging symbols enabled.  Example macros which are affected are
+# wi_CFLAGS and wi_SFLAG.
+#
+DEBUGBUILD=no
+DEBUGCONFIGUREFLAG=""
+AC_ARG_ENABLE(debug,
+[  --enable-debug          enable debugging symbols],
+[
+	DEBUGBUILD=yes
+	DEBUGCONFIGUREFLAG="--enable-debug"
+],[
+	DEBUGBUILD=no
+	DEBUGCONFIGUREFLAG=""
+])
+])
+dnl
+dnl
+dnl
+dnl
 AC_DEFUN(wi_EXTRA_IDIR, [
 incdir="$1"
 if test -r $incdir ; then
@@ -98,6 +119,13 @@ ifelse([$1], yes, [dnl
 b1=`cd .. ; pwd`
 b2=`cd ../.. ; pwd`
 exdirs="$HOME $j $b1 $b2 $prefix $2"
+if test -x "$HOME/bin/OS" ; then
+	b3=`$HOME/bin/OS`
+	b3="$HOME/$b3"
+	if test -d "$b3" ; then
+		exdirs="$b3 $exdirs"
+	fi
+fi
 ],[dnl
 exdirs="$prefix $2"
 ])
@@ -142,32 +170,70 @@ dnl
 AC_DEFUN(wi_HPUX_CFLAGS,
 [AC_MSG_CHECKING(if HP-UX ansi C compiler flags are needed)
 AC_REQUIRE([AC_PROG_CC])
-os=`uname -s | tr '[A-Z]' '[a-z]'`
+AC_REQUIRE([wi_OS_VAR])
 ac_cv_hpux_flags=no
 if test "$os" = hp-ux ; then
 	if test "$ac_cv_prog_gcc" = yes ; then
 		if test "$CFLAGS" != "" ; then
 			# Shouldn't be in there.
+changequote(<<, >>)dnl
 			CFLAGS=`echo "$CFLAGS" | sed 's/-A[ae]//g'`
+changequote([, ])dnl
+			case "$CFLAGS" in
+				*_HPUX_SOURCE*)
+					;;
+				*)
+					# This is required for the extended
+					# namespace.
+					#
+					CFLAGS="-D_HPUX_SOURCE +e $CFLAGS"
+					;;
+			esac
 		fi
 	else
 		# If you're not using gcc, then you better have a cc/c89
 		# that is usable.  If you have the barebones compiler, it
 		# won't work.  The good compiler uses -Aa for the ANSI
 		# compatible stuff.
-		x=`echo $CFLAGS | grep 'A[ae]' 2>/dev/null`
+changequote(<<, >>)dnl
+		x=`echo "$CFLAGS" | grep 'A[ae]' 2>/dev/null`
+changequote([, ])dnl
 		if test "$x" = "" ; then
 			CFLAGS="$CFLAGS -Ae"
 		fi
-		ac_cv_hpux_flags=yes
 	fi
-	# Also add _HPUX_SOURCE to get the extended namespace.
-#	x=`echo $CFLAGS | grep '_HPUX_SOURCE' 2>/dev/null`
-#	if test "$x" = "" ; then
-#		CFLAGS="$CFLAGS -D_HPUX_SOURCE"
-#	fi
+	ac_cv_hpux_flags=yes
 fi
 AC_MSG_RESULT($ac_cv_hpux_flags)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SFLAG, [AC_REQUIRE([AC_PROG_CC])
+STRIP="strip"
+if test "$SFLAG" = "" ; then
+	SFLAG="-s"
+	case "$OS" in
+		macosx*)
+			SFLAG='-Wl,-x'
+			;;
+	esac
+fi
+#
+# Was it ./configure --enable-debug ?
+#
+if test "$DEBUGBUILD" = yes ; then
+	SFLAG=""
+	STRIP=":"
+fi
+case "$CFLAGS" in
+	"-g"|"-g "*|*" -g"|*" -g "*|*"-g"[0-9]*)
+		# SFLAG="# $SFLAG"
+		SFLAG=""
+		STRIP=":"
+		;;
+esac
+STRIPFLAG="$SFLAG"
 ])
 dnl
 dnl
@@ -176,20 +242,64 @@ AC_DEFUN(wi_CFLAGS, [AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE_CPP()
 wi_HPUX_CFLAGS
 	if test "$CFLAGS" = "" ; then
+		AC_MSG_WARN([Your CFLAGS environment variable was not set.  A default of \"-g\" will be used.])
 		CFLAGS="-g"
-dnl	elif test "$ac_cv_prog_gcc" = "yes" ; then
-dnl		case "$CFLAGS" in
-dnl			*"-g -O"*)
-dnl				echo "using -g as default gcc CFLAGS" 1>&6
-dnl				CFLAGS=`echo $CFLAGS | sed 's/-g\ -O[0-9]*/-g/'`
-dnl				;;
-dnl			*"-O -g"*)
-dnl				# Leave the -g, but remove all -O options.
-dnl				echo "using -g as default gcc CFLAGS" 1>&6
-dnl				CFLAGS=`echo $CFLAGS | sed 's/-O[0-9]*\ -g/-g/'`
-dnl				;;
-dnl		esac
 	fi
+	if test "$NOOPTCFLAGS" = "" ; then
+changequote(<<, >>)dnl
+		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[1-9]*//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
+changequote([, ])dnl
+	fi
+	if test "$DEBUGCFLAGS" = "" ; then
+		DEBUGCFLAGS="-g $NOOPTCFLAGS"
+	fi
+	#
+	# Was it ./configure --enable-debug ?
+	#
+	AC_MSG_CHECKING([if this is a debug build])
+	if test "$DEBUGBUILD" = yes ; then
+		AC_MSG_RESULT(yes)
+		CFLAGS="$DEBUGCFLAGS"
+		SFLAG=""
+		STRIPFLAG=""
+		STRIP=":"
+	else
+		AC_MSG_RESULT(no)
+	fi
+	AC_MSG_CHECKING([NOOPTCFLAGS])
+	AC_MSG_RESULT($NOOPTCFLAGS)
+	AC_MSG_CHECKING([DEBUGCFLAGS])
+	AC_MSG_RESULT($DEBUGCFLAGS)
+	AC_MSG_CHECKING([CFLAGS])
+	AC_MSG_RESULT($CFLAGS)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_CFLAGS_LFS64, [AC_REQUIRE([AC_PROG_CC])
+AC_REQUIRE([wi_OS_VAR])
+wi_CFLAGS
+if test "os_${os}_gcc_${ac_cv_prog_gcc}" = os_hp-ux_gcc_yes ; then
+	case "$CFLAGS" in
+		*__STDC_EXT__*)
+			;;
+		*)
+			# This is required for the extended
+			# namespace symbols for Large Files.
+			#
+			CFLAGS="-D__STDC_EXT__ $CFLAGS"
+			;;
+	esac
+fi
+case "$CFLAGS" in
+	*-D_LARGEFILE64_SOURCE*)
+		;;
+	*)
+		CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"
+		;;
+esac
+AC_MSG_CHECKING([additional CFLAGS for LFS64 support])
+AC_MSG_RESULT($CFLAGS)
 ])
 dnl
 dnl
@@ -304,6 +414,21 @@ main()
 ])
 AC_MSG_RESULT($x)
 fi
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SNPRINTF, [
+wi_SPRINTF_RETVAL
+dnl Uncache these -- config.cache doesn't cache it right for this case.
+unset ac_cv_func_snprintf
+unset ac_cv_func_vsnprintf
+
+AC_CHECK_FUNCS(snprintf vsnprintf)
+wi_SNPRINTF_TERMINATES
+
+AC_CHECK_HEADERS(snprintf.h)
+wi_LIB_SNPRINTF
 ])
 dnl
 dnl
@@ -431,6 +556,45 @@ fi
 dnl
 dnl
 dnl
+AC_DEFUN(wi_LIB_TCP_WRAPPERS, [
+AC_MSG_CHECKING([for tcp wrappers library (libwrap)])
+
+AC_TRY_LINK([
+	/* includes */
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <stdio.h>
+
+/* These are needed if libwrap.a was compiled with
+ * PROCESS_OPTIONS defined.
+ */
+int allow_severity = 1;	/* arbitrary for this test */
+int deny_severity = 2;	/* arbitrary for this test */
+
+],[
+	/* function-body */
+	exit((allow_severity == deny_severity) ? 1 : 0);
+],[
+dnl	...Don't bother defining this symbol...
+dnl	...Check for tcpd.h instead...
+dnl	AC_DEFINE(HAVE_LIBWRAP)
+dnl
+dnl	...Don't modify LIBS, instead set WRAPLIB...
+dnl	LIBS="-lwrap  $LIBS"
+dnl
+	WRAPLIB="-lwrap"
+	wi_cv_lib_wrap_hosts_access=yes
+],[
+	WRAPLIB=""
+	wi_cv_lib_wrap_hosts_access=no
+])
+AC_MSG_RESULT($wi_cv_lib_wrap_hosts_access)
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_NET_LIBS, [
 # Mostly for SunOS 4 -- needs to come first because other libs depend on it
 wi_LIB_44BSD
@@ -441,16 +605,31 @@ if test "$SYS" = unixware ; then
 	# So far, only UnixWare needs this.
 	AC_CHECK_LIB(gen,syslog)
 
-#
-# Disabled for UnixWare 7 and above
+	case "$OS" in
+		unixware2*)
+			if test -f /usr/ucblib/libucb.a ; then
+				LDFLAGS="$LDFLAGS -L/usr/ucblib"
+				LIBS="$LIBS -lucb"
+			fi
+			if test -f /usr/include/unistd.h ; then
+				ac_cv_header_unistd_h=yes
+			fi
 
-#	if test -f /usr/ucblib/libucb.a ; then
-#		LDFLAGS="$LDFLAGS -L/usr/ucblib"
-#		LIBS="$LIBS -lucb"
-#	fi
-#	if test -f /usr/include/unistd.h ; then
-#		ac_cv_header_unistd_h=yes
-#	fi
+			# UnixWare 2 needs both lsocket and lnsl, and configure
+			# script won't detect this condition properly because 
+			# the libraries are interdependent.
+			#
+			LIBS="$LIBS -lsocket -lnsl"
+
+			# Now look for socket()
+			#
+			# AC_CHECK_FUNC(socket,[a=yes],[a=no])
+			#
+			AC_CHECK_FUNC(socket,[a=yes],[a=no])
+			;;
+		*)
+			;;
+	esac
 fi
 
 dnl AC_CHECK_LIB(inet,main)
@@ -528,7 +707,29 @@ exit(((int) &u.ut_name) & 0xff);	/* bogus code, of course. */
 ])
 AC_MSG_RESULT($wi_cv_utmp_ut_name)
 ])
-	#undef HAVE_UTMP_UT_USER
+dnl
+dnl
+dnl
+AC_DEFUN(wi_UTMPX_UT_SYSLEN, [
+AC_MSG_CHECKING([for ut_syslen field in struct utmpx])
+AC_TRY_LINK([
+	/* includes */
+#include <unistd.h>
+#include <sys/types.h>
+#include <utmpx.h>
+],[
+struct utmpx u;
+
+u.ut_syslen = 0;
+exit(((int) &u.ut_syslen) & 0xff);	/* bogus code, of course. */
+],[
+	wi_cv_utmpx_ut_syslen=yes
+	AC_DEFINE(HAVE_UTMPX_UT_SYSLEN)
+],[
+	wi_cv_utmpx_ut_syslen=no
+])
+AC_MSG_RESULT($wi_cv_utmpx_ut_syslen)
+])
 dnl
 dnl
 dnl
@@ -621,6 +822,29 @@ exit(((int) &u.ut_host) & 0xff);	/* bogus code, of course. */
 	wi_cv_utmp_ut_host=no
 ])
 AC_MSG_RESULT($wi_cv_utmp_ut_host)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_STRUCT_STAT64, [
+AC_MSG_CHECKING([for struct stat64])
+AC_TRY_LINK([
+	/* includes */
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+],[
+struct stat64 st;
+
+st.st_size = 0;
+exit(((int) &st.st_size) & 0xff);	/* bogus code, of course. */
+],[
+	wi_cv_struct_stat64=yes
+	AC_DEFINE(HAVE_STRUCT_STAT64)
+],[
+	wi_cv_struct_stat64=no
+])
+AC_MSG_RESULT($wi_cv_struct_stat64)
 ])
 dnl
 dnl
@@ -1381,6 +1605,12 @@ elif test "$wi_cv_scanf_long_long" = fail ; then
 	LONGEST_INT="long"
 else
 	AC_DEFINE(HAVE_LONG_LONG)
+	if test "$wi_cv_printf_long_long$wi_cv_scanf_long_long" = "%lld%qd" ; then
+		# FreeBSD 3.2 has %lld and %qd, but we want to
+		# run on 3.1 and 3.0.
+		#
+		wi_cv_printf_long_long="%qd"
+	fi
 	AC_DEFINE_UNQUOTED(PRINTF_LONG_LONG, "$wi_cv_printf_long_long")
 	AC_DEFINE_UNQUOTED(SCANF_LONG_LONG , "$wi_cv_scanf_long_long")
 	if test "$wi_cv_printf_long_long" = "%qd" ; then
@@ -1397,6 +1627,49 @@ else
 	wi_cv_use_long_long_msg_result="yes"
 fi
 AC_MSG_RESULT($wi_cv_use_long_long_msg_result)
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_CREATE_TAR_FILES, [
+AC_MSG_CHECKING([how to create TAR files])
+changequote(<<, >>)dnl
+TAR=/usr/bin/tar
+if [ ! -f /usr/bin/tar ] && [ -f /bin/tar ] ; then
+	TAR=/bin/tar
+fi
+x=""
+if [ -x /usr/bin/what ] ; then
+	x=`/usr/bin/what "$TAR" 2>&1 | sed -n 's/.*pax.*/pax/g;/pax/p'`
+elif [ -x /bin/what ] ; then
+	x=`/bin/what "$TAR" 2>&1 | sed -n 's/.*pax.*/pax/g;/pax/p'`
+fi
+if [ "x$x" != "xpax" ] ; then
+	# The junk above is because Mac OS X Server's tar freaks out
+	# and does not exit if you do "tar --help".
+	#
+	x=`$TAR --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
+fi
+case "$x" in
+	*owner=NAME*)
+		TARFLAGS="-c --owner=root --group=bin --verbose -f"
+		;;
+	*)
+		TARFLAGS="cvf"
+		x2=`gtar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
+		case "$x2" in
+			*owner=NAME*)
+				TARFLAGS="-c --owner=root --group=bin --verbose -f"
+				TAR=gtar
+				;;
+		esac
+		;;
+esac
+changequote([, ])dnl
+AC_SUBST(TARFLAGS)
+AC_SUBST(TAR)
+AC_MSG_RESULT([$TAR $TARFLAGS])
 ])
 dnl
 dnl
@@ -1785,6 +2058,11 @@ AC_CHECK_LIB(security,endprpwent)
 # HP-UX
 AC_CHECK_LIB(sec,getprpwnam)
 
+if test "$ac_cv_lib_sec_getprpwnam" = no ; then
+	# DYNIX/ptx
+	AC_CHECK_LIB(sec,getspnam)
+fi
+
 if test "$check_for_libcrypt" = yes ; then
 	wi_LIB_CRYPT
 fi
@@ -1806,10 +2084,29 @@ OS=''
 SYS=''
 NDEFS=''
 
+# Special case a few systems where if your CFLAGS appear
+# to want to generate for 32 bit, use that mode rather
+# than 64 bit.
+#
+case "$os,$CFLAGS" in
+	irix64,*-n32*)
+		os=irix
+		# then go to regular "irix" instead of "irix64" below.
+		;;
+esac
+
 case "$os" in
 	osf1)
-		OS="digitalunix${os_r}-$arch"
-		SYS=digitalunix
+		case "$os_r" in
+			3*|4*)
+				OS="digitalunix${os_r}-$arch"
+				SYS=digitalunix
+				;;
+			*)
+				OS="tru64unix${os_r}-$arch"
+				SYS=tru64unix
+				;;
+		esac
 		NDEFS="$NDEFS -DDIGITAL_UNIX=$os_r1"
 		;;
 	aix)
@@ -1821,6 +2118,11 @@ case "$os" in
 		OS="irix${os_r}"
 		SYS=irix
 		NDEFS="$NDEFS -DIRIX=$os_r1"
+		;;
+	irix64)
+		OS="irix64_${os_r}"
+		SYS=irix64
+		NDEFS="$NDEFS -DIRIX=$os_r1 -DIRIX64=$os_r1"
 		;;
 	hp-ux)
 		os_r=`echo "${os_r}" | cut -d. -f2-`
@@ -1877,21 +2179,37 @@ case "$os" in
 		os_r3=`echo "$os_r" | cut -d- -f1 | cut -d. -f3`
 		os_int=`expr "$os_r1" '*' 10000 + "$os_r2" '*' 1000 + "$os_r3"`
 		NDEFS="$NDEFS -DLINUX=$os_int"
-		if test -f /lib/libc-2.1.1.so ; then
+		if test -f /lib/libc-2.1.5.so ; then
 			libc="glibc2.1"
-dnl			OS="linux-$arch-$libc"
+#			OS="linux-$arch-$libc"
+			OS="linux-$arch"
+		elif test -f /lib/libc-2.1.4.so ; then
+			libc="glibc2.1"
+#			OS="linux-$arch-$libc"
+			OS="linux-$arch"
+		elif test -f /lib/libc-2.1.3.so ; then
+			libc="glibc2.1"
+#			OS="linux-$arch-$libc"
+			OS="linux-$arch"
+		elif test -f /lib/libc-2.1.2.so ; then
+			libc="glibc2.1"
+#			OS="linux-$arch-$libc"
+			OS="linux-$arch"
+		elif test -f /lib/libc-2.1.1.so ; then
+			libc="glibc2.1"
+#			OS="linux-$arch-$libc"
 			OS="linux-$arch"
 		elif test -f /lib/libc.so.6 ; then
 			libc="glibc2.0"
-dnl			OS="linux-$arch-$libc"
+#			OS="linux-$arch-$libc"
 			OS="linux-$arch"
 		elif test -f /lib/libc.so.6.1 ; then
 			libc="glibc2.0"
-dnl			OS="linux-$arch-$libc"
+#			OS="linux-$arch-$libc"
 			OS="linux-$arch"
 		else
 			libc="libc5"
-dnl			OS="linux-$arch-$libc"
+#			OS="linux-$arch-$libc"
 			OS="linux-$arch"
 		fi
 		SYS=linux
@@ -1909,7 +2227,7 @@ dnl			OS="linux-$arch-$libc"
 		OS="unixware${os_v}"
 		SYS=unixware
 		;;
-	rhapsody)
+	macosx*|darwin|rhapsody)
 		OS="macosxserver"
 		SYS="macosxserver"
 		;;

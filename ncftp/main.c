@@ -222,7 +222,7 @@ OpenURL(void)
 
 	if (gURLMode == 1) {
 		SetBookmarkDefaults(&gBm);
-		if (Open() >= 0) {
+		if (DoOpen() >= 0) {
 			for (lp = gStartupURLCdList.first; lp != NULL; lp = lp->next) {
 				result = FTPChdir(&gConn, lp->line);
 				if (result != kNoErr) {
@@ -238,7 +238,7 @@ OpenURL(void)
 			}
 		}
 	} else if (gURLMode == 2) {
-		(void) Open();
+		(void) DoOpen();
 	}
 }	/* OpenURL */
 
@@ -270,6 +270,9 @@ PreInit(void)
 #else
 	gIsTTY = ((isatty(2) != 0) && (getppid() > 1)) ? 1 : 0;
 	gIsTTYr = ((isatty(0) != 0) && (getppid() > 1)) ? 1 : 0;
+#endif
+#ifdef SIGPOLL
+	(void) NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
 #endif
 	InitUserInfo();
 	result = FTPInitLibrary(&gLib);

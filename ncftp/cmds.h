@@ -40,7 +40,7 @@ void LocalPwdCmd(const int, const char **const, const CommandPtr, const ArgvInfo
 void LookupCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void MkdirCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void MlsCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
-int Open(void);
+int DoOpen(void);
 void OpenCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void PageCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void PutCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);

@@ -429,7 +429,7 @@ FTPChdir3(FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_
 
 	do {
 		startcp = cp;
-		cp = StrFindLocalPathDelim(cp);
+		cp = StrFindLocalPathDelim(cp + 1);
 		if (cp != NULL) {
 			*cp++ = '\0';
 		}

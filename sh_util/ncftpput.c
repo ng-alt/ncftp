@@ -73,7 +73,7 @@ Usage(void)
 	(void) fprintf(fp, "\
   -c     Use stdin as input file to write on remote host.\n\
   -A     Append to remote files instead of overwriting them.\n\
-  -z/-Z  Do (do not) not try to resume uploads (default: -Z).\n\
+  -z/-Z  Do (do not) try to resume uploads (default: -Z).\n\
   -T XX  Upload into temporary files prefixed by XX.\n");
 	(void) fprintf(fp, "\
   -S XX  Upload into temporary files suffixed by XX.\n\
@@ -184,6 +184,9 @@ main(int argc, char **argv)
 	char *password;
 
 	InitWinsock();
+#ifdef SIGPOLL
+	NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
+#endif
 	result = FTPInitLibrary(&gLib);
 	if (result < 0) {
 		(void) fprintf(stderr, "ncftpput: init library error %d (%s).\n", result, FTPStrError(result));
@@ -197,6 +200,7 @@ main(int argc, char **argv)
 		exit(kExitInitConnInfoFailed);
 	}
 
+	InitUserInfo();
 	fi.dataPortMode = kFallBackToSendPortMode;
 	LoadFirewallPrefs(0);
 	if (gFwDataPortMode >= 0)
@@ -215,12 +219,15 @@ main(int argc, char **argv)
 			break;
 		case 'u':
 			(void) STRNCPY(fi.user, optarg);
+			memset(optarg, '*', strlen(fi.user));
 			break;
 		case 'j':
 			(void) STRNCPY(fi.acct, optarg);
+			memset(optarg, '*', strlen(fi.acct));
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, optarg);	/* Don't recommend doing this! */
+			memset(optarg, '*', strlen(fi.pass));
 			break;
 		case 'e':
 			if (strcmp(optarg, "stdout") == 0)
@@ -334,8 +341,6 @@ main(int argc, char **argv)
 			(void) STRNCPY(fi.host, argv[optind]);
 		}
 	}
-
-	InitUserInfo();
 
 	if (strcmp(fi.user, "anonymous") && strcmp(fi.user, "ftp")) {
 		if (fi.pass[0] == '\0') {

@@ -659,7 +659,7 @@ LLs(const char *const item, int listmode, const char *const options, FILE *strea
 	LineList ll;
 	FileInfoPtr fip, fip2;
 	FileInfoList fil;
-	struct stat st;
+	struct Stat st;
 	int result;
 	size_t len;
 
@@ -731,7 +731,7 @@ LLs(const char *const item, int listmode, const char *const options, FILE *strea
 	
 	for (fip = fil.first; fip != NULL; fip = fip2) {
 		fip2 = fip->next;
-		if (stat(fip->relname, &st) < 0) {
+		if (Stat(fip->relname, &st) < 0) {
 			fip2 = RemoveFileInfo(&fil, fip);
 			continue;
 		}

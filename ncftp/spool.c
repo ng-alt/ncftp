@@ -441,8 +441,13 @@ RunBatch(int Xstruct, const FTPCIPtr cip)
 			argv[0] = (char *) "ncftpbatch";
 			argv[1] = (char *) "-d";
 			argv[2] = NULL;
+#ifdef BINDIR
+			(void) execv(ncftpbatch, argv);
+			(void) fprintf(stderr, "Could not run %s.  Is it in installed as %s?\n", argv[0], ncftpbatch);
+#else	/* BINDIR */
 			(void) execvp(argv[0], argv);
 			(void) fprintf(stderr, "Could not run %s.  Is it in your $PATH?\n", argv[0]);
+#endif	/* BINDIR */
 			perror(argv[0]);
 			exit(1);
 		}

@@ -180,6 +180,9 @@ main(int argc, char **argv)
 	char *password;
 
 	InitWinsock();
+#ifdef SIGPOLL
+	NcSignal(SIGPOLL, (FTPSigProc) SIG_IGN);
+#endif
 	result = FTPInitLibrary(&gLib);
 	if (result < 0) {
 		(void) fprintf(stderr, "ncftpget: init library error %d (%s).\n", result, FTPStrError(result));
@@ -191,6 +194,7 @@ main(int argc, char **argv)
 		exit(kExitInitConnInfoFailed);
 	}
 
+	InitUserInfo();
 	fi.dataPortMode = kPassiveMode;
 	LoadFirewallPrefs(0);
 	if (gFwDataPortMode >= 0)
@@ -212,12 +216,15 @@ main(int argc, char **argv)
 			break;
 		case 'u':
 			(void) STRNCPY(fi.user, optarg);
+			memset(optarg, '*', strlen(fi.user));
 			break;
 		case 'j':
 			(void) STRNCPY(fi.acct, optarg);
+			memset(optarg, '*', strlen(fi.acct));
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, optarg);	/* Don't recommend doing this! */
+			memset(optarg, '*', strlen(fi.pass));
 			break;
 		case 'e':
 			if (strcmp(optarg, "stdout") == 0)
@@ -293,8 +300,6 @@ main(int argc, char **argv)
 	}
 	if (optind > argc - 1)
 		Usage();
-
-	InitUserInfo();
 
 	if (progmeters != 0)
 		fi.progress = PrStatBar;

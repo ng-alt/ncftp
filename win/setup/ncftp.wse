@@ -1,7 +1,7 @@
 Document Type: WSE
 item: Global
-  Version=8.03
-  Title=NcFTP 3.0.1 Installation
+  Version=8.11
+  Title=NcFTP 3.0.2 Installation
   Flags=00010100
   Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
   Copy Default=1
@@ -21,7 +21,7 @@ item: Global
   Patch Flags=0000000000000001
   Patch Threshold=85
   Patch Memory=4000
-  EXE Filename=ncftp-3.0.1-win32.exe
+  EXE Filename=ncftp-3.0.2-win32.exe
   FTP Cluster Size=20
   Per-User Version ID=1
   Dialogs Version=7
@@ -31,13 +31,13 @@ item: Global
   Distribute Type=1
   Step View=Properties
   Variable Name1=_SYS_
-  Variable Default1=C:\WINDOWS\SYSTEM
+  Variable Default1=D:\WINNT\System32
   Variable Flags1=00001000
   Variable Name2=_WIN_
   Variable Default2=C:\WINDOWS
   Variable Flags2=00001000
   Variable Name3=_WISE_
-  Variable Default3=D:\PROGRAM FILES\WISE INSTALLMASTER 8.0
+  Variable Default3=D:\PROGRA~1\WISEIN~1.1
   Variable Flags3=00001000
   Variable Name4=_ALIASNAME_
   Variable Flags4=00001000
@@ -46,10 +46,10 @@ item: Global
   Variable Name6=_ALIASTYPE_
   Variable Flags6=00001000
   Variable Name7=_ODBC16_
-  Variable Default7=C:\WINDOWS\SYSTEM
+  Variable Default7=D:\WINNT\System32
   Variable Flags7=00001000
   Variable Name8=_ODBC32_
-  Variable Default8=D:\PROGRA~1\WISEIN~1.0\RUNTIME\ODBC30
+  Variable Default8=D:\WINNT\System32
   Variable Flags8=00001000
 end
 item: Get Temporary Filename
@@ -115,7 +115,7 @@ item: Remark
 end
 item: Set Variable
   Variable=APPTITLE
-  Value=NcFTP 3.0.1
+  Value=NcFTP 3.0.2
   Flags=10000000
 end
 item: Remark
@@ -1245,6 +1245,27 @@ end
 item: Include Script
   Pathname=%_WISE_%\INCLUDE\uninstal.wse
 end
+item: Install File
+  Source=d:\src\win\ncftp\ncftp\Release\ncftp.exe
+  Destination=%MAINDIR%\ncftp.exe
+  Flags=0000000010000011
+  Version String=3.0.1
+  Version MS=196608
+  Version LS=65559
+  Company=NcFTP Software
+  Product= 
+  File Size=233472
+  File Date=20001017 163022
+  EXE Type=32
+end
+item: Install File
+  Source=d:\src\win\ncftp\sh_util\Release\ncftpbatch.exe
+  Destination=%MAINDIR%\ncftpbatch.exe
+  Flags=0000000010000010
+  File Size=151552
+  File Date=20001017 163041
+  EXE Type=32
+end
 item: If/While Statement
   Variable=COMPONENTS
   Value=A
@@ -1254,16 +1275,9 @@ item: Install File
   Source=d:\src\win\ncftp\win\bmed\Release\ncftpbookmarks.exe
   Destination=%MAINDIR%\ncftpbookmarks.exe
   Flags=0000000010000010
-end
-item: Install File
-  Source=d:\src\win\ncftp\sh_util\Release\ncftpbatch.exe
-  Destination=%MAINDIR%\ncftpbatch.exe
-  Flags=0000000010000010
-end
-item: Install File
-  Source=d:\src\win\ncftp\ncftp\Release\ncftp.exe
-  Destination=%MAINDIR%\ncftp.exe
-  Flags=0000000010000011
+  File Size=36864
+  File Date=20001017 163034
+  EXE Type=32
 end
 item: End Block
 end
@@ -1276,6 +1290,9 @@ item: Install File
   Source=d:\src\win\ncftp\sh_util\Release\ncftpget.exe
   Destination=%MAINDIR%\ncftpget.exe
   Flags=0000000010000010
+  File Size=143360
+  File Date=20001017 163044
+  EXE Type=32
 end
 item: End Block
 end
@@ -1288,6 +1305,9 @@ item: Install File
   Source=d:\src\win\ncftp\sh_util\Release\ncftpput.exe
   Destination=%MAINDIR%\ncftpput.exe
   Flags=0000000010000010
+  File Size=143360
+  File Date=20001017 163048
+  EXE Type=32
 end
 item: End Block
 end
@@ -1300,6 +1320,9 @@ item: Install File
   Source=d:\src\win\ncftp\sh_util\Release\ncftpls.exe
   Destination=%MAINDIR%\ncftpls.exe
   Flags=0000000010000010
+  File Size=118784
+  File Date=20001017 163046
+  EXE Type=32
 end
 item: End Block
 end
@@ -1312,31 +1335,43 @@ item: Install File
   Source=d:\src\win\ncftp\doc\html\index.html
   Destination=%MAINDIR%\doc\html\index.html
   Flags=0000000010000010
+  File Size=985
+  File Date=20000321 020938
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\html\ncftp.html
   Destination=%MAINDIR%\doc\html\ncftp.html
   Flags=0000000010000010
+  File Size=39455
+  File Date=20000320 011132
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\html\ncftpbatch.html
   Destination=%MAINDIR%\doc\html\ncftpbatch.html
   Flags=0000000010000010
+  File Size=2348
+  File Date=20000320 012732
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\html\ncftpget.html
   Destination=%MAINDIR%\doc\html\ncftpget.html
   Flags=0000000010000010
+  File Size=7544
+  File Date=20000929 031848
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\html\ncftpls.html
   Destination=%MAINDIR%\doc\html\ncftpls.html
   Flags=0000000010000010
+  File Size=3479
+  File Date=20000929 031852
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\html\ncftpput.html
   Destination=%MAINDIR%\doc\html\ncftpput.html
   Flags=0000000010000010
+  File Size=7475
+  File Date=20000929 031738
 end
 item: End Block
 end
@@ -1349,26 +1384,36 @@ item: Install File
   Source=d:\src\win\ncftp\doc\man\ncftpput.1
   Destination=%MAINDIR%\doc\man\ncftpput.1
   Flags=0000000010000010
+  File Size=6487
+  File Date=20000319 163034
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\man\ncftpls.1
   Destination=%MAINDIR%\doc\man\ncftpls.1
   Flags=0000000010000010
+  File Size=2785
+  File Date=20000319 161638
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\man\ncftpget.1
   Destination=%MAINDIR%\doc\man\ncftpget.1
   Flags=0000000010000010
+  File Size=6670
+  File Date=20000319 160956
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\man\ncftp.1
   Destination=%MAINDIR%\doc\man\ncftp.1
   Flags=0000000010000010
+  File Size=33125
+  File Date=20000319 173322
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\man\ncftpbatch.1
   Destination=%MAINDIR%\doc\man\ncftpbatch.1
   Flags=0000000010000010
+  File Size=1831
+  File Date=20000319 171820
 end
 item: End Block
 end
@@ -1379,41 +1424,57 @@ item: Install File
   Source=d:\src\win\ncftp\doc\readme_ncftpget_windows.txt
   Destination=%MAINDIR%\doc\readme_ncftpget_windows.txt
   Flags=0000000010000010
+  File Size=420
+  File Date=20000320 012940
 end
 item: Install File
   Source=d:\src\win\ncftp\doc\readme_windows.txt
   Destination=%MAINDIR%\doc\readme_windows.txt
   Flags=0000000010000010
+  File Size=1108
+  File Date=19990929 212232
 end
 item: Install File
   Source=d:\src\win\ncftp\Changelog
   Destination=%MAINDIR%\doc\Changelog.txt
   Flags=0000000010000010
+  File Size=18023
+  File Date=20000929 023534
 end
 item: Install File
   Source=d:\src\win\ncftp\Firewall-proxy-readme
   Destination=%MAINDIR%\doc\Firewall-proxy-readme.txt
   Flags=0000000010000010
+  File Size=973
+  File Date=19990929 212232
 end
 item: Install File
   Source=d:\src\win\ncftp\LICENSE.txt
   Destination=%MAINDIR%\doc\LICENSE.txt
   Flags=0000000010000010
+  File Size=6511
+  File Date=20000929 002638
 end
 item: Install File
   Source=d:\src\win\ncftp\Readline-readme
   Destination=%MAINDIR%\doc\Readline-readme.txt
   Flags=0000000010000010
+  File Size=918
+  File Date=20000306 211442
 end
 item: Install File
   Source=d:\src\win\ncftp\Readme
   Destination=%MAINDIR%\doc\Readme.txt
   Flags=0000000010000010
+  File Size=3389
+  File Date=20000306 210146
 end
 item: Install File
   Source=d:\src\win\ncftp\Whatsnew-3.0
   Destination=%MAINDIR%\doc\Whatsnew-3.0.txt
   Flags=0000000010000010
+  File Size=1456
+  File Date=19990929 212232
 end
 item: Create Directory
   Pathname=%MAINDIR%\Users
