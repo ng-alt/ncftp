@@ -1,7 +1,7 @@
 Document Type: WSE
 item: Global
-  Version=8.11
-  Title=NcFTP 3.0.2 Installation
+  Version=8.13
+  Title=NcFTP 3.0.3 Installation
   Flags=00010100
   Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
   Copy Default=1
@@ -21,7 +21,7 @@ item: Global
   Patch Flags=0000000000000001
   Patch Threshold=85
   Patch Memory=4000
-  EXE Filename=ncftp-3.0.2-win32.exe
+  EXE Filename=ncftp-3.0.3-win32.exe
   FTP Cluster Size=20
   Per-User Version ID=1
   Dialogs Version=7
@@ -37,7 +37,7 @@ item: Global
   Variable Default2=C:\WINDOWS
   Variable Flags2=00001000
   Variable Name3=_WISE_
-  Variable Default3=D:\PROGRA~1\WISEIN~1.1
+  Variable Default3=D:\Program Files\Wise InstallMaster 8.0
   Variable Flags3=00001000
   Variable Name4=_ALIASNAME_
   Variable Flags4=00001000
@@ -49,7 +49,7 @@ item: Global
   Variable Default7=D:\WINNT\System32
   Variable Flags7=00001000
   Variable Name8=_ODBC32_
-  Variable Default8=D:\WINNT\System32
+  Variable Default8=D:\PROGRA~1\WISEIN~1.0\Runtime\ODBC30
   Variable Flags8=00001000
 end
 item: Get Temporary Filename
@@ -115,7 +115,7 @@ item: Remark
 end
 item: Set Variable
   Variable=APPTITLE
-  Value=NcFTP 3.0.2
+  Value=NcFTP 3.0.3
   Flags=10000000
 end
 item: Remark

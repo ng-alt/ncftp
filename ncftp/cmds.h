@@ -1,6 +1,6 @@
 /* cmds.h
  *
- * Copyright (c) 1992-2000 by Mike Gleason.
+ * Copyright (c) 1992-2001 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -14,7 +14,8 @@ void SaveUnsavedBookmark(void);
 void BookmarkCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void CatCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void PrintResp(LineListPtr);
-int nFTPChdirAndGetCWD(const FTPCIPtr, const char *);
+int nFTPChdirAndGetCWD(const FTPCIPtr, const char *, const int);
+int Chdirs(FTPCIPtr cip, const char *const cdCwd);
 void BGStartCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void ChdirCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);
 void ChmodCmd(const int, const char **const, const CommandPtr, const ArgvInfoPtr);

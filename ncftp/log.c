@@ -1,6 +1,6 @@
 /* log.c
  *
- * Copyright (c) 1992-2000 by Mike Gleason.
+ * Copyright (c) 1992-2001 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -96,7 +96,7 @@ EndLog(void)
 		fat -= (long) strlen(str);
 	}
 	/* skip lines until a new site was opened */
-	while (1) {
+	for (;;) {
 		if (fgets(str, (int) sizeof(str), old) == NULL) {
 			(void) fclose(old);
 			(void) remove(gLogFileName);

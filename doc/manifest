@@ -38,6 +38,9 @@ Strn/Makefile.in
 Strn/Strn.3
 Strn/configure.in
 Strn/config.h.in
+Strn/Strn.version
+Strn/tester
+Strn/Dynscat.c
 sh_util/ncftpget.c
 sh_util/ncftpput.c
 sh_util/gpshare.c
@@ -133,6 +136,7 @@ sh/dos2unix.sh
 sh/mksrczip.bat
 sh/mksrctar.sh
 sh/mksrczip.sh
+sh/autoconfall.sh
 sh/man2html.sh
 autoconf/acconfig.h
 autoconf/aclocal.m4

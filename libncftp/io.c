@@ -1,14 +1,13 @@
 /* io.c
  *
- * Copyright (c) 1996-2000 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
 
 #include "syshdrs.h"
 
-static int gGotBrokenData;
-static int gUnused;
+static int gGotBrokenData = 0;
 
 #if defined(WIN32) || defined(_WINDOWS)
 #	define ASCII_TRANSLATION 0
@@ -29,7 +28,7 @@ static sigjmp_buf gBrokenDataJmp;
 #else
 static jmp_buf gBrokenDataJmp;
 #endif	/* HAVE_SIGSETJMP */
-static int gCanBrokenDataJmp;
+static int gCanBrokenDataJmp = 0;
 
 #endif	/* NO_SIGNALS */
 
@@ -175,8 +174,8 @@ int
 FTPList(const FTPCIPtr cip, const int outfd, const int longMode, const char *const lsflag)
 {
 	const char *cmd;
-	char line[128];
-	char secondaryBuf[512];
+	char line[512];
+	char secondaryBuf[768];
 #ifndef NO_SIGNALS
 	char *secBufPtr, *secBufLimit;
 	int nread;
@@ -562,6 +561,23 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const LineListPt
 
 
 
+static void
+AutomaticallyUseASCIIModeDependingOnExtension(const FTPCIPtr cip, const char *const pathName, int *const xtype)
+{
+	if ((*xtype == kTypeBinary) && (cip->asciiFilenameExtensions != NULL)) {
+		if (FilenameExtensionIndicatesASCII(pathName, cip->asciiFilenameExtensions)) {
+			/* Matched -- send this file in ASCII mode
+			 * instead of binary since it's extension
+			 * appears to be that of a text file.
+			 */
+			*xtype = kTypeAscii;
+		}
+	}
+}	/* AutomaticallyUseASCIIModeDependingOnExtension */
+
+
+
+
 /* The purpose of this is to provide updates for the progress meters
  * during lags.  Return zero if the operation timed-out.
  */
@@ -635,7 +651,7 @@ FTPPutOneF(
 	const FTPCIPtr cip,
 	const char *const file,
 	const char *volatile dstfile,
-	const int xtype,
+	int xtype,
 	const int fdtouse,
 	const int appendflag,
 	const char *volatile tmppfx,
@@ -713,6 +729,7 @@ FTPPutOneF(
 	}
 
 	if (fdtouse < 0) {
+		AutomaticallyUseASCIIModeDependingOnExtension(cip, dstfile, &xtype);
 		(void) FTPFileSizeAndModificationTime(cip, dstfile, &startPoint, xtype, &mdtm);
 
 		if (appendflag == kAppendYes) {
@@ -730,10 +747,20 @@ FTPPutOneF(
 		}
 
 		statrc = -1;
-		if ((mdtm != kModTimeUnknown) || (startPoint != kSizeUnknown))
+		if ((mdtm != kModTimeUnknown) || (startPoint != kSizeUnknown)) {
+			/* Then we know the file exists.  We will
+			 * ask the user what to do, if possible, below.
+			 */
 			statrc = 0;
-		else if (resumeProc != NoConfirmResumeUploadProc)
+		} else if ((resumeProc != NoConfirmResumeUploadProc) && (cip->hasMDTM != kCommandAvailable) && (cip->hasSIZE != kCommandAvailable)) {
+			/* We already checked if the file had a filesize
+			 * or timestamp above, but if the server indicated
+			 * it did not support querying those directly,
+			 * we now need to try to determine if the file
+			 * exists in a few other ways.
+			 */
 			statrc = FTPFileExists2(cip, dstfile, 0, 0, 0, 1, 1);
+		}
 
 		if (
 			(resumeProc != NoConfirmResumeUploadProc) &&
@@ -811,12 +838,32 @@ FTPPutOneF(
 	}
 
 	if ((cip->numUploads == 0) && (cip->dataSocketSBufSize > 0)) {
+		/* If dataSocketSBufSize is non-zero, it means you
+		 * want to explicitly try to set the size of the
+		 * socket's I/O buffer.
+		 *
+		 * If it is zero, it means you want to just use the
+		 * TCP stack's default value, which is typically
+		 * between 8 and 64 kB.
+		 *
+		 * If you try to set the buffer larger than 64 kB,
+		 * the TCP stack should try to use RFC 1323 to
+		 * negotiate "TCP Large Windows" which may yield
+		 * significant performance gains.
+		 */
 		if (cip->hasSTORBUFSIZE == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE STORBUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
-		if (cip->hasSBUFSIZ == kCommandAvailable)
+		else if (cip->hasSBUFSIZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE SBUFSIZ %lu", (unsigned long) cip->dataSocketSBufSize);
-		if (cip->hasSBUFSZ == kCommandAvailable)
+		else if (cip->hasSBUFSZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE SBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
+		/* At least one server implemenation has RBUFSZ but not
+		 * SBUFSZ and instead uses RBUFSZ for both.
+		 */
+		else if ((cip->hasSBUFSZ != kCommandAvailable) && (cip->hasRBUFSZ == kCommandAvailable))
+			(void) FTPCmd(cip, "SITE RBUFSZ %lu", (unsigned long) cip->dataSocketSBufSize);
+		else if (cip->hasBUFSIZE == kCommandAvailable)
+			(void) FTPCmd(cip, "SITE BUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
 	}
 
 #ifdef NO_SIGNALS
@@ -1162,12 +1209,7 @@ brk:
 		 * leave it open, otherwise we opened it, so
 		 * we need to dispose of it.
 		 */
-#ifdef NO_SIGNALS
-		SClose(fd, 3);
-#else	/* NO_SIGNALS */
-		/* Close could block. */
 		(void) close(fd);
-#endif
 		fd = -1;
 	}
 
@@ -1229,11 +1271,11 @@ FTPPutOneFile3(
 	const int resumeflag,
 	const int deleteflag,
 	const ConfirmResumeUploadProc resumeProc,
-	int reserved)
+	int UNUSED(reserved))
 {
 	int result;
 
-	gUnused = reserved;
+	LIBNCFTP_USE_VAR(reserved);
 	if (cip == NULL)
 		return (kErrBadParameter);
 	if (strcmp(cip->magic, kLibraryMagic))
@@ -1266,7 +1308,7 @@ FTPPutFiles3(
 	const int resumeflag,
 	const int deleteflag,
 	const ConfirmResumeUploadProc resumeProc,
-	int reserved)
+	int UNUSED(reserved))
 {
 	LineList globList;
 	FileInfoList files;
@@ -1276,7 +1318,7 @@ FTPPutFiles3(
 	const char *dstdir;
 	char dstdir2[512];
 
-	gUnused = reserved;
+	LIBNCFTP_USE_VAR(reserved);
 	if (cip == NULL)
 		return (kErrBadParameter);
 	if (strcmp(cip->magic, kLibraryMagic))
@@ -1512,12 +1554,12 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 	volatile int result;
 	int nread, nwrote;
 	volatile int fd;
-	volatile FTPSigProc osigpipe;
-	volatile FTPCIPtr vcip;
 	volatile int vfd;
 	const char *volatile vfile;
 #ifndef NO_SIGNALS
 	int sj;
+	volatile FTPSigProc osigpipe;
+	volatile FTPCIPtr vcip;
 #endif
 	int pid, status;
 	char savedCwd[512];
@@ -1579,11 +1621,11 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 		return (result);
 	}
 
-	vcip = cip;
 	vfd = fd;
 	vfile = file;
 
 #ifndef NO_SIGNALS
+	vcip = cip;
 	osigpipe = (volatile FTPSigProc) signal(SIGPIPE, BrokenData);
 
 	gGotBrokenData = 0;
@@ -1629,7 +1671,9 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 			result = kErrRETRFailed;
 		cip->errNo = result;
 
+#ifndef NO_SIGNALS
 		(void) signal(SIGPIPE, SIG_IGN);
+#endif
 		(void) close(vfd);
 		for (;;) {
 #ifdef HAVE_WAITPID
@@ -1643,7 +1687,9 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 				break;		/* done */
 		}
 
+#ifndef NO_SIGNALS
 		(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
+#endif
 		if (basecp != NULL)
 			(void) FTPChdir(cip, savedCwd);
 		return (result);
@@ -1748,7 +1794,9 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 		cip->errNo = kErrRETRFailed;
 	}
 	FTPStopIOTimer(cip);
+#if !defined(NO_SIGNALS)
 	(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
+#endif
 
 	if ((result == 0) && (cip->bytesTransferred == 0)) {
 		result = kErrOpenFailed;
@@ -1770,7 +1818,7 @@ FTPGetOneF(
 	const FTPCIPtr cip,
 	const char *const file,
 	const char *dstfile,
-	const int xtype,
+	int xtype,
 	const int fdtouse,
 	longest_int expectedSize,
 	time_t mdtm,
@@ -1829,6 +1877,7 @@ FTPGetOneF(
 		 *
 		 */
 
+		AutomaticallyUseASCIIModeDependingOnExtension(cip, file, &xtype);
 		if (expectedSize == kSizeUnknown) {
 			(void) FTPFileSizeAndModificationTime(cip, file, &expectedSize, xtype, &mdtm);
 		} else {
@@ -2006,7 +2055,7 @@ FTPGetOneF(
 			return (result);
 		}
 
-		if ((expectedSize == (longest_int) 0) && (startPoint <= (longest_int) 0)) {
+		if ((expectedSize == (longest_int) 0) && (startPoint <= (longest_int) 0) && (zaction != kConfirmResumeProcSaidOverwrite)) {
 			/* Don't go to all the trouble of downloading nothing. */
 #if defined(WIN32) || defined(_WINDOWS)
 			/* Note: Windows doesn't allow zero-size files. */
@@ -2028,12 +2077,27 @@ FTPGetOneF(
 	}
 
 	if ((cip->numDownloads == 0) && (cip->dataSocketRBufSize > 0)) {
+		/* If dataSocketSBufSize is non-zero, it means you
+		 * want to explicitly try to set the size of the
+		 * socket's I/O buffer.
+		 *
+		 * If it is zero, it means you want to just use the
+		 * TCP stack's default value, which is typically
+		 * between 8 and 64 kB.
+		 *
+		 * If you try to set the buffer larger than 64 kB,
+		 * the TCP stack should try to use RFC 1323 to
+		 * negotiate "TCP Large Windows" which may yield
+		 * significant performance gains.
+		 */
 		if (cip->hasRETRBUFSIZE == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE RETRBUFSIZE %lu", (unsigned long) cip->dataSocketRBufSize);
-		if (cip->hasRBUFSIZ == kCommandAvailable)
+		else if (cip->hasRBUFSIZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE RBUFSIZ %lu", (unsigned long) cip->dataSocketRBufSize);
-		if (cip->hasRBUFSZ == kCommandAvailable)
+		else if (cip->hasRBUFSZ == kCommandAvailable)
 			(void) FTPCmd(cip, "SITE RBUFSZ %lu", (unsigned long) cip->dataSocketRBufSize);
+		else if (cip->hasBUFSIZE == kCommandAvailable)
+			(void) FTPCmd(cip, "SITE BUFSIZE %lu", (unsigned long) cip->dataSocketSBufSize);
 	}
 
 #ifdef NO_SIGNALS
@@ -2351,11 +2415,7 @@ brk:
 		 * leave it open, otherwise we opened it, so
 		 * we need to close it.
 		 */
-#ifdef NO_SIGNALS
-		SClose(fd, 3);
-#else	/* NO_SIGNALS */
 		(void) close(fd);
-#endif
 		fd = -1;
 	}
 
@@ -2398,11 +2458,11 @@ FTPGetOneFile3(
 	const int appendflag,
 	const int deleteflag,
 	const ConfirmResumeDownloadProc resumeProc,
-	int reserved)
+	int UNUSED(reserved))
 {
 	int result;
 
-	gUnused = reserved;
+	LIBNCFTP_USE_VAR(reserved);
 	if (cip == NULL)
 		return (kErrBadParameter);
 	if (strcmp(cip->magic, kLibraryMagic))
@@ -2435,7 +2495,7 @@ FTPGetFiles3(
 	const int deleteflag,
 	const int tarflag,
 	const ConfirmResumeDownloadProc resumeProc,
-	int reserved)
+	int UNUSED(reserved))
 {
 	LineList globList;
 	LinePtr itemPtr;
@@ -2446,13 +2506,13 @@ FTPGetFiles3(
 	char *ldir;
 	char *cp;
 	const char *dstdir;
-	char dstdir2[512];
 	const char *pattern;
-	char pattern2[256];
+	char *pattern2, *dstdir2;
 	char c;
 	int recurse1;
+	int errRc;
 
-	gUnused = reserved;
+	LIBNCFTP_USE_VAR(reserved);
 	if (cip == NULL)
 		return (kErrBadParameter);
 	if (strcmp(cip->magic, kLibraryMagic))
@@ -2460,31 +2520,51 @@ FTPGetFiles3(
 	if (pattern1 == NULL)
 		return (kErrBadParameter);
 
+	dstdir2 = NULL;
+	pattern2 = NULL;
+
 	if (dstdir1 == NULL) {
 		dstdir = NULL;
 	} else {
-		dstdir = STRNCPY(dstdir2, dstdir1);
+		dstdir2 = StrDup(dstdir1);
+		if (dstdir2 == NULL) {
+			errRc = kErrMallocFailed;
+			goto return_err;
+		}
 		StrRemoveTrailingLocalPathDelim(dstdir2);
+		dstdir = dstdir2;
 	}
-	pattern = STRNCPY(pattern2, pattern1);
+
+	pattern2 = StrDup(pattern1);
+	if (pattern2 == NULL) {
+		errRc = kErrMallocFailed;
+		goto return_err;
+	}
 	StrRemoveTrailingSlashes(pattern2);
+	pattern = pattern2;
 
 	if (pattern[0] == '\0') {
-		if (recurse == kRecursiveNo)
-			return (kErrBadParameter);
+		if (recurse == kRecursiveNo) {
+			errRc = kErrBadParameter;
+			goto return_err;
+		}
 		pattern = ".";
 		doGlob = kGlobNo;
 	} else if (strcmp(pattern, ".") == 0) {
-		if (recurse == kRecursiveNo)
-			return (kErrBadParameter);
+		if (recurse == kRecursiveNo) {
+			errRc = kErrBadParameter;
+			goto return_err;
+		}
 		doGlob = kGlobNo;
 	}
 	if (recurse == kRecursiveYes)
 		appendflag = kAppendNo;
 
 	batchResult = FTPRemoteGlob(cip, &globList, pattern, doGlob);
-	if (batchResult != kNoErr)
-		return (batchResult);
+	if (batchResult != kNoErr) {
+		errRc = batchResult;
+		goto return_err;
+	}
 
 	cip->cancelXfer = 0;	/* should already be zero */
 
@@ -2613,7 +2693,14 @@ FTPGetFiles3(
 	DisposeLineListContents(&globList);
 	if (batchResult < 0)
 		cip->errNo = batchResult;
-	return (batchResult);
+	errRc = batchResult;
+
+return_err:
+	if (dstdir2 != NULL)
+		free(dstdir2);
+	if (pattern2 != NULL)
+		free(pattern2);
+	return (errRc);
 }	/* FTPGetFiles3 */
 
 

@@ -4,13 +4,14 @@
 #
 #-----------------------------------------------------------------------------
 
-VER=3.0.2
+VER=3.0.3
 #BETA=-DBETA=21
 CC=@CC@
 CFLAGS=@CFLAGS@
 #CC=gcc
 #CFLAGS=-O2 -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion
 STRIPFLAG=@SFLAG@
+STRIP=strip
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 BINDIR=@bindir@
@@ -24,9 +25,9 @@ all:
 	( cd Strn ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
 	( cd libncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
 	-mkdir bin 2>/dev/null
-	( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIPFLAG=$(STRIPFLAG)" )
-	( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIPFLAG=$(STRIPFLAG)" )
-	( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIPFLAG=$(STRIPFLAG)" )
+	( cd ncftp ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
+	( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" )
 	-@echo 'Done.'
 	-@echo
 	-@echo '** Please report any problems to ncftp@ncftp.com **'
@@ -36,23 +37,24 @@ install:
 	( cd sh_util ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
 	( cd vis ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
 	-mkdir "$(prefix)" "$(BINDIR)" "$(mandir)" "$(mandir)/man1" 2>/dev/null
-	-@echo '..... Installing the manual pages .....'
-	$(INSTALL_DATA) doc/man/ncftp.1 "$(mandir)/man1/ncftp.1"
-	$(INSTALL_DATA) doc/man/ncftpget.1 "$(mandir)/man1/ncftpget.1"
-	$(INSTALL_DATA) doc/man/ncftpput.1 "$(mandir)/man1/ncftpput.1"
-	$(INSTALL_DATA) doc/man/ncftpbatch.1 "$(mandir)/man1/ncftpbatch.1"
-	$(INSTALL_DATA) doc/man/ncftpls.1 "$(mandir)/man1/ncftpls.1"
-	-@/bin/ls -l "$(mandir)/man1/ncftp.1" "$(mandir)/man1/ncftpget.1" "$(mandir)/man1/ncftpput.1" "$(mandir)/man1/ncftpbatch.1" "$(mandir)/man1/ncftpls.1"
 	-@echo '..... Installing the programs .....'
 	$(INSTALL_PROGRAM) bin/ncftp@EXEEXT@ "$(BINDIR)/ncftp@EXEEXT@"
 	$(INSTALL_PROGRAM) bin/ncftpget@EXEEXT@ "$(BINDIR)/ncftpget@EXEEXT@"
 	$(INSTALL_PROGRAM) bin/ncftpput@EXEEXT@ "$(BINDIR)/ncftpput@EXEEXT@"
 	$(INSTALL_PROGRAM) bin/ncftpls@EXEEXT@ "$(BINDIR)/ncftpls@EXEEXT@"
 	$(INSTALL_PROGRAM) bin/ncftpbatch@EXEEXT@ "$(BINDIR)/ncftpbatch@EXEEXT@"
-	-@/bin/ls -l "$(BINDIR)/ncftp@EXEEXT@" "$(BINDIR)/ncftpget@EXEEXT@" "$(BINDIR)/ncftpput@EXEEXT@" "$(BINDIR)/ncftpls@EXEEXT@" "$(BINDIR)/ncftpbatch@EXEEXT@"
-	-@echo "(The following will fail if you didn't build the curses-based programs.)"
-	$(INSTALL_PROGRAM) bin/ncftpbookmarks "$(BINDIR)/ncftpbookmarks"
-	-@/bin/ls -l "$(BINDIR)/ncftpbookmarks"
+#
+# The visual programs are only built if a working Curses was found.
+#
+	test -f bin/ncftpbookmarks@EXEEXT@ && $(INSTALL_PROGRAM) bin/ncftpbookmarks@EXEEXT@ "$(BINDIR)/ncftpbookmarks@EXEEXT@"
+	-@echo '..... Installing the manual pages .....'
+	$(INSTALL_DATA) doc/man/ncftp.1 "$(mandir)/man1/ncftp.1"
+	$(INSTALL_DATA) doc/man/ncftpget.1 "$(mandir)/man1/ncftpget.1"
+	$(INSTALL_DATA) doc/man/ncftpput.1 "$(mandir)/man1/ncftpput.1"
+	$(INSTALL_DATA) doc/man/ncftpbatch.1 "$(mandir)/man1/ncftpbatch.1"
+	$(INSTALL_DATA) doc/man/ncftpls.1 "$(mandir)/man1/ncftpls.1"
+	-@echo '..... Finishing up .....'
+	-@( cd "$(BINDIR)" ; echo ""; echo "$(BINDIR):" ; /bin/ls -l "ncftp@EXEEXT@" "ncftpget@EXEEXT@" "ncftpput@EXEEXT@" "ncftpls@EXEEXT@" "ncftpbatch@EXEEXT@" "ncftpbookmarks@EXEEXT@" 2>/dev/null | sed 's/^/  /;' ; echo "" )
 	-@echo 'Done installing NcFTP.'
 
 clean:

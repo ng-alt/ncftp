@@ -63,6 +63,9 @@ char gHostIP[32];
 unsigned int gPort;
 char gRUser[32];
 char gRPass[128];
+char gPreCommand[128];
+char gPerFileCommand[128];
+char gPostCommand[128];
 int gXtype;
 int gRecursive;
 int gDelete;
@@ -249,7 +252,13 @@ static void PerrorBox(const char *const whatFailed)
 
 /*VARARGS*/
 static void
-Log(int uiShow, const char *const fmt, ...)
+Log(
+#if defined(WIN32) || defined(_WINDOWS)
+		int uiShow,
+#else
+		int UNUSED(uiShow),
+#endif
+		const char *const fmt, ...)
 {
 	va_list ap;
 	struct tm *ltp;
@@ -295,6 +304,8 @@ Log(int uiShow, const char *const fmt, ...)
 		}
 		YieldUI(2);
 	}
+#else
+	LIBNCFTP_USE_VAR(uiShow);
 #endif
 }	/* Log */
 
@@ -518,6 +529,25 @@ PreInit(void)
 	(void) OurDirectoryPath(gSpoolDir, sizeof(gSpoolDir), kSpoolDir);
 	(void) signal(SIGINT, SigExit);
 	(void) signal(SIGTERM, SigExit);
+#if defined(WIN32) || defined(_WINDOWS)
+#else
+	(void) signal(SIGSEGV, SigExit);
+	(void) signal(SIGBUS, SigExit);
+	(void) signal(SIGFPE, SigExit);
+	(void) signal(SIGILL, SigExit);
+#if SIGIOT != SIGABRT
+	(void) signal(SIGIOT, SigExit);
+#endif
+#ifdef SIGEMT
+	(void) signal(SIGEMT, SigExit);
+#endif
+#ifdef SIGSYS
+	(void) signal(SIGSYS, SigExit);
+#endif
+#ifdef SIGSTKFLT
+	(void) signal(SIGSTKFLT, SigExit);
+#endif
+#endif
 }	/* PreInit */
 
 
@@ -561,6 +591,9 @@ PrePrintItem(void)
 	gLDir[0] = '\0';
 	gRFile[0] = '\0';
 	gLFile[0] = '\0';
+	gPreCommand[0] = '\0';
+	gPerFileCommand[0] = '\0';
+	gPostCommand[0] = '\0';
 
 	line[sizeof(line) - 1] = '\0';
 	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
@@ -605,6 +638,12 @@ PrePrintItem(void)
 			(void) STRNCPY(gRFile, tok2);
 		} else if (strcmp(tok1, "local-file") == 0) {
 			(void) STRNCPY(gLFile, tok2);
+		} else if (strcmp(tok1, "pre-command") == 0) {
+			(void) STRNCPY(gPreCommand, tok2);
+		} else if (strcmp(tok1, "per-file-command") == 0) {
+			(void) STRNCPY(gPerFileCommand, tok2);
+		} else if (strcmp(tok1, "post-command") == 0) {
+			(void) STRNCPY(gPostCommand, tok2);
 		}	/* else, unknown command. */
 	}
 	(void) fclose(fp);
@@ -696,6 +735,9 @@ DoItem(int iType)
 	gLDir[0] = '\0';
 	gRFile[0] = '\0';
 	gLFile[0] = '\0';
+	gPreCommand[0] = '\0';
+	gPerFileCommand[0] = '\0';
+	gPostCommand[0] = '\0';
 
 	line[sizeof(line) - 1] = '\0';
 	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
@@ -741,6 +783,12 @@ DoItem(int iType)
 			(void) STRNCPY(gRFile, tok2);
 		} else if (strcmp(tok1, "local-file") == 0) {
 			(void) STRNCPY(gLFile, tok2);
+		} else if (strcmp(tok1, "pre-command") == 0) {
+			(void) STRNCPY(gPreCommand, tok2);
+		} else if (strcmp(tok1, "per-file-command") == 0) {
+			(void) STRNCPY(gPerFileCommand, tok2);
+		} else if (strcmp(tok1, "post-command") == 0) {
+			(void) STRNCPY(gPostCommand, tok2);
 		}	/* else, unknown command. */
 	}
 	(void) fclose(fp);
@@ -850,6 +898,7 @@ DoItem(int iType)
 	}
 
 	if (needOpen != 0) {
+		(void) AdditionalCmd(&gConn, gPostCommand, NULL);
 		(void) FTPCloseHost(&gConn);
 		if (FTPInitConnectionInfo(&gLib, &gConn, kDefaultFTPBufSize) < 0) {
 			/* Highly unlikely... */
@@ -893,11 +942,13 @@ DoItem(int iType)
 		}
 		if (FTPGetCWD(&gConn, gRStartDir, sizeof(gRStartDir)) < 0) {
 			Log(1, "Couldn't get start directory on %s, will try again next time.\n", gHost);
+			(void) AdditionalCmd(&gConn, gPostCommand, NULL);
 			(void) FTPCloseHost(&gConn);
 			return (-1);	/* Try again next time. */
 		}
 		if (gConn.hasCLNT != kCommandNotAvailable)
 			(void) FTPCmd(&gConn, "CLNT NcFTPBatch %.5s %s", gVersion + 11, gOS);
+		(void) AdditionalCmd(&gConn, gPreCommand, NULL);
 
 		if (FTPChdir3(&gConn, gRDir, NULL, 0, cdflags) < 0) {
 			Log(1, "Could not remote cd to %s.\n", gRDir);
@@ -944,6 +995,7 @@ DoItem(int iType)
 			Log(1, "Remote item %s is already present locally.\n", gRFile);
 			result = 0;
 		} else {
+			(void) AdditionalCmd(&gConn, gPerFileCommand, gRFile);
 			Log(1, "Done with %s.\n", gRFile);
 		}
 	} else /* if (gOperation == 'P') */ {
@@ -965,6 +1017,7 @@ DoItem(int iType)
 			Log(1, "Local item %s is already present on remote host.\n", gLFile);
 			result = 0;
 		} else {
+			(void) AdditionalCmd(&gConn, gPerFileCommand, gRFile);
 			Log(1, "Done with %s.\n", gLFile);
 		}
 	}
@@ -1189,6 +1242,7 @@ EventShell(volatile unsigned int sleepval)
 			if (gQuitRequested != 0) {
 				(void) closedir(DIRp);
 				Log(0, "User requested close.\n");
+				(void) AdditionalCmd(&gConn, gPostCommand, NULL);
 				(void) FTPCloseHost(&gConn);
 				gMayCancelJmp = 0;
 				Log(0, "-----done-----\n");
@@ -1203,6 +1257,7 @@ EventShell(volatile unsigned int sleepval)
 			break;
 		}
 	}
+	(void) AdditionalCmd(&gConn, gPostCommand, NULL);
 	(void) FTPCloseHost(&gConn);
 	gMayCancelJmp = 0;
 	Log(0, "-----done-----\n");
@@ -1621,15 +1676,15 @@ PRead(int sfd, char *const buf0, size_t size, int retry)
 
 	errno = 0;
 	nleft = (int) size;
-	while (1) {
-		nread = read(sfd, buf, nleft);
+	for (;;) {
+		nread = (int) read(sfd, buf, nleft);
 		if (nread <= 0) {
 			if (nread == 0) {
 				/* EOF */
-				nread = size - nleft;
+				nread = (int) size - nleft;
 				return (nread);
 			} else if (errno != EINTR) {
-				nread = size - nleft;
+				nread = (int) size - nleft;
 				if (nread == 0)
 					nread = -1;
 				return (nread);
@@ -1644,7 +1699,7 @@ PRead(int sfd, char *const buf0, size_t size, int retry)
 			break;
 		buf += nread;
 	}
-	nread = size - nleft;
+	nread = (int) size - nleft;
 	return (nread);
 }	/* PRead */
 
@@ -1796,7 +1851,7 @@ main(int argc, const char **const argv)
 	int readcore = -1;
 
 	PreInit();
-	while ((c = getopt(argc, (char **) argv, "|:XDdls:w")) > 0) switch(c) {
+	while ((c = getopt(argc, (char **) argv, "|:XDdlSs:w")) > 0) switch(c) {
 		case 'd':
 			runAsDaemon = 1;
 			break;
@@ -1805,6 +1860,9 @@ main(int argc, const char **const argv)
 			break;
 		case 'l':
 			listonly = 1;
+			break;
+		case 'S':
+			sleep(15);
 			break;
 		case 's':
 			sleepval = (unsigned int) atoi(optarg);

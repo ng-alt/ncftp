@@ -1,6 +1,6 @@
 /* ls.c
  *
- * Copyright (c) 1992-2000 by Mike Gleason.
+ * Copyright (c) 1992-2001 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -195,7 +195,7 @@ LsC(FileInfoListPtr dirp, int endChars, FILE *stream)
 	screenColumns = gScreenColumns;
 	if (screenColumns > 400)
 		screenColumns = 400;
-	ncol = (screenColumns - 1) / (dirp->maxFileLen + 2 + /*1or0*/ endChars);
+	ncol = (screenColumns - 1) / ((int) dirp->maxFileLen + 2 + /*1or0*/ endChars);
 	if (ncol < 1)
 		ncol = 1;
 	colw = (screenColumns - 1) / ncol; 
@@ -232,8 +232,7 @@ LsC(FileInfoListPtr dirp, int endChars, FILE *stream)
 				}
 			}
 		}
-		for (cp1 = buf + sizeof(buf); *--cp1 == ' '; )
-			;
+		for (cp1 = buf + sizeof(buf); *--cp1 == ' '; ) {}
 		++cp1;
 		*cp1++ = '\n';
 		*cp1 = '\0';
@@ -300,7 +299,7 @@ LsL(FileInfoListPtr dirp, int endChars, int linkedTo, FILE *stream)
 	fTail[1] = '\0';
 
 	(void) time(&gNowPlus1Hr);
-	gNowMinus6Mon = gNowPlus1Hr - 15552000L;
+	gNowMinus6Mon = gNowPlus1Hr - 15552000;
 	gNowPlus1Hr += 3600;
 
 	diritemv = dirp->vec;
@@ -313,7 +312,7 @@ LsL(FileInfoListPtr dirp, int endChars, int linkedTo, FILE *stream)
 		plugspec,
 #endif
 		"%%-%ds",
-		dirp->maxPlugLen
+		(int) dirp->maxPlugLen
 	);
 
 	if (dirp->maxPlugLen < 29) {

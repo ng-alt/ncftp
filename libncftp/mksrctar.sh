@@ -11,6 +11,8 @@ for f in libncftp sio Strn doc ; do
 	fi
 done
 
+( cd libncftp ; make clean )
+
 TMPDIR=/tmp
 if [ "$#" -lt 2 ] ; then
 	TARDIR="libncftp"
@@ -64,6 +66,8 @@ find . -depth -follow -type f | sed '
 /\/Makefile$/d
 /\/OLD/d
 /\/old/d' | cut -c3- | tee "$wd/doc/manifest.txt" | cpio -Lpdm $TMPDIR/TAR/$TARDIR
+
+( cd "$TMPDIR/TAR/$TARDIR" ; ln -s doc/README.txt README )
 
 x=`tar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
 case "$x" in

@@ -140,6 +140,8 @@
 
 #undef HAVE_SOCKADDR_UN_SUN_LEN
 
+#undef HAVE_STATFS_F_BAVAIL
+
 /* Define if your struct stat has st_blksize.  */
 #undef HAVE_ST_BLKSIZE
 
@@ -269,6 +271,9 @@
 
 /* Define if printing a "long long" with "%qd" works . */
 #undef PRINTF_LONG_LONG_QD
+
+/* Define if your C compiler supports ANSI C function prototyping. */
+#undef PROTOTYPES
 
 /* Define as the return type of signal handlers (int or void).  */
 #undef RETSIGTYPE

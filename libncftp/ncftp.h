@@ -1,6 +1,6 @@
 /* ncftp.h
  *
- * Copyright (c) 1996-2000 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
@@ -8,7 +8,7 @@
 #ifndef _ncftp_h_
 #define _ncftp_h_ 1
 
-#define kLibraryVersion "@(#) LibNcFTP 3.0.4 (October 18, 2000)"
+#define kLibraryVersion "@(#) LibNcFTP 3.0.6 (April 14, 2001)"
 
 #if defined(WIN32) || defined(_WINDOWS)
 #	define longest_int LONGLONG
@@ -62,11 +62,15 @@
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.0.4"
+#define kLibraryMagic "LibNcFTP 3.0.6"
 
 #ifndef longest_int
 #define longest_int long long
 #define longest_uint unsigned long long
+#endif
+
+#ifndef forever
+#	define forever for ( ; ; )
 #endif
 
 typedef void (*FTPSigProc)(int);
@@ -170,6 +174,7 @@ typedef struct FTPConnectionInfo {
 	int hasSTORBUFSIZE;			/* Do not modify this field. */
 	int hasSBUFSIZ;				/* Do not modify this field. */
 	int hasSBUFSZ;				/* Do not modify this field. */
+	int hasBUFSIZE;				/* Do not modify this field. */
 	int mlsFeatures;			/* Do not modify this field. */
 	int STATfileParamWorks;			/* Do not modify this field. */
 	int NLSTfileParamWorks;			/* Do not modify this field. */
@@ -231,13 +236,14 @@ typedef struct FTPConnectionInfo {
 	int numListings;			/* Do not use or modify. */
 	int doNotGetStartingWorkingDirectory;	/* You may modify this. */
 #if USE_SIO
-	char srlBuf[512];
+	char srlBuf[768];
 	SReadlineInfo ctrlSrl;		/* Do not use or modify. */
 #endif
 	FTPGetPassphraseProc passphraseProc;	/* You may modify this. */
 	int iUser;				/* Scratch integer field you can use. */
 	void *pUser;				/* Scratch pointer field you can use. */
 	longest_int llUser;			/* Scratch long long field you can use. */
+	const char *asciiFilenameExtensions;	/* You may assign this. */
 	int reserved[32];			/* Do not use or modify. */
 } FTPConnectionInfo;
 
@@ -464,6 +470,7 @@ typedef int (*ConfirmResumeUploadProc)(
 #define kServerTypeFTP_Max		9
 #define kServerTypeRoxen		10
 #define kServerTypeNetWareFTP		11
+#define kServerTypeWS_FTP		12
 
 
 #if !defined(WIN32) && !defined(_WINDOWS) && !defined(closesocket)
@@ -497,8 +504,24 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#ifndef _ftp_c_
+#ifndef _libncftp_ftp_c_
 extern char gLibNcFTPVersion[64];
+#endif
+
+#ifndef _libncftp_errno_c_
+extern int gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
+#endif
+
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+#	ifndef UNUSED
+#		define UNUSED(a) a __attribute__ ((unused))
+#	endif
+#	define LIBNCFTP_USE_VAR(a)
+#else
+#	define LIBNCFTP_USE_VAR(a) gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	ifndef UNUSED
+#		define UNUSED(a) a
+#	endif
 #endif
 
 /* Public routines */
@@ -563,6 +586,7 @@ void Scramble(unsigned char *dst, size_t dsize, unsigned char *src, char *key);
 time_t UnMDTMDate(char *);
 int MkDirs(const char *const, int mode1);
 char *GetPass(const char *const prompt);
+int FilenameExtensionIndicatesASCII(const char *const pathName, const char *const extnList);
 void StrRemoveTrailingSlashes(char *dst);
 #if defined(WIN32) || defined(_WINDOWS)
 char *StrFindLocalPathDelim(const char *src);

@@ -90,6 +90,10 @@ SReadline(SReadlineInfo *srl, char *const linebuf, size_t linebufsize)
 	dstlim = dst + linebufsize - 1;		       /* Leave room for NUL. */
 	src = srl->bufPtr;
 	requireEOLN = srl->requireEOLN;
+	if (requireEOLN)
+		dstlim--;
+	if (dstlim <= dst)
+		return (-1);				/* Buffer too small. */
 
 	forever {
 		if ((requireEOLN == 0) && (dst >= dstlim))
@@ -100,7 +104,6 @@ SReadline(SReadlineInfo *srl, char *const linebuf, size_t linebufsize)
 				/* Probable DOS -- return now and give you an
 				 * opportunity to handle bogus input.
 				 */
-				*dst++ = '\n';
 				goto done;
 			}
 			nr = SRead(srl->fd, srl->buf, srl->bufSizeMax, srl->timeoutLen, 0);
@@ -123,22 +126,29 @@ SReadline(SReadlineInfo *srl, char *const linebuf, size_t linebufsize)
 			/* If the next character is a \n that is valid,
 			 * otherwise treat a stray \r as an illegal character.
 			 */
-			if (src < srl->bufLim) {
-				if (*src != '\n') {
-					illegals++;
-				}
-			}
+			if ((src < srl->bufLim) && (*src != '\n'))
+				illegals++;
 		} else {
 			if (*src == '\n') {
-				*dst++ = *src++;
+				if (dst < dstlim)
+					*dst++ = *src++;
+				else
+					src++;
 				goto done;
 			}
-			*dst++ = *src++;
+			if (dst < dstlim)
+				*dst++ = *src++;
+			else
+				src++;
 		}
 	}
 
 done:
 	srl->bufPtr = src;
+	if ((requireEOLN != 0) && (dst != linebuf) && (dst[-1] != '\n'))
+		*dst++ = '\n';
+	if ((requireEOLN != 0) && (dst == linebuf) && (illegals > 0))
+		*dst++ = '\n';
 	*dst = '\0';
 	len = (int) (dst - linebuf);
 	if (err < 0)

@@ -1,6 +1,6 @@
 /* glob.c
  *
- * Copyright (c) 1996-2000 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
@@ -192,6 +192,11 @@ UnDosLine(	char *const line,
 0123456789012345678901234567890123456789012345678901234567890123456789
 04-27-99  10:32PM               270158 Game booklet.pdf
 03-11-99  10:03PM       <DIR>          Get A3d Banner
+
+We also try to parse the format from CMD.EXE, which is similar:
+
+03/22/2001  06:23p              62,325 cls.pdf
+
 	 *
 	 */
 	cp = line;
@@ -208,30 +213,52 @@ UnDosLine(	char *const line,
 		(void) memset(&ftm, 0, sizeof(struct tm));
 		ftm.tm_isdst = -1;
 		cp[2] = '\0';
-		ftm.tm_mon = atoi(cp + 0) + 1;
+		ftm.tm_mon = atoi(cp + 0);
+		if (ftm.tm_mon > 0)
+			ftm.tm_mon -= 1;
 		cp[5] = '\0';
 		ftm.tm_mday = atoi(cp + 3);
-		cp[8] = '\0';
-		year = atoi(cp + 6);
-		if (year < 98)
-			year += 100;
-		ftm.tm_year = year;	/* years since 1900 */
+		if ((isdigit((int) cp[8])) && (isdigit((int) cp[9]))) {
+			/* Four-digit year */
+			cp[10] = '\0';
+			year = atoi(cp + 6);
+			if (year > 1900)
+				year -= 1900;
+			ftm.tm_year = year;	/* years since 1900 */
+			cp += 11;
+		} else {
+			/* Two-digit year */
+			cp[8] = '\0';
+			year = atoi(cp + 6);
+			if (year < 98)
+				year += 100;
+			ftm.tm_year = year;	/* years since 1900 */
+			cp += 9;
+		}
 
-		cp[12] = '\0';
-		hour = atoi(cp + 10);
-		if ((cp[15] == 'P') && (cp[16] == 'M') && (hour < 12))
+		for (;;) {
+			if (*cp == '\0')
+				return (-1);
+			if (isdigit(*cp))
+				break;
+			cp++;
+		}
+
+		cp[2] = '\0';
+		hour = atoi(cp);
+		if (((cp[5] == 'P') || (cp[5] == 'p')) && (hour < 12))
 			hour += 12;
-		else if ((cp[15] == 'A') && (cp[16] == 'M') && (hour == 12))
+		else if (((cp[5] == 'A') || (cp[5] == 'a')) && (hour == 12))
 			hour -= 12;
 		ftm.tm_hour = hour;
-		cp[15] = '\0';
-		ftm.tm_min = atoi(cp + 13);
+		cp[5] = '\0';
+		ftm.tm_min = atoi(cp + 3);
 		*ftime = mktime(&ftm);
 		if (*ftype == (time_t) -1)
 			return (-1);
 
+		cp += 6;
 		*ftype = '-';
-		cp += 17;
 		for (;;) {
 			if (*cp == '\0')
 				return (-1);
@@ -240,6 +267,17 @@ UnDosLine(	char *const line,
 				*ftype = 'd';
 				cp += 5;
 				break;	/* size field will end up being empty string */
+			} else if ((*cp == '<') && (cp[1] == 'J')) {
+				/* found <JUNCTION>
+				 *
+				 * Will we ever really see this?
+				 * IIS from Win2000sp1 sends <DIR>
+				 * for FTP, but CMD.EXE prints
+				 * <JUNCTION>.
+				 */
+				*ftype = 'd';
+				cp += 10;
+				break;
 			} else if (isdigit(*cp)) {
 				break;
 			} else {
@@ -251,6 +289,12 @@ UnDosLine(	char *const line,
 		for (;;) {
 			if (*cp == '\0')
 				return (-1);
+#ifdef HAVE_MEMMOVE
+			if (*cp == ',') {
+				/* Yuck -- US Locale dependency */
+				memmove(cp, cp + 1, strlen(cp + 1) + 1);
+			}
+#endif
 			if (!isdigit(*cp)) {
 				*cp++ = '\0';
 				break;
@@ -550,7 +594,7 @@ UnLslR(FileInfoListPtr filp, LineListPtr llp, int serverType)
 
 	InitFileInfoList(filp);
 	for (lp = llp->first; lp != NULL; lp = lp->next) {
-		len = strlen(STRNCPY(line, lp->line));
+		len = (int) strlen(STRNCPY(line, lp->line));
 		if ((line[0] == 't') && (strncmp(line, "total", 5) == 0)) {
 			/* total XX line? */
 			if (line[len - 1] != ':') {

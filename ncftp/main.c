@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (c) 1992-2000 by Mike Gleason.
+ * Copyright (c) 1992-2001 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -49,6 +49,7 @@ extern Bookmark gBm;
 extern int gLoadedBm;
 extern int gFirstTimeUser;
 extern int gFirewallType;
+extern char gAutoAscii[];
 extern char gFirewallHost[64];
 extern char gFirewallUser[32];
 extern char gFirewallPass[32];
@@ -58,25 +59,34 @@ extern unsigned int gFirewallPort;
 extern int gConnTimeout, gXferTimeout, gCtrlTimeout;
 extern int gDataPortMode, gRedialDelay;
 extern int gDebug;
-extern int gNumProgramRuns;
+extern int gNumProgramRuns, gDoNotDisplayAds;
 extern int gSOBufsize;
 extern FTPProgressMeterProc gProgressMeter;
 
 static void
 Usage(void)
 {
+	FILE *fp;
 #ifdef UNAME
 	char s[80];
 #endif
 
-	(void) fprintf(stderr, "\nUsage:  ncftp [-u user] [<host> | <URL>]\n");
-	(void) fprintf(stderr, "\nProgram version:  %s\nLibrary version:  %s\n", gVersion + 5, gLibNcFTPVersion + 5);
+	fp = stderr;
+	(void) fprintf(fp, "\nUsage:  ncftp [flags] [<host> | <directory URL to browse>]\n");
+	(void) fprintf(fp, "\nFlags:\n\
+  -u XX  Use username XX instead of anonymous.\n\
+  -p XX  Use password XX with the username.\n\
+  -P XX  Use port number XX instead of the default FTP service port (21).\n\
+  -j XX  Use account XX with the username (rarely needed).\n\
+  -F     Dump a sample $HOME/.ncftp/firewall prefs file to stdout and exit.\n");
+
+	(void) fprintf(fp, "\nProgram version:  %s\nLibrary version:  %s\n", gVersion + 5, gLibNcFTPVersion + 5);
 #ifdef UNAME
 	AbbrevStr(s, UNAME, 60, 1);
-	(void) fprintf(stderr, "System:           %s\n", s);
+	(void) fprintf(fp, "System:           %s\n", s);
 #endif
-	(void) fprintf(stderr, "\nThis is a freeware program by Mike Gleason (ncftp@ncftp.com).\n");
-	(void) fprintf(stderr, "Use ncftpget and ncftpput for command-line FTP.\n\n");
+	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (ncftp@ncftp.com).\n");
+	(void) fprintf(fp, "Use ncftpget and ncftpput for command-line FTP.\n\n");
 	exit(2);
 }	/* Usage */
 
@@ -126,6 +136,11 @@ InitConnectionInfo(void)
 	gConn.dataSocketRBufSize = gConn.dataSocketSBufSize = gSOBufsize;
 	if (gRedialDelay >= 10)
 		gConn.redialDelay = gRedialDelay;
+	if ((gAutoAscii[0] == '\0') || (ISTREQ(gAutoAscii, "no")) || (ISTREQ(gAutoAscii, "off")) || (ISTREQ(gAutoAscii, "false"))) {
+		gConn.asciiFilenameExtensions = NULL;
+	} else {
+		gConn.asciiFilenameExtensions = gAutoAscii;
+	}
 }	/* InitConnectionInfo */
 
 
@@ -345,8 +360,8 @@ Plug(void)
 #if defined(WIN32) || defined(_WINDOWS)
 	/* NcFTPd hasn't been ported to Windows. */
 #else
-	if ((gNumProgramRuns % 7) == 2) {
-		(void) printf("\n\n\n\tThank you for using NcFTP.\n\tAsk your system administrator to try NcFTPd Server!\n\thttp://www.ncftp.com\n\n\n\n");
+	if ((gDoNotDisplayAds == 0) && ((gNumProgramRuns % 7) == 2)) {
+		(void) printf("\n\n\n\tThank you for using NcFTP Client.\n\tAsk your system administrator to try NcFTPd Server!\n\thttp://www.ncftpd.com\n\n\n\n");
 	}
 #endif
 }	/* Plug */
@@ -413,7 +428,7 @@ main(int argc, const char **const argv)
 	 * bookmark settings.
 	 */
 
-	while ((c = Getopt(argc, argv, "P:u:p:J:rd:g:FVLD")) > 0) switch(c) {
+	while ((c = Getopt(argc, argv, "P:u:p:j:J:rd:g:FVLD")) > 0) switch(c) {
 		case 'P':
 			gConn.port = atoi(gOptArg);	
 			break;
@@ -424,6 +439,7 @@ main(int argc, const char **const argv)
 			(void) STRNCPY(gConn.pass, gOptArg);	/* Don't recommend doing this! */
 			break;
 		case 'J':
+		case 'j':
 			(void) STRNCPY(gConn.acct, gOptArg);
 			break;
 		case 'r':
@@ -440,8 +456,12 @@ main(int argc, const char **const argv)
 		case 'F':
 			DumpFirewallPrefsTemplate();
 			exit(0);
+			/*NOTREACHED*/
+			break;
 		case 'V':
+			/*FALLTHROUGH*/
 		case 'L':
+			/*FALLTHROUGH*/
 		case 'D':
 			/* silently ignore these legacy options */
 			break;

@@ -1,6 +1,6 @@
 /* cmds.c
  *
- * Copyright (c) 1996-2000 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
@@ -142,11 +142,9 @@ FTPRmdirRecursiveL2(const FTPCIPtr cip)
 		} else {
 			/* Assume it was a file -- remove it. */
 			result = FTPDelete(cip, file, kRecursiveNo, kGlobNo);
-			if (result != kNoErr) {
-				/* We couldn't remove the file.
-				 * Try continuing to remove the rest.
-				 */
-			}
+			/* Try continuing to remove the rest,
+			 * even if this failed.
+			 */
 		}
 	}
 	DisposeLineListContents(&fileList);
@@ -427,24 +425,31 @@ FTPChdir3(FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_
 		return (result);
 	}
 
+	lastSubDir = 0;
 	do {
 		startcp = cp;
-		cp = StrFindLocalPathDelim(cp + 1);
+		cp = StrFindLocalPathDelim(cp);
 		if (cp != NULL) {
+			/* If this is the first slash in an absolute
+			 * path, then startcp will be empty.  We will
+			 * use this below to treat this as the root
+			 * directory.
+			 */
 			*cp++ = '\0';
+		} else {
+			lastSubDir = 1;
 		}
-		lastSubDir = (cp == NULL);
 		if (strcmp(startcp, ".") == 0) {
 			result = 0;
 			if ((lastSubDir != 0) && (pwd != 0))
 				result = FTPGetCWD(cip, newCwd, newCwdSize);
 		} else if ((lastSubDir != 0) && (pwd != 0)) {
-			result = FTPChdirAndGetCWD(cip, startcp, newCwd, newCwdSize);
+			result = FTPChdirAndGetCWD(cip, (*startcp != '\0') ? startcp : "/", newCwd, newCwdSize);
 		} else {
-			result = FTPChdir(cip, startcp);
+			result = FTPChdir(cip, (*startcp != '\0') ? startcp : "/");
 		}
 		if (result < 0) {
-			if (mkd != 0) {
+			if ((mkd != 0) && (*startcp != '\0')) {
 				if (FTPCmd(cip, "MKD %s", startcp) == 2) {
 					result = FTPChdir(cip, startcp);
 				} else {
@@ -569,6 +574,10 @@ FTPMkdir2(const FTPCIPtr cip, const char *const newDir, const int recurse, const
 					cip->errNo = kErrMKDFailed;
 					return (result);
 				}
+				/* Note: below we will refer to cp + 1
+				 * which is why we set cp to point to
+				 * the byte before the array begins!
+				 */
 				cp = dir - 1;
 				break;
 			}

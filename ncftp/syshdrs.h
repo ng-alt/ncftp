@@ -1,6 +1,6 @@
 /* syshdrs.h
  *
- * Copyright (c) 1992-2000 by Mike Gleason.
+ * Copyright (c) 1992-2001 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -28,6 +28,9 @@
 #	include <errno.h>
 #	include <stdio.h>
 #	include <string.h>
+#	ifdef HAVE_STRINGS_H
+#		include <strings.h>
+#	endif
 #	include <stddef.h>
 #	include <stdlib.h>
 #	include <ctype.h>
@@ -98,6 +101,9 @@
 #	include <errno.h>
 #	include <stdio.h>
 #	include <string.h>
+#	ifdef HAVE_STRINGS_H
+#		include <strings.h>
+#	endif
 #	include <stddef.h>
 #	include <stdlib.h>
 #	include <ctype.h>

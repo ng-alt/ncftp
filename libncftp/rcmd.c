@@ -1,13 +1,11 @@
 /* rcmd.c
  *
- * Copyright (c) 1996-2000 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1996-2001 Mike Gleason, NCEMRSoft.
  * All rights reserved.
  *
  */
 
 #include "syshdrs.h"
-
-static int gUnused;
 
 #if !defined(NO_SIGNALS) && (USE_SIO || !defined(SIGALRM) || !defined(SIGPIPE) || !defined(SIGINT))
 #	define NO_SIGNALS 1
@@ -22,9 +20,9 @@ static jmp_buf gBrokenCtrlJmp;
 #endif	/* HAVE_SIGSETJMP */
 
 static void
-BrokenCtrl(int signumIgnored)
+BrokenCtrl(int UNUSED(signumIgnored))
 {
-	gUnused = signumIgnored;	/* Shut up gcc */
+	LIBNCFTP_USE_VAR(signumIgnored); 		/* Shut up gcc */
 #ifdef HAVE_SIGSETJMP
 	siglongjmp(gBrokenCtrlJmp, 1);
 #else

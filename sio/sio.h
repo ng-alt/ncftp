@@ -123,6 +123,26 @@ typedef struct SReadlineInfo {
 typedef void (*sio_sigproc_t)(int);
 typedef volatile sio_sigproc_t vsio_sigproc_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef _sio_main_c
+extern int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings;
+#endif
+
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+#	ifndef UNUSED
+#		define UNUSED(a) a __attribute__ ((unused))
+#	endif
+#	define LIBSIO_USE_VAR(a)
+#else
+#	define LIBSIO_USE_VAR(a) gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	ifndef UNUSED
+#		define UNUSED(a) a
+#	endif
+#endif
+
 /* PRead.c */
 int PRead(int, char *const, size_t, int);
 
@@ -215,5 +235,9 @@ const char *SError(int e);
 /* main.c */
 void SIOHandler(int);
 void (*SSignal(int signum, void (*handler)(int)))(int);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* _sio_h_ */

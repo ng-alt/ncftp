@@ -107,6 +107,7 @@ AC_SUBST(MAINDIR)
 
 
 AC_PROG_CC
+wi_REQUEST_NO_Y2K_WARNINGS
 wi_CFLAGS_LFS64
 wi_DEFINE_UNAME
 AC_C_CONST
@@ -144,9 +145,9 @@ AC_FUNC_SETVBUF_REVERSED
 wi_FUNC_SIGSETJMP
 wi_CURSES_FEATURES
 if test "$LIBCURSES" = "" ; then
-	VIS_DPROGS='# ../bin/ncftpbookmarks'
+	VIS_DPROGS="# ../bin/ncftpbookmarks${EXEEXT}"
 else
-	VIS_DPROGS='../bin/ncftpbookmarks'
+	VIS_DPROGS="../bin/ncftpbookmarks${EXEEXT}"
 fi
 AC_SUBST(VIS_DPROGS)
 
@@ -155,7 +156,7 @@ AC_CHECK_HEADERS(unistd.h syslog.h utime.h resolv.h arpa/nameser.h sys/utsname.h
 AC_CHECK_HEADERS(termios.h termio.h sgtty.h sys/ioctl.h)
 AC_CHECK_HEADERS(sys/types.h sys/time.h sys/socket.h)
 dnl Readline headers #ifdefs for string.h
-AC_CHECK_HEADERS(string.h)
+AC_CHECK_HEADERS(string.h strings.h)
 wi_HEADER_SYS_SELECT_H
 AC_FUNC_SELECT_ARGTYPES
 
@@ -272,6 +273,22 @@ dnl 	LDFLAGS="$LDFLAGS -L${ldir}"
 dnl 	CPPFLAGS="$CPPFLAGS -I${ldir}"
 dnl 	LIBS="$LIBS -lStrn"
 dnl fi
+
+if test "x$mandir" = 'x${prefix}/man' ; then
+	# Mandir is at default value -- try to see
+	# if $prefix/share/man would be better.
+	#
+
+	# $prefix is probably set to NONE.
+	#
+	p=`cd / ; cd $prefix 2>/dev/null ; pwd`
+	if test "x$p" != "x/" ; then
+		p="/usr/local"
+	fi
+	if test -d "$p/share/man" ; then
+		mandir='${prefix}/share/man'
+	fi
+fi
 
 LIBS=`echo "$LIBS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
 LDFLAGS=`echo "$LDFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`

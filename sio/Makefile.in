@@ -16,7 +16,7 @@ PREFIX=@prefix@
 LIB=libsio.a
 LIBSO=libsio.so.5
 LIBSOS=libsio.so
-SFLAG=@SFLAG@
+STRIP=strip
 
 OBJS=\
 PRead.o		  PWrite.o	    SAcceptA.o	      SAcceptS.o \
@@ -75,19 +75,19 @@ soinstall: $(LIBSO)
 	-@/bin/ls -l $(PREFIX)/lib/$(LIBSO) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
 
 ucase_c: ucase_c/ucase_c.c $(LIB)
-	( cd ucase_c ; $(MAKE) "CFLAGS=$(CFLAGS)" "SFLAG=$(SFLAG)" "LIBS=$(LIBS)" )
+	( cd ucase_c ; $(MAKE) "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" "LIBS=$(LIBS)" )
 
 ucase_s: ucase_s/ucase_s.c $(LIB)
-	( cd ucase_s ; $(MAKE) "CFLAGS=$(CFLAGS)" "SFLAG=$(SFLAG)" "LIBS=$(LIBS)" )
+	( cd ucase_s ; $(MAKE) "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" "LIBS=$(LIBS)" )
 
 srltest: srltest/srltest.c $(LIB)
-	( cd srltest ; $(MAKE) "CFLAGS=$(CFLAGS)" "SFLAG=$(SFLAG)" "LIBS=$(LIBS)" )
+	( cd srltest ; $(MAKE) "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" "LIBS=$(LIBS)" )
 
 time_c: time_c/time_c.c $(LIB)
-	( cd time_c ; $(MAKE) "CFLAGS=$(CFLAGS)" "SFLAG=$(SFLAG)" "LIBS=$(LIBS)" )
+	( cd time_c ; $(MAKE) "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" "LIBS=$(LIBS)" )
 
 time_s: time_s/time_s.c $(LIB)
-	( cd time_s ; $(MAKE) "CFLAGS=$(CFLAGS)" "SFLAG=$(SFLAG)" "LIBS=$(LIBS)" )
+	( cd time_s ; $(MAKE) "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" "LIBS=$(LIBS)" )
 
 samples: ucase_c ucase_s time_c time_s srltest
 

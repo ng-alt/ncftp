@@ -1,7 +1,11 @@
 /* rdline.c
  *
- * Copyright (c) 1992-2000 by Mike Gleason.
+ * Copyright (c) 1992-2001 by Mike Gleason.
  * All rights reserved.
+ *
+ * Note: It should still be simple to backport the old GNU Readline
+ * support in here.  Feel free to do that if you hate NcFTP's built-in
+ * implementation.
  * 
  */
 
@@ -11,6 +15,7 @@
 #include "util.h"
 #include "bookmark.h"
 #include "cmds.h"
+#include "pref.h"
 #include "ls.h"
 #include "readln.h"
 #include "getline.h"
@@ -37,6 +42,8 @@ extern char gOurDirectoryPath[];
 extern char gVersion[];
 extern int gNumBookmarks;
 extern BookmarkPtr gBookmarkTable;
+extern PrefOpt gPrefOpts[];
+extern int gNumPrefOpts;
 extern int gScreenColumns;
 extern int gIsTTYr;
 extern int gUid;
@@ -116,13 +123,12 @@ GetScreenColumns(void)
 
 	STRNCAT(ncftpbookmarks, " --dimensions-terse");
 
-	osigpipe = (vsigproc_t) NcSignal(SIGPIPE, SIG_IGN);
+	osigpipe = NcSignal(SIGPIPE, SIG_IGN);
 	infp = popen(ncftpbookmarks, "r");
 	if (infp != NULL) {
 		columns = 0;
 		(void) fscanf(infp, "%d", &columns);
-		while (getc(infp) != EOF)
-			;
+		while (getc(infp) != EOF) {}
 		(void) pclose(infp);
 
 		if ((columns > 0) && (columns < GL_BUF_SIZE))
@@ -474,6 +480,37 @@ CommandCompletionFunction(const char *text, int state)
 
 
 
+static char *
+PrefOptCompletionFunction(const char *text, int state)
+{
+	char *cp;
+	size_t textlen;
+	int i, matches;
+
+	if (state >= gNumPrefOpts)
+		return (NULL);
+
+	textlen = strlen(text);
+	if (textlen == 0) {
+		cp = StrDup(gPrefOpts[state].varname);
+	} else {
+		cp = NULL;
+		for (i=0, matches=0; i<gNumPrefOpts; i++) {
+			if (ISTRNCMP(gPrefOpts[i].varname, text, textlen) == 0) {
+				if (matches >= state) {
+					cp = StrDup(gPrefOpts[i].varname);
+					break;
+				}
+				matches++;
+			}
+		}
+	}
+	return cp;
+}	/* PrefOptCompletionFunction */
+
+
+
+
 void
 ReCacheBookmarks(void)
 {
@@ -554,6 +591,9 @@ CompletionFunction(const char *text, int state)
 		return cp;
 	} else if ((flags & kCompleteBookmark) != 0) {
 		cp = BookmarkCompletionFunction(text, state);
+		return cp;
+	} else if ((flags & kCompletePrefOpt) != 0) {
+		cp = PrefOptCompletionFunction(text, state);
 		return cp;
 	}	
 	return NULL;

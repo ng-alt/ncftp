@@ -186,7 +186,7 @@ changequote([, ])dnl
 					# This is required for the extended
 					# namespace.
 					#
-					CFLAGS="-D_HPUX_SOURCE +e $CFLAGS"
+					CFLAGS="-D_HPUX_SOURCE $CFLAGS"
 					;;
 			esac
 		fi
@@ -238,6 +238,33 @@ STRIPFLAG="$SFLAG"
 dnl
 dnl
 dnl
+AC_DEFUN(wi_REQUEST_NO_Y2K_WARNINGS, [
+	wi_cv_request_no_y2k=yes
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_CFLAGS_NO_Y2K_WARNINGS, [AC_REQUIRE([AC_PROG_CC])
+if test "$ac_cv_prog_gcc" = yes ; then
+	case "$CFLAGS" in
+		*-Wno-format-y2k*)
+			;;
+		*)
+			oldCFLAGS="$CFLAGS"
+			CFLAGS="$CFLAGS -Wno-format-y2k"
+			#
+			# Now check if this version of GCC
+			# accepts this flag...
+			#
+AC_TRY_COMPILE([],[int junk;],[],[CFLAGS="$oldCFLAGS"])
+			unset oldCFLAGS
+			;;
+	esac
+fi
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_CFLAGS, [AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE_CPP()
 wi_HPUX_CFLAGS
@@ -245,9 +272,12 @@ wi_HPUX_CFLAGS
 		AC_MSG_WARN([Your CFLAGS environment variable was not set.  A default of \"-g\" will be used.])
 		CFLAGS="-g"
 	fi
+	if test "x$wi_cv_request_no_y2k" = xyes ; then
+		wi_CFLAGS_NO_Y2K_WARNINGS
+	fi
 	if test "$NOOPTCFLAGS" = "" ; then
 changequote(<<, >>)dnl
-		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[1-9]*//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
+		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[0-9A-Za-z]*//g;s/-xO[0-9]//g;s/-Wc,-O3//g;s/-IPA//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
 changequote([, ])dnl
 	fi
 	if test "$DEBUGCFLAGS" = "" ; then
@@ -1024,6 +1054,33 @@ exit(((int) uaddr.sun_len);	/* bogus code, of course. */
 	wi_cv_sockaddr_un_sun_len=no
 ])
 AC_MSG_RESULT($wi_cv_sockaddr_un_sun_len)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_STATFS_F_BAVAIL, [
+AC_MSG_CHECKING([for f_bavail field in struct statfs])
+AC_TRY_LINK([
+	/* includes */
+#include <unistd.h>
+#include <sys/types.h>
+#ifdef HAVE_SYS_STATFS_H
+#	include <sys/statfs.h>
+#elif defined(HAVE_SYS_VFS_H)
+#	include <sys/vfs.h>
+#endif
+],[
+struct statfs st;
+
+st.f_bavail = 1;
+exit((int) st.f_bavail);	/* bogus code, of course. */
+],[
+	wi_cv_statfs_f_bavail=yes
+	AC_DEFINE(HAVE_STATFS_F_BAVAIL)
+],[
+	wi_cv_statfs_f_bavail=no
+])
+AC_MSG_RESULT($wi_cv_statfs_f_bavail)
 ])
 dnl
 dnl
@@ -1809,6 +1866,8 @@ AC_DEFINE(HAVE__MAXX)
 AC_MSG_RESULT([_maxx])
 ])
 
+	AC_CHECK_FUNCS(__getmaxx __getmaxy __getbegx __getbegy)
+
 	# getbegx
 	AC_MSG_CHECKING([for getbegx() functionality in curses library])
 	AC_TRY_LINK([
@@ -1970,7 +2029,7 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_SHADOW_FUNCS, [
-AC_CHECK_FUNCS(md5_crypt bcrypt getspnam)
+AC_CHECK_FUNCS(md5_crypt md5crypt bcrypt getspnam)
 
 # UnixWare 7
 if test "$ac_cv_func_getspnam" = no ; then
@@ -2072,11 +2131,16 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_OS_VAR, [
-changequote(<<, >>)dnl
+changequote(!@, @!)dnl
+if [ -x "$HOME/bin/OS" ] ; then
+	HOME_OS=`$HOME/bin/OS`
+	HOME_OS="$HOME/$HOME_OS"
+fi
 host=`uname -n 2>/dev/null | tr '[A-Z]' '[a-z]'`
 os=`uname -s 2>/dev/null | tr '[A-Z]' '[a-z]'`
-os_v=`uname -v 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.]*$//' | awk '-F[-/: ]' '{print $1}'`
-os_r=`uname -r 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.]*$//' | awk '-F[-/: ]' '{print $1}'`
+dnl work around inability to use $1
+os_v=`uname -v 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.]*$//;s/pre.*//;s/test.*//' | awk '-F[-/: ]' '{n = 1; print $n; }'`
+os_r=`uname -r 2>/dev/null | sed 's/^[^0-9.]*//;s/[^0-9.]*$//;s/pre.*//;s/test.*//' | awk '-F[-/: ]' '{n = 1; print $n; }'`
 os_r1=`echo "${os_r}" | cut -c1`
 arch=`uname -m 2>/dev/null | tr '[A-Z]' '[a-z]'`
 archp=`uname -p 2>/dev/null | tr '[A-Z]' '[a-z]'`
@@ -2174,44 +2238,88 @@ case "$os" in
 				arch=x86
 				;;
 		esac
+
+		libc=""
 		os_r1=`echo "$os_r" | cut -d. -f1`
 		os_r2=`echo "$os_r" | cut -d. -f2`
 		os_r3=`echo "$os_r" | cut -d- -f1 | cut -d. -f3`
 		os_int=`expr "$os_r1" '*' 10000 + "$os_r2" '*' 1000 + "$os_r3"`
 		NDEFS="$NDEFS -DLINUX=$os_int"
-		if test -f /lib/libc-2.1.5.so ; then
-			libc="glibc2.1"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		elif test -f /lib/libc-2.1.4.so ; then
-			libc="glibc2.1"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		elif test -f /lib/libc-2.1.3.so ; then
-			libc="glibc2.1"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		elif test -f /lib/libc-2.1.2.so ; then
-			libc="glibc2.1"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		elif test -f /lib/libc-2.1.1.so ; then
-			libc="glibc2.1"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		elif test -f /lib/libc.so.6 ; then
-			libc="glibc2.0"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		elif test -f /lib/libc.so.6.1 ; then
-			libc="glibc2.0"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		else
-			libc="libc5"
-#			OS="linux-$arch-$libc"
-			OS="linux-$arch"
-		fi
+
+		vertest="./vertest.$$"
+		/bin/rm -f "$vertest" "$vertest.c"
+		cat <<EOF > "$vertest.c"
+#include <stdio.h>
+#include <gnu/libc-version.h>
+
+main()
+{
+	const char *ver = gnu_get_libc_version();
+	const char *rel = gnu_get_libc_release();
+
+	fprintf(stdout, "glibc%s\n", ver);
+	exit(0);
+}
+EOF
+		echo $ac_n "checking version of C library""... $ac_c" 1>&6
+		echo "configure:: checking version of C library" >&5
+		${CC-cc} $DEFS $CPPFLAGS $CFLAGS "$vertest.c" -o "$vertest" >/dev/null 2>&1
+		if [ -x "$vertest" ] ; then libc=`$vertest` ; fi
+		/bin/rm -f "$vertest" "$vertest.c"
+
+		case "$libc" in
+			glibc*)
+				echo "$libc" 1>&6
+				glibc_r=`echo "$libc" | sed 's/glibc//'`
+				glibc_r1=`echo "$glibc_r" | cut -d. -f1`
+				glibc_r2=`echo "$glibc_r" | cut -d. -f2`
+				glibc_r3=`echo "$glibc_r" | cut -d- -f1 | cut -d. -f3`
+				glibc_int=`expr "$glibc_r1" '*' 10000 + "$glibc_r2" '*' 1000 + "$glibc_r3"`
+				NDEFS="$NDEFS -DLINUX_GLIBC=$glibc_int"
+				libc="glibc${glibc_r1}.${glibc_r2}"
+				OS="linux-$arch"
+				;;
+			*)
+				if test -f /lib/libc-2.2.2.so ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=22002"
+					libc="glibc2.2"
+					OS="linux-$arch"
+				elif test -f /lib/libc-2.2.1.so ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=22001"
+					libc="glibc2.2"
+					OS="linux-$arch"
+				elif test -f /lib/libc-2.2.0.so ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=22000"
+					libc="glibc2.1"
+					OS="linux-$arch"
+				elif test -f /lib/libc-2.1.3.so ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=21003"
+					libc="glibc2.1"
+					OS="linux-$arch"
+				elif test -f /lib/libc-2.1.2.so ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=21002"
+					libc="glibc2.1"
+					OS="linux-$arch"
+				elif test -f /lib/libc-2.1.1.so ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=21001"
+					libc="glibc2.1"
+					OS="linux-$arch"
+				elif test -f /lib/libc.so.6 ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=20000"
+					libc="glibc2.0"
+					OS="linux-$arch"
+				elif test -f /lib/libc.so.6.1 ; then
+					NDEFS="$NDEFS -DLINUX_GLIBC=20001"
+					libc="glibc2.0"
+					OS="linux-$arch"
+				else
+					NDEFS="$NDEFS -DLINUX_LIBC=5"
+					libc="libc5"
+					OS="linux-$arch"
+				fi
+				echo "$libc" 1>&6
+				;;
+		esac
 		SYS=linux
 		;;
 	bsd/os)
@@ -2227,9 +2335,9 @@ case "$os" in
 		OS="unixware${os_v}"
 		SYS=unixware
 		;;
-	macosx*|darwin|rhapsody)
-		OS="macosxserver"
-		SYS="macosxserver"
+	macos*|darwin|rhapsody)
+		OS="macosx"
+		SYS="macosx"
 		;;
 	sunos)
 		if [ "$arch" = "" ] ; then arch="sparc" ; fi
@@ -2279,4 +2387,5 @@ AC_SUBST(NDEFS)
 AC_SUBST(OS)
 AC_SUBST(host)
 AC_SUBST(SYS)
+AC_SUBST(HOME_OS)
 ])

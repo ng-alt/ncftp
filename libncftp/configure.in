@@ -94,6 +94,7 @@ fi
 AC_SUBST(PROBE)
 
 AC_PROG_CC
+wi_REQUEST_NO_Y2K_WARNINGS
 wi_CFLAGS_LFS64
 wi_DEFINE_UNAME
 
@@ -282,7 +283,7 @@ CFLAGS=`echo "$CFLAGS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
 DEFS=`echo "$DEFS" | sed 's/^ *//;s/ *$//;s/  */ /g'`
 
 samples=''
-for sample in minincftp monkey ncftpget ncftpput ncftpls simpleget ncftpsyncput ; do
+for sample in minincftp monkey ncftpget ncftpput ncftpls simpleget ncftpsyncput misc ; do
 	if test -f samples/$sample/Makefile.in ; then
 		samples="$samples samples/$sample/Makefile"
 	fi

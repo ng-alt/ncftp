@@ -115,6 +115,18 @@
 /* Result of "uname -a" */
 #undef UNAME
 
+/* Define if you have the __getbegx function.  */
+#undef HAVE___GETBEGX
+
+/* Define if you have the __getbegy function.  */
+#undef HAVE___GETBEGY
+
+/* Define if you have the __getmaxx function.  */
+#undef HAVE___GETMAXX
+
+/* Define if you have the __getmaxy function.  */
+#undef HAVE___GETMAXY
+
 /* Define if you have the curs_set function.  */
 #undef HAVE_CURS_SET
 
@@ -252,6 +264,9 @@
 
 /* Define if you have the <string.h> header file.  */
 #undef HAVE_STRING_H
+
+/* Define if you have the <strings.h> header file.  */
+#undef HAVE_STRINGS_H
 
 /* Define if you have the <sys/ioctl.h> header file.  */
 #undef HAVE_SYS_IOCTL_H

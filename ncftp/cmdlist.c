@@ -1,6 +1,6 @@
 /* cmdlist.c
  *
- * Copyright (c) 1992-2000 by Mike Gleason.
+ * Copyright (c) 1992-2001 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -115,7 +115,7 @@ Flags:\n\
 		"<directory>",
 		"changes remote working directory",
 		kCmdMustBeConnected | kCompleteRemoteDir,
-		1, 1,
+		0, 1,
 	},
 	{ "chmod",
 		ChmodCmd,
@@ -172,7 +172,8 @@ Flags:\n\
 Flags:\n\
   -R   : Recursive.  Useful for fetching whole directories.\n\
   -z   : Get the remote file X, and name it to Y.\n\
-  -a   : Append entire remote file to the local file.\n\
+  -a   : Get files using ASCII mode.\n\
+  -A   : Append entire remote file to the local file.\n\
   -f   : Force overwrite (do not try to auto-resume transfers).\n\
 Examples:\n\
   get README\n\
@@ -300,7 +301,19 @@ Examples:\n\
 	},
 	{ "mget",
 		GetCmd,
-		"file1 [file2...]\n",
+"[-flags] file1 [file2...]\n\
+Flags:\n\
+  -R   : Recursive.  Useful for fetching whole directories.\n\
+  -z   : Get the remote file X, and name it to Y.\n\
+  -a   : Get files using ASCII mode.\n\
+  -A   : Append entire remote file to the local file.\n\
+  -f   : Force overwrite (do not try to auto-resume transfers).\n\
+Examples:\n\
+  get README\n\
+  get README.*\n\
+  get \"**Name with stars and spaces in it**\"\n\
+  get -R new-files-directory\n\
+  get -z WIN.INI ~/junk/windows-init-file",
 		"fetches files from the remote host",
 		kCmdMustBeConnected | kCmdHidden | kCompleteRemoteFile,
 		1, kNoMax,
@@ -328,7 +341,16 @@ Examples:\n\
 	},
 	{ "mput",
 		PutCmd,
-		"file1 [file2...]\n",
+"[-flags] file1 [file2...]\n\
+Flags:\n\
+  -z   : Send the local file X, and name the remote copy to Y.\n\
+  -f   : Force overwrite (do not try to auto-resume transfers).\n\
+  -a   : Send files using ASCII mode.\n\
+  -A   : Append entire local file to the remote file.\n\
+  -R   : Recursive.  Useful for sending whole directories.\n\
+Examples:\n\
+  put README\n\
+  put -z ~/junk/windows-init-file WIN.INI",
 		"sends files to the remote host",
 		kCmdMustBeConnected | kCompleteLocalFile | kCmdHidden,
 		1, kNoMax,
@@ -347,7 +369,7 @@ Flags:\n\
   -a    : Open anonymously.\n\
   -u XX : Login with username XX.\n\
   -p XX : Login with password XX.\n\
-  -J XX : Login with account XX.\n\
+  -j XX : Login with account XX.\n\
   -P XX : Use port number X when opening.\n\
 Examples:\n\
   open sphygmomanometer.unl.edu\n\
@@ -383,7 +405,8 @@ Examples:\n\
 Flags:\n\
   -z   : Send the local file X, and name the remote copy to Y.\n\
   -f   : Force overwrite (do not try to auto-resume transfers).\n\
-  -a   : Append entire local file to the remote file.\n\
+  -a   : Send files using ASCII mode.\n\
+  -A   : Append entire local file to the remote file.\n\
   -R   : Recursive.  Useful for sending whole directories.\n\
 Examples:\n\
   put README\n\
@@ -452,14 +475,14 @@ Examples:\n\
 		SetCmd,
 		"[option [newvalue]]",
 		"lets you configure a program setting from the command line",
-		0,
+		kCompletePrefOpt,
 		0, 2,
 	},
 	{ "show",
 		(CmdProc) SetCmd,
 		"[option]",
 		"shows one or more the program's settings",
-		0,
+		kCompletePrefOpt,
 		0, 1,
 	},
 	{ "site",
