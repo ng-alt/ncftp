@@ -518,6 +518,12 @@ if test "$wi_os_default_cflags" = yes ; then
 			yes_aix*)
 				wi_os_default_cflags="-g -qinfo=cmp:cnd:dcl:eff:gen:ini:par:pro:rea:use -qlonglong -qro -qroconst -qlanglvl=extended -qsrcmsg -qmaxmem=20480 -qsuppress=1506-469:1506-409"
 				;;
+			no_irix[2345]*|no_irix6.[01234]*)
+				wi_os_default_cflags="-O2 -xansi -fullwarn -use_readonly_const -G0 -rdata_shared"
+				;;
+			yes_irix[2345]*|yes_irix6.[01234]*)
+				wi_os_default_cflags="-g -xansi -fullwarn -use_readonly_const -G0 -rdata_shared"
+				;;
 			no_irix*)
 				wi_os_default_cflags="-O2 -IPA -xansi -fullwarn -use_readonly_const -G0 -rdata_shared -woff 1174"
 				;;
@@ -1835,6 +1841,29 @@ exit((int) st.f_bavail);	/* bogus code, of course. */
 	wi_cv_statfs_f_bavail=no
 ])
 AC_MSG_RESULT($wi_cv_statfs_f_bavail)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_STATVFS_F_FRSIZE, [
+AC_MSG_CHECKING([for f_frsize field in struct statvfs])
+AC_TRY_LINK([
+	/* includes */
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/statvfs.h>
+],[
+struct statvfs st;
+
+st.f_frsize = 1;
+exit((int) st.f_frsize);	/* bogus code, of course. */
+],[
+	wi_cv_statfs_f_frsize=yes
+	AC_DEFINE(HAVE_STATVFS_F_FRSIZE)
+],[
+	wi_cv_statfs_f_frsize=no
+])
+AC_MSG_RESULT($wi_cv_statfs_f_frsize)
 ])
 dnl
 dnl
@@ -3228,7 +3257,13 @@ done
 if test "x$CCDV" = "x" ; then
 	changequote({{, }})dnl
 	cat > ccdv.c << 'EOF'
-/* ccdv.c */
+/* ccdv.c
+ *
+ * Copyright (C) 2002, by Mike Gleason, NcFTP Software.
+ * All Rights Reserved.
+ *
+ * Licensed under the GNU Public License.
+ */
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -3246,6 +3281,8 @@ if test "x$CCDV" = "x" ; then
 
 #define TEXT_BLOCK_SIZE 8192
 #define INDENT 2
+
+#define TERMS "vt100:vt102:vt220:vt320:xterm:ansi:linux:scoterm:scoansi:dtterm:cons25:cygwin"
 
 size_t gNBufUsed = 0, gNBufAllocated = 0;
 char *gBuf = NULL;
@@ -3578,7 +3615,7 @@ main(int argc, char **argv)
 	fd = pipe1[0];			/* use read end */
 
 	gColumns = (getenv("COLUMNS") != NULL) ? atoi(getenv("COLUMNS")) : 80;
-	gANSIEscapes = (getenv("TERM") != NULL) && (strstr("vt100:vt102:vt220:vt320:xterm:ansi:linux:scoterm:scoansi:dtterm:cons25", getenv("TERM")) != NULL);
+	gANSIEscapes = (getenv("TERM") != NULL) && (strstr(TERMS, getenv("TERM")) != NULL);
 	gBuf = (char *) malloc(TEXT_BLOCK_SIZE);
 	if (gBuf == NULL) 
 		goto panic;
@@ -4527,7 +4564,76 @@ EOF
 	macos*|darwin|rhapsody)
 		OS="macosx"
 		SYS="macosx"
-		NDEFS="$NDEFS -DMACOSX"
+		os_v=`perl -e '{open(F, "< /System/Library/CoreServices/SystemVersion.plist") or exit(2); my ($doc) = ""; my ($line); while (defined($line = <F>)) { $doc .= $line; } close(F); $doc =~ s/\s+//gs; if ($doc =~ /<key>ProductVersion<\/key><string>([^<]+)<\/string>/) { print $1, "\n"; exit(0); } exit(1); }' 2>/dev/null`
+		if [ "$os_v" = "" ] && [ -x "$HOME/bin/macosver" ] ; then
+			os_v=`"$HOME/bin/macosver" 2>/dev/null`
+		fi
+		if [ "$os_v" = "" ] ; then
+			cat > "$HOME/macosver.c" <<EOF
+/*
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+<plist version="0.9">
+<dict>
+	<key>ProductBuildVersion</key>
+	<string>5S66</string>
+	<key>ProductName</key>
+	<string>Mac OS X</string>
+	<key>ProductVersion</key>
+	<string>10.1.5</string>
+</dict>
+</plist>
+*/
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+main()
+{
+	char line[256], *cp, *cp2; 
+	FILE *fp;
+
+	fp = fopen("/System/Library/CoreServices/SystemVersion.plist", "r");
+
+	if (fp != NULL) {
+		memset(line, 0, sizeof(line));
+		while (fgets(line, sizeof(line) - 1, fp) != NULL) {
+			cp = strstr(line, "<key>ProductVersion</key>");
+			if (cp != NULL) {
+				memset(line, 0, sizeof(line));
+				if (fgets(line, sizeof(line) - 2, fp) != NULL) {
+					for (cp = line; ((*cp != '\0') && (! isdigit(*cp))); ) cp++;
+					for (cp2 = cp; ((*cp2 != '\0') && (! isspace(*cp2)) && (*cp2 != '<') && (*cp2 != '>')); ) cp2++;
+					cp2[0] = '\0';
+					fclose(fp);
+					fprintf(stdout, "%s\n", cp);
+					exit(0);
+				}
+			}
+		}
+	}
+	fclose(fp);
+	exit(1);
+}
+EOF
+			${CC-cc} "$HOME/macosver.c" -o "$HOME/macosver" > /dev/null 2>&1
+			os_v=`"$HOME/macosver" 2>/dev/null`
+			/bin/mv "$HOME/macosver" "$HOME/bin/macosver" 2>/dev/null
+			/bin/rm -f "$HOME/macosver.c" "$HOME/macosver"
+		fi
+		if [ "$os_v" != "" ] ; then
+			OS="macosx${os_v}"
+			os_v1=`echo "$os_v" | cut -d. -f1`
+			os_v2=`echo "$os_v" | cut -d. -f2`
+			os_v3=`echo "$os_v" | cut -d. -f3`
+			if [ "$os_v3" = "" ] ; then os_v3=0 ; fi
+			os_int=`expr "$os_v1" '*' 1000 + "$os_v2" '*' 100 + "$os_v3"`
+			NDEFS="$NDEFS -DMACOSX=$os_int"
+		else
+			NDEFS="$NDEFS -DMACOSX"
+		fi
 		;;
 	sunos)
 		if [ "$arch" = "" ] ; then arch="sparc" ; fi

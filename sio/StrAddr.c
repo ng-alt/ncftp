@@ -179,7 +179,11 @@ ServicePortNumberToName(unsigned short port, char *const dst, const size_t dsize
 void
 InetNtoA(char *dst, struct in_addr *ia, size_t siz)
 {
-#ifdef HAVE_INET_NTOP	/* Mostly to workaround bug in IRIX 6.5's inet_ntoa */
+#if defined(HAVE_INET_NTOP) && !defined(MACOSX)
+	/* Mostly to workaround bug in IRIX 6.5's inet_ntoa */
+	/* For OS X, don't use inet_ntop yet since it was just introduced
+	 * for 10.2.
+	 */
 	memset(dst, 0, siz);
 	(void) inet_ntop(AF_INET, ia, dst, siz - 1);
 #else

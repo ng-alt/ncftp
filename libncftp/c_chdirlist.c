@@ -30,7 +30,7 @@ FTPChdirList(FTPCIPtr cip, FTPLineListPtr const cdlist, char *const newCwd, cons
 			len += strlen(lp->line);
 			len++;	/* account for delimiting slash */
 		}
-		cdstr = malloc(len);
+		cdstr = malloc(len + 1);
 		if (cdstr == NULL)
 			return (cip->errNo = kErrMallocFailed);
 		cdstr[0] = '\0';

@@ -1002,15 +1002,27 @@ DoItem(void)
 
 	if (gLDir[0] != '\0') {
 		if (MkDirs(gLDir, 00755) < 0) {
+#ifdef HAVE_STRERROR
 			LogEndItemResult(1, "Could not mkdir local-dir=%s: %s\n", gLDir, strerror(errno));
+#else
+			LogEndItemResult(1, "Could not mkdir local-dir=%s: errno %d\n", gLDir, (errno));
+#endif
 			return (0);	/* remove spool file */
 		} else if (chdir(gLDir) < 0) {
+#ifdef HAVE_STRERROR
 			LogEndItemResult(1, "Could not cd to local-dir=%s: %s\n", gLDir, strerror(errno));
+#else
+			LogEndItemResult(1, "Could not cd to local-dir=%s: errno %d\n", gLDir, (errno));
+#endif
 			return (0);	/* remove spool file */
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 		} else if ((gOperation == 'G') && (access(gLDir, W_OK) < 0)) {
+#ifdef HAVE_STRERROR
 			LogEndItemResult(1, "Could not write to local-dir=%s: %s\n", gLDir, strerror(errno));
+#else
+			LogEndItemResult(1, "Could not write to local-dir=%s: errno %d\n", gLDir, (errno));
+#endif
 			return (0);	/* remove spool file */
 #endif
 		}

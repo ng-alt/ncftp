@@ -59,7 +59,7 @@ FTPFtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 		}
 
 		/* "MLSD" succeeded */
-		unlsrc = UnMlsD(&fil, &ll);
+		unlsrc = UnMlsD(cip, &fil, &ll);
 		if (unlsrc < 0) {
 			DisposeLineListContents(&ll);
 			return (kErrInvalidMLSTResponse);
@@ -78,13 +78,13 @@ FTPFtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 				return (0);
 			} else {
 				/* "NLST -a" succeeded */
-				RemoteGlobCollapse(path, &ll);
+				RemoteGlobCollapse(cip, path, &ll);
 				filePtr = ll.first;
 			}
 		} else {
 			/* "LIST -a" succeeded */
 			lsl = 1;
-			unlsrc = UnLslR(&fil, &ll, cip->serverType);
+			unlsrc = UnLslR(cip, &fil, &ll, cip->serverType);
 			if (unlsrc < 0) {
 				DisposeLineListContents(&ll);
 				return (kErrInvalidMLSTResponse);

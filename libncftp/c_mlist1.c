@@ -123,7 +123,7 @@ FTPMListOneFile(const FTPCIPtr cip, const char *const file, const MLstItemPtr ml
 			(rp->msg.first->next != NULL) &&
 			(rp->msg.first->next->line != NULL)
 		) {
-			result = UnMlsT(rp->msg.first->next->line, mlip);
+			result = UnMlsT(cip, rp->msg.first->next->line, mlip);
 			if (result < 0) {
 				cip->errNo = result = kErrInvalidMLSTResponse;
 			}

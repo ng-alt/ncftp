@@ -42,6 +42,7 @@ Command gCommands[] = {
 		kCmdMustBeConnected,
 		0, 0,
 	},
+#ifdef HAVE_LONG_FILE_NAMES
 	{ "bgget",
 		SpoolGetCmd,
 "[-flags] file1 [file2...]\n\
@@ -77,6 +78,7 @@ Flags:\n\
 		0,
 		0, 1,
 	},
+#endif	/* HAVE_LONG_FILE_NAMES */
 	{ "binary",
 		TypeCmd,
 		"",
@@ -203,6 +205,7 @@ Examples:\n\
 	},
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
+#ifdef HAVE_LONG_FILE_NAMES
 	{ "jobs",
 		(CmdProc) JobsCmd,
 		"",
@@ -210,6 +213,7 @@ Examples:\n\
 		0,
 		0, 0,
 	},
+#endif	/* HAVE_LONG_FILE_NAMES */
 #endif
 	{ "lcd",
 		LocalChdirCmd,

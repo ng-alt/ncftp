@@ -566,7 +566,7 @@ Chdirs(FTPCIPtr cip, const char *const cdCwd)
 	StrRemoveTrailingLocalPathDelim(cp);
 
 	/* Try doing the whole path at once. */
-	result = nFTPChdirAndGetCWD(cip, cp, 1);
+	result = nFTPChdirAndGetCWD(cip, cp, 0);
 	if (result == kNoErr)
 		return (result);
 
@@ -3488,7 +3488,11 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 		 * We do this mostly so "symlink" below will work.
 		 */
 		if (MkDirs(lpath, 00755) < 0) {
+#ifdef HAVE_STRERROR
 			Trace(-1, "  - Local Mkdir %s Failed: %s\n", lpath, strerror(errno));
+#else
+			Trace(-1, "  - Local Mkdir %s Failed: errno %d\n", lpath, (errno));
+#endif
 		} else if (errno != EEXIST) {
 			Trace(0, "  + Mkdir %s\n", lpath);
 		} else {
@@ -3501,7 +3505,11 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 			if (symlink(ftwip->rlinkto, lpath) == 0) {
 				Trace(0, "  + Linked: %s -> %s\n", lpath, ftwip->rlinkto);
 			} else {
+#ifdef HAVE_STRERROR
 				Trace(-1, "  - Link Failed: %s -> %s (%s)\n", lpath, ftwip->rlinkto, strerror(errno));
+#else
+				Trace(-1, "  - Link Failed: %s -> %s (errno %d)\n", lpath, ftwip->rlinkto, (errno));
+#endif
 			}
 		}
 #endif	/* SYMLINK */
@@ -4083,7 +4091,11 @@ SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 					cinfo.base = (int) (base - lp->line);
 				}
 				if ((rc = Ftw(&ftwi, lp->line, BgputFtwProc)) != 0) {
+#ifdef HAVE_STRERROR
 					fprintf(stderr, "Could not traverse directory %s: %s\n", lp->line, strerror(errno));
+#else
+					fprintf(stderr, "Could not traverse directory %s: errno %d\n", lp->line, (errno));
+#endif
 				}
 			}
 		}

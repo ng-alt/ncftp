@@ -472,10 +472,6 @@ FTPGetOneF(
 			dst = outbuf;
 			dstlim = dst + sizeof(outbuf);
 			while (src < srclim) {
-				if (*src == '\r') {
-					src++;
-					continue;
-				}
 				if (dst >= dstlim) {
 					nwrote = write(fd, outbuf, (write_size_t) (dst - outbuf));
 					if (nwrote == (write_return_t) (dst - outbuf)) {
@@ -495,6 +491,65 @@ FTPGetOneF(
 						goto brk;
 					}
 				}
+
+				/*
+				 * The FTP protocol says we are to receive
+				 * CR+LF as the end-of-line (EOLN) sequence for
+				 * all files sent in ASCII mode.
+				 *
+				 * However, many servers only convert from
+				 * their native EOLN format to CR+LF.
+				 * For example, a Windows ISP being used
+				 * to host Mac OS 9 text files (whose EOLN
+				 * is just a CR) could violate protocol
+				 * and send the file with the raw CRs only.
+				 * It should be converting the file from CR
+				 * to CR+LF for us, but many do not, so we
+				 * try to convert raw CRs to our EOLN.
+				 *
+				 * We also look for raw LFs and convert them
+				 * if needed.
+				 */
+				if (*src == '\n') {
+					/* protocol violation: raw LF */
+					src++;
+					goto add_eoln;
+				}
+				if (*src == '\r') {
+					src++;
+					if ((src < srclim) && (*src == '\n')) {
+						src++;
+					}
+					/* else {protocol violation: raw CR} */
+add_eoln:
+					if ((dst + 2) >= dstlim) {
+						/* Write out buffer before
+						 * adding one or two chars.
+						 */
+						nwrote = write(fd, outbuf, (write_size_t) (dst - outbuf));
+						if (nwrote == (write_return_t) (dst - outbuf)) {
+							/* Success. */
+							dst = outbuf;
+						} else if (errno == EPIPE) {
+							result = kErrWriteFailed;
+							cip->errNo = kErrWriteFailed;
+							errno = EPIPE;
+							(void) shutdown(cip->dataSocket, 2);
+							goto brk;
+						} else {
+							FTPLogError(cip, kDoPerror, "Local write failed.\n");
+							result = kErrWriteFailed;
+							cip->errNo = kErrWriteFailed;
+							(void) shutdown(cip->dataSocket, 2);
+							goto brk;
+						}
+					}
+					*dst++ = cip->textEOLN[0];
+					if (cip->textEOLN[1] != '\0')
+						*dst++ = cip->textEOLN[1];
+					continue;
+				}
+
 				*dst++ = *src++;
 			}
 			if (dst > outbuf) {

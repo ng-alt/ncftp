@@ -12,13 +12,23 @@
 
 #if 0
 static void
+printls(LineListPtr list)
+{
+	LinePtr fip;
+	int i;
+
+	for (i = 1, fip = list->first; fip != NULL; fip = fip->next, i++)
+		printf("%4d: %s\n", i, fip->line == NULL ? "NULL" : fip->line);
+}
+
+static void
 print1(FTPFileInfoListPtr list)
 {
 	FTPFileInfoPtr fip;
 	int i;
 
 	for (i = 1, fip = list->first; fip != NULL; fip = fip->next, i++)
-		printf("%d: %s\n", i, fip->relname == NULL ? "NULL" : fip->relname);
+		printf("%4d: %s\n", i, fip->relname == NULL ? "NULL" : fip->relname);
 }
 
 
@@ -32,7 +42,7 @@ print2(FTPFileInfoListPtr list)
 	n = list->nFileInfos;
 	for (i=0; i<n; i++) {
 		fip = list->vec[i];
-		printf("%d: %s\n", i + 1, fip->relname == NULL ? "NULL" : fip->relname);
+		printf("%4d: %s\n", i + 1, fip->relname == NULL ? "NULL" : fip->relname);
 	}
 }
 
@@ -56,10 +66,10 @@ FTPRemoteRecursiveFileList1(FTPCIPtr cip, char *const rdir, FTPFileInfoListPtr f
 {
 	FTPLineList dirContents;
 	FTPFileInfoList fil;
-	char cwd[512];
 	int result;
+	char rcwd[512];
 
-	if ((result = FTPGetCWD(cip, cwd, sizeof(cwd))) < 0)
+	if ((result = FTPGetCWD(cip, rcwd, sizeof(rcwd))) < 0)
 		return (result);
 
 	InitFileInfoList(files);
@@ -78,20 +88,54 @@ FTPRemoteRecursiveFileList1(FTPCIPtr cip, char *const rdir, FTPFileInfoListPtr f
 
 	/* Paths collected must be relative. */
 	if ((result = FTPListToMemory2(cip, "", &dirContents, "-lRa", 1, (int *) 0)) < 0) {
-		if ((result = FTPChdir(cip, cwd)) < 0) {
+		if ((result = FTPChdir(cip, rcwd)) < 0) {
+			rcwd[0] = '\0';
 			return (result);
 		}
 	}
 
-	(void) UnLslR(&fil, &dirContents, cip->serverType);
+#if 0
+DisposeLineListContents(&dirContents);
+InitLineList(&dirContents);
+AddLine(&dirContents, "drwx------   2 ftpuser  ftpuser       4096 Oct 13 02:12 in");
+AddLine(&dirContents, "drwx------   2 ftpuser  ftpuser       4096 Oct 13 02:07 ../out");
+AddLine(&dirContents, "drwx------   2 ftpuser  ftpuser       4096 Oct 13 02:11 out2");
+AddLine(&dirContents, "drwx------   2 ftpuser  ftpuser       4096 Oct 13 02:11 /usr/tmp/zzzin");
+AddLine(&dirContents, "");
+AddLine(&dirContents, "./in:");
+AddLine(&dirContents, "-rw-r--r--   1 ftpuser  ftpuser      18475 Oct 13 01:58 test_dos.txt");
+AddLine(&dirContents, "-rw-r--r--   1 ftpuser  ftpuser      17959 Oct 13 01:57 ../test_mac.txt");
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17959 Oct 13 01:56 test_unix.txt");
+AddLine(&dirContents, "");
+AddLine(&dirContents, "./../out:");
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17969 Oct 13 01:58 test_dos.txt");
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17959 Oct 13 01:57 test_mac.txt");
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17959 Oct 13 01:56 test_unix.txt");
+AddLine(&dirContents, "");
+AddLine(&dirContents, "./out2/../foob:");
+/* AddLine(&dirContents, "/tmp/out2:"); */
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17969 Oct 13 02:08 test_dos.txt");
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17959 Oct 13 02:08 test_mac.txt");
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17959 Oct 13 02:08 test_unix.txt");
+AddLine(&dirContents, "");
+AddLine(&dirContents, "/usr/tmp/zzzin:");
+AddLine(&dirContents, "-rw-r--r--   1 ftpuser  ftpuser      18475 Oct 13 01:58 test_dos.txt");
+AddLine(&dirContents, "-rw-r--r--   1 ftpuser  ftpuser      17959 Oct 13 01:57 test_mac.txt");
+AddLine(&dirContents, "-rw-------   1 ftpuser  ftpuser      17959 Oct 13 01:56 test_unix.txt");
+#endif
+
+	/* printls(&dirContents); */
+	(void) UnLslR(cip, &fil, &dirContents, cip->serverType);
 	DisposeLineListContents(&dirContents);
+	/* print1(&fil); */
 	/* Could sort it to breadth-first here. */
 	/* (void) SortRecursiveFileList(&fil); */
 	(void) ComputeRNames(&fil, rdir, 1, 1);
 	(void) ConcatFileInfoList(files, &fil);
 	DisposeFileInfoListContents(&fil);
 
-	if ((result = FTPChdir(cip, cwd)) < 0) {
+	if ((result = FTPChdir(cip, rcwd)) < 0) {
+		rcwd[0] = '\0';
 		return (result);
 	}
 	return (kNoErr);
@@ -106,11 +150,11 @@ FTPRemoteRecursiveFileList(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInfoLis
 	FTPLinePtr filePtr, nextFilePtr;
 	FTPLineList dirContents;
 	FTPFileInfoList fil;
-	char cwd[512];
 	int result;
 	char *rdir;
+	char rcwd[512];
 
-	if ((result = FTPGetCWD(cip, cwd, sizeof(cwd))) < 0)
+	if ((result = FTPGetCWD(cip, rcwd, sizeof(rcwd))) < 0)
 		return (result);
 
 	InitFileInfoList(files);
@@ -139,14 +183,15 @@ FTPRemoteRecursiveFileList(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInfoLis
 			goto goback;
 		}
 
-		(void) UnLslR(&fil, &dirContents, cip->serverType);
+		(void) UnLslR(cip, &fil, &dirContents, cip->serverType);
 		DisposeLineListContents(&dirContents);
 		(void) ComputeRNames(&fil, rdir, 1, 1);
 		(void) ConcatFileInfoList(files, &fil);
 		DisposeFileInfoListContents(&fil);
 
 goback:
-		if ((result = FTPChdir(cip, cwd)) < 0) {
+		if ((result = FTPChdir(cip, rcwd)) < 0) {
+			rcwd[0] = '\0';
 			return (result);
 		}
 	}	

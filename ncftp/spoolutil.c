@@ -374,4 +374,42 @@ RunBatch(void)
 #endif	/* UNIX */
 }	/* RunBatch */
 
+#else	/* ! HAVE_LONG_FILE_NAMES */
+
+int
+SpoolX(
+	FILE *const ofp,
+	const char *sdir,
+	const char *const op,
+	const char *const rfile,
+	const char *const rdir,
+	const char *const lfile,
+	const char *const ldir,
+	const char *const host,
+	const char *const ip,
+	const unsigned int port,
+	const char *const user,
+	const char *const passclear,
+	const char *const xacct,
+	const int xtype,
+	const int recursive,
+	const int deleteflag,
+	const int passive,
+	const char *const preftpcmd,
+	const char *const perfileftpcmd,
+	const char *const postftpcmd,
+	const char *const preshellcmd,
+	const char *const postshellcmd,
+	const time_t when,
+	const unsigned int delaySinceLastFailure)
+{
+	return (-1);
+}
+
+void
+RunBatch(void)
+{
+	fprintf(stderr, "Background processing not available on this platform.\n");
+}	/* RunBatch */
+
 #endif	/* HAVE_LONG_FILE_NAMES */

@@ -21,7 +21,7 @@
 time_t gNowMinus6Mon, gNowPlus1Hr;
 
 /* An array of month name abbreviations.  This may not be in English. */
-char gLsMon[13][4];
+char gLsMon[13][16];
 
 /* The program keeps its own cache of directory listings, so it doesn't
  * need to re-request them from the server.
@@ -576,12 +576,12 @@ Ls(const char *const item, int listmode, const char *const options, FILE *stream
 		rlisted = 1;
 		filp = &fil;
 		if (mlsd != 0) {
-			parsed = UnMlsD(filp, &dirContents);
+			parsed = UnMlsD(&gConn, filp, &dirContents);
 			if (parsed < 0) {
 				Trace(0, "UnMlsD: %d\n", parsed);
 			}
 		} else {
-			parsed = UnLslR(filp, &dirContents, gConn.serverType);
+			parsed = UnLslR(&gConn, filp, &dirContents, gConn.serverType);
 			if (parsed < 0) {
 				Trace(0, "UnLslR: %d\n", parsed);
 			}

@@ -24,6 +24,8 @@
 	extern int wsaInit;
 #endif
 
+static int gIsAtty1, gIsAtty2;
+
 double
 FileSize(double size, const char **uStr0, double *uMult0)
 {
@@ -95,6 +97,7 @@ PrSizeAndRateMeter(const FTPCIPtr cip, int mode)
 			break;
 
 		case kPrUpdateMsg:
+		case kPrEndMsg:
 			rate = FileSize(cip->kBytesPerSec * 1024.0, &rStr, NULL);
 
 			if (cip->lname == NULL) {
@@ -143,11 +146,23 @@ PrSizeAndRateMeter(const FTPCIPtr cip, int mode)
 			line[i] = '\0';
 
 			/* Print the updated information. */
-			(void) fprintf(stderr, "\r%s", line);
-			break;
+			if (mode != kPrEndMsg) {
+				(void) fprintf(stderr, "\r%s", line);
+			} else {
+				/* If they're logging one of the two output
+				 * descriptors, be sure to send a final newline
+				 * to both, but if both are going to the screen
+				 * we only want to show the final line once.
+				 */
+				if ((gIsAtty1 == 0) || (gIsAtty2 == 0)) {
+					(void) fprintf(stderr, "\r%s\n", line);
+				} else {
+					(void) fprintf(stderr, "\r%s\r", line);
+				}
 
-		case kPrEndMsg:
-			(void) fprintf(stderr, "\n\r");
+				(void) fprintf(stdout, "%s\n", line);
+				(void) fflush(stdout);
+			}
 			break;
 	}
 }	/* PrSizeAndRateMeter */
@@ -276,8 +291,19 @@ PrStatBar(const FTPCIPtr cip, int mode)
 				line[i] = ' ';
 			line[i] = '\0';
 
-			/* Print the updated information. */
-			(void) fprintf(stderr, "\r%s\n\r", line);
+			/* If they're logging one of the two output
+			 * descriptors, be sure to send a final newline
+			 * to both, but if both are going to the screen
+			 * we only want to show the final line once.
+			 */
+			if ((gIsAtty1 == 0) || (gIsAtty2 == 0)) {
+				(void) fprintf(stderr, "\r%s\n", line);
+			} else {
+				(void) fprintf(stderr, "\r%s\r", line);
+			}
+
+			(void) fprintf(stdout, "%s\n", line);
+			(void) fflush(stdout);
 			break;
 	}
 }	/* PrStatBar */
@@ -404,9 +430,14 @@ GetDefaultProgressMeterSetting(void)
 	int progmeters;
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-	progmeters = _isatty(_fileno(stderr));
+	gIsAtty1 = _isatty(_fileno(stdout));
+	gIsAtty2 = _isatty(_fileno(stderr));
+	progmeters = gIsAtty2;
 #else
-	progmeters = ((isatty(2) != 0) && (getppid() > 1)) ? 1 : 0;
+	gIsAtty1 = isatty(1);
+	gIsAtty2 = isatty(2);
+	/* progmeters = ((isatty(2) != 0) && (getppid() > 1)) ? 1 : 0; */
+	progmeters = (getppid() > 1) ? 1 : 0;
 #endif
 	return (progmeters);
 }	/* GetDefaultProgressMeterSetting */

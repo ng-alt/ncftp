@@ -12,7 +12,7 @@
 
 
 static void
-StripUnneccesaryGlobEntries(FTPLineListPtr fileList)
+StripUnneccesaryGlobEntries(const FTPCIPtr cip, FTPLineListPtr fileList)
 {
 	FTPLinePtr lp, nextLine;
 	const char *cp;
@@ -26,10 +26,46 @@ StripUnneccesaryGlobEntries(FTPLineListPtr fileList)
 			cp = lp->line;
 		else
 			cp++;
-		if ((strcmp(cp, ".") == 0) || (strcmp(cp, "..") == 0))
+		if ((strcmp(cp, ".") == 0) || (strcmp(cp, "..") == 0)) {
+			PrintF(cip, "  Rglob omitted: [%s] (type 1)\n", lp->line);
 			nextLine = RemoveLine(fileList, lp);
+		}
 	}
 }	/* StripUnneccesaryGlobEntries */
+
+
+
+int
+PathContainsIntermediateDotDotSubDir(const char *s)
+{
+	int c;
+	const char *a;
+
+	if ((s[0] == '.') && (s[1] == '.')) {
+		a = s + 2;
+		while (*a == '.') a++;
+		if (((*a == '/') || (*a == '\\')) || (*a == '\0'))
+			return (1);
+	}
+
+	while (*s != '\0') {
+		c = (int) *s++;
+		if (((c == '/') || (c == '\\')) && (s[0] == '.') && (s[1] == '.')) {
+			a = s + 2;
+
+			/* Windows also treats '...', '....', etc as '..'
+			 * so check for these too.  It doesn't matter on
+			 * UNIX, but if those come back someone is up to
+			 * no good.
+			 */
+			while (*a == '.') a++;
+			if (((*a == '/') || (*a == '\\')) || (*a == '\0'))
+				return (1);
+		}
+	}
+
+	return (0);
+}	/* PathContainsIntermediateDotDotSubDir */
 
 
 
@@ -63,7 +99,7 @@ StripUnneccesaryGlobEntries(FTPLineListPtr fileList)
  */
 
 void
-RemoteGlobCollapse(const char *pattern, FTPLineListPtr fileList)
+RemoteGlobCollapse(const FTPCIPtr cip, const char *pattern, FTPLineListPtr fileList)
 {
 	FTPLinePtr lp, nextLine;
 	string patPrefix;
@@ -102,6 +138,10 @@ RemoteGlobCollapse(const char *pattern, FTPLineListPtr fileList)
 			if (cp != NULL)
 				*cp = '\0';
 			if ((*prev != '\0') && (STREQ(cur, prev))) {
+				PrintF(cip, "  Rglob omitted: [%s] (type 2)\n", lp->line);
+				nextLine = RemoveLine(fileList, lp);
+			} else if (PathContainsIntermediateDotDotSubDir(lp->line + plen)) {
+				PrintF(cip, "  Rglob omitted: [%s] (type 3)\n", lp->line);
 				nextLine = RemoveLine(fileList, lp);
 			} else {
 				(void) STRNCPY(prev, cur);
@@ -113,6 +153,9 @@ RemoteGlobCollapse(const char *pattern, FTPLineListPtr fileList)
 				 */
 				(void) sprintf(lp->line, "%s%s", patPrefix, cur);
 			}
+		} else {
+			PrintF(cip, "  Rglob omitted: [%s] (type 4)\n", lp->line);
+			nextLine = RemoveLine(fileList, lp);
 		}
 	}
 }	/* RemoteGlobCollapse */
@@ -172,6 +215,19 @@ FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int do
 				return (result);
 			}
 		}
+#if 0
+		DisposeLineListContents(fileList);
+		InitLineList(fileList);
+		AddLine(fileList, "../FAKEME1.txt");
+		AddLine(fileList, "../../FAKEME2.txt");
+		AddLine(fileList, "..\\FAKEME3.txt");
+		AddLine(fileList, "..\\..\\FAKEME4.txt");
+		AddLine(fileList, "...\\FAKEME5.txt");
+		AddLine(fileList, "/tmp/bad/FAKEME6.txt");
+		AddLine(fileList, "c:\\temp\\FAKEME7.txt");
+		AddLine(fileList, "foo/../FAKEME8.txt");
+		AddLine(fileList, "foo\\bar\\...\\FAKEME9.txt");
+#endif
 		if (fileList->first == NULL) {
 			cip->errNo = kErrGlobNoMatch;
 			return (kErrGlobNoMatch);
@@ -193,8 +249,8 @@ FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int do
 				}
 			}
 		}
-		StripUnneccesaryGlobEntries(fileList);
-		RemoteGlobCollapse(pattern, fileList);
+		StripUnneccesaryGlobEntries(cip, fileList);
+		RemoteGlobCollapse(cip, pattern, fileList);
 		for (lp=fileList->first; lp != NULL; lp = lp->next)
 			PrintF(cip, "  Rglob [%s]\n", lp->line);
 	} else {

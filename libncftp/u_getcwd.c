@@ -39,7 +39,7 @@ FTPGetLocalCWD(char *buf, size_t size)
 		 * temporary buffer to your 'buf.'
 		 */
 		if (cwdBuf == NULL) {
-			cwdBuf = (char *) malloc((size_t) MAXPATHLEN);
+			cwdBuf = (char *) malloc((size_t) MAXPATHLEN + 16);
 			if (cwdBuf == NULL) {
 				return NULL;
 			}
@@ -58,7 +58,24 @@ FTPGetLocalCWD(char *buf, size_t size)
 		return (NULL);
 	}
 	return (Strncpy(buf, dp, size));
+#elif defined(HAVE_GETWD) && defined(_REENTRANT)
+	char wdbuf[MAXPATHLEN + 16];
 
+	if (size <= MAXPATHLEN) {
+		memset(wdbuf, 0, sizeof(wdbuf));
+		if (getwd(wdbuf) == NULL) {
+			(void) Strncpy(buf, ".", size);
+			return (NULL);
+		}
+		(void) Strncpy(buf, wdbuf, size);
+	} else {
+		memset(buf, 0, size);
+		if (getwd(buf) == NULL) {
+			(void) Strncpy(buf, ".", size);
+			return (NULL);
+		}
+	}
+	return (buf);
 #elif (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	memset(buf, 0, size);
 	if ((GetCurrentDirectory((DWORD) size - 1, buf) < 1) || (buf[size - 1] != '\0') || (buf[size - 2] != '\0')) {

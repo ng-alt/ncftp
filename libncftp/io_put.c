@@ -61,7 +61,8 @@ FTPPutOneF(
 #if ASCII_TRANSLATION
 	char *src, *srclim, *dst;
 	write_size_t ntowrite;
-	char inbuf[256];
+	char inbuf[256], crlf[4];
+	int lastch_of_prev_block, lastch_of_cur_block;
 #endif
 	int fstatrc, statrc;
 	longest_int startPoint = 0;
@@ -353,6 +354,7 @@ FTPPutOneF(
 #if ASCII_TRANSLATION
 	if (xtype == kTypeAscii) {
 		/* ascii */
+		lastch_of_prev_block = 0;
 		for (;;) {
 #if !defined(NO_SIGNALS)
 			gCanBrokenDataJmp = 0;
@@ -377,12 +379,54 @@ FTPPutOneF(
 #endif	/* NO_SIGNALS */
 			src = inbuf;
 			srclim = src + nread;
-			dst = cip->buf;		/* must be 2x sizeof inbuf or more. */
-			while (src < srclim) {
-				if (*src == '\n')
-					*dst++ = '\r';
-				*dst++ = *src++;
+			lastch_of_cur_block = srclim[-1];
+			if (lastch_of_cur_block == '\r') {
+				srclim[-1] = '\0';
+				srclim--;
+				nread--;
+				if (nread == 0) {
+					lastch_of_prev_block = lastch_of_cur_block;
+					break;
+				}
 			}
+			dst = cip->buf;		/* must be 2x sizeof inbuf or more. */
+
+			if (*src == '\n') {
+				src++;
+				*dst++ = '\r';
+				*dst++ = '\n';
+			} else if (lastch_of_prev_block == '\r') {
+				/* Raw CR at end of last block,
+				 * no LF at the start of this block.
+				 */
+				*dst++ = '\r';
+				*dst++ = '\n';
+			}
+
+			/* Prepare the buffer, converting end-of-lines
+			 * to CR+LF format as required by protocol.
+			 */
+			while (src < srclim) {
+				if (*src == '\r') {
+					if (src[1] == '\n') {
+						/* CR+LF pair */
+						*dst++ = *src++;
+						*dst++ = *src++;
+					} else {
+						/* raw CR */
+						*dst++ = *src++;
+						*dst++ = '\n';
+					}
+				} else if (*src == '\n') {
+					/* LF only; expected for UNIX text. */
+					*dst++ = '\r';
+					*dst++ = *src++;
+				} else {
+					*dst++ = *src++;
+				}
+			}
+			lastch_of_prev_block = lastch_of_cur_block;
+
 			ntowrite = (write_size_t) (dst - cip->buf);
 			cp = cip->buf;
 
@@ -390,6 +434,71 @@ FTPPutOneF(
 			if (cip->xferTimeout > 0)
 				(void) alarm(cip->xferTimeout);
 #endif	/* NO_SIGNALS */
+			do {
+				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
+					cip->errNo = result = kErrDataTimedOut;
+					FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
+					goto brk;
+				}
+				if (cip->cancelXfer > 0) {
+					FTPAbortDataTransfer(cip);
+					result = cip->errNo = kErrDataTransferAborted;
+					goto brk;
+				}
+
+#ifdef NO_SIGNALS
+				nwrote = (write_return_t) SWrite(cip->dataSocket, cp, (size_t) ntowrite, (int) cip->xferTimeout, kNoFirstSelect);
+				if (nwrote < 0) {
+					if (nwrote == kTimeoutErr) {
+						cip->errNo = result = kErrDataTimedOut;
+						FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
+					} else if (errno == EPIPE) {
+						cip->errNo = result = kErrSocketWriteFailed;
+						errno = EPIPE;
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+					} else if (errno == EINTR) {
+						continue;
+					} else {
+						cip->errNo = result = kErrSocketWriteFailed;
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
+					}
+					(void) shutdown(cip->dataSocket, 2);
+					goto brk;
+				}
+#else	/* NO_SIGNALS */
+				nwrote = write(cip->dataSocket, cp, ntowrite);
+				if (nwrote < 0) {
+					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
+						cip->errNo = result = kErrSocketWriteFailed;
+						errno = EPIPE;
+						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+					} else if (errno == EINTR) {
+						continue;
+					} else {
+						cip->errNo = result = kErrSocketWriteFailed;
+						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
+					}
+					(void) shutdown(cip->dataSocket, 2);
+					goto brk;
+				}
+#endif	/* NO_SIGNALS */
+				cp += nwrote;
+				ntowrite -= (write_size_t) nwrote;
+			} while (ntowrite != 0);
+			FTPUpdateIOTimer(cip);
+		}
+
+		if (lastch_of_prev_block == '\r') {
+			/* Very rare, but if the file's last byte is a raw CR
+			 * we need to write out one more line since we
+			 * skipped it earlier.
+			 */
+			crlf[0] = '\r';
+			crlf[1] = '\n';
+			crlf[2] = '\0';
+			cp = crlf;
+			ntowrite = 2;
+
 			do {
 				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
 					cip->errNo = result = kErrDataTimedOut;

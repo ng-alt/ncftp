@@ -248,4 +248,43 @@ RunBatchIfNeeded(const FTPCIPtr cip)
 	}
 }	/* RunBatchIfNeeded */
 
+#else	/* ! HAVE_LONG_FILE_NAMES */
+
+int gUnprocessedJobs = 0;
+int gJobs = 0;
+int gHaveSpool = -1;
+
+void
+Jobs(void)
+{
+	fprintf(stderr, "Background processing not available on this platform.\n");
+}
+
+void
+RunBatchIfNeeded(const FTPCIPtr cip)
+{
+}
+
+void
+RunBatchWithCore(const FTPCIPtr cip)
+{
+}
+
+void
+TruncBatchLog(void)
+{
+}
+
+int
+HaveSpool(void)
+{
+	return (0);
+}
+
+int
+CanSpool(void)
+{
+	return (-1);
+}
+
 #endif	/* HAVE_LONG_FILE_NAMES */

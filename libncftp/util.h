@@ -149,6 +149,7 @@ int FTPAllocateHost(const FTPCIPtr cip);
 /* cmds misc */
 int FTPRmdirRecursive(const FTPCIPtr cip, const char *const dir);
 void FTPRequestMlsOptions(const FTPCIPtr cip);
-void RemoteGlobCollapse(const char *pattern, FTPLineListPtr fileList);
+void RemoteGlobCollapse(const FTPCIPtr, const char *pattern, FTPLineListPtr fileList);
+int PathContainsIntermediateDotDotSubDir(const char *s);
 
 #endif	/* _util_h_ */

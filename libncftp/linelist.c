@@ -207,11 +207,11 @@ InitFileInfoList(FTPFileInfoListPtr list)
 static int
 TimeCmp(const void *a, const void *b)
 {
-	FTPFileInfo *const *fipa;
-	FTPFileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (FTPFileInfo *const *) a;
-	fipb = (FTPFileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipb).mdtm == (**fipa).mdtm)
 		return (0);
 	else if ((**fipb).mdtm < (**fipa).mdtm)
@@ -225,11 +225,11 @@ TimeCmp(const void *a, const void *b)
 static int
 ReverseTimeCmp(const void *a, const void *b)
 {
-	FTPFileInfo *const *fipa;
-	FTPFileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (FTPFileInfo *const *) a;
-	fipb = (FTPFileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipa).mdtm == (**fipb).mdtm)
 		return (0);
 	else if ((**fipa).mdtm < (**fipb).mdtm)
@@ -243,11 +243,11 @@ ReverseTimeCmp(const void *a, const void *b)
 static int
 SizeCmp(const void *a, const void *b)
 {
-	FTPFileInfo *const *fipa;
-	FTPFileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (FTPFileInfo *const *) a;
-	fipb = (FTPFileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipb).size == (**fipa).size)
 		return (0);
 	else if ((**fipb).size < (**fipa).size)
@@ -261,11 +261,11 @@ SizeCmp(const void *a, const void *b)
 static int
 ReverseSizeCmp(const void *a, const void *b)
 {
-	FTPFileInfo *const *fipa;
-	FTPFileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (FTPFileInfo *const *) a;
-	fipb = (FTPFileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 	if ((**fipa).size == (**fipb).size)
 		return (0);
 	else if ((**fipa).size < (**fipb).size)
@@ -279,11 +279,11 @@ ReverseSizeCmp(const void *a, const void *b)
 static int
 ReverseNameCmp(const void *a, const void *b)
 {
-	FTPFileInfo *const *fipa;
-	FTPFileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (FTPFileInfo *const *) a;
-	fipb = (FTPFileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipb).relname, (**fipa).relname));
 #else
@@ -297,11 +297,11 @@ ReverseNameCmp(const void *a, const void *b)
 static int
 NameCmp(const void *a, const void *b)
 {
-	FTPFileInfo *const *fipa;
-	FTPFileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (FTPFileInfo *const *) a;
-	fipb = (FTPFileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 #ifdef HAVE_SETLOCALE
 	return (strcoll((**fipa).relname, (**fipb).relname));
 #else
@@ -318,11 +318,11 @@ BreadthFirstCmp(const void *a, const void *b)
 	char *cp, *cpa, *cpb;
 	int depth, deptha, depthb;
 	int c;
-	FTPFileInfo *const *fipa;
-	FTPFileInfo *const *fipb;
+	const FTPFileInfo *const *fipa;
+	const FTPFileInfo *const *fipb;
 
-	fipa = (FTPFileInfo *const *) a;
-	fipb = (FTPFileInfo *const *) b;
+	fipa = (const FTPFileInfo *const *) a;
+	fipb = (const FTPFileInfo *const *) b;
 
 	cpa = (**fipa).relname;
 	cpb = (**fipb).relname;

@@ -64,23 +64,26 @@ install: $(LIB)
 	chmod a+r $(PREFIX)/lib/$(LIB) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
 	-@/bin/ls -l $(PREFIX)/lib/$(LIB) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
 
+dynamic: $(LIBSO)
+
 shared: $(LIBSO)
 
 so: $(LIBSO)
 
 $(LIBSO): $(SOBJS)
-	/bin/rm -f $(LIBSO)
-	gcc -shared -Wl,-soname,$(LIBSO) -o $(LIBSO) $(SOBJS)
-	chmod a+r $(LIB) sio.h usio.h
-	-@/bin/ls -l $(LIBSO)
+	/bin/rm -f "$(LIBSO)" "$(LIBSOS)"
+	gcc -shared "-Wl,-soname,$(LIBSO)" -o "$(LIBSO)" $(SOBJS)
+	chmod a+r "$(LIBSO)" sio.h usio.h
+	/bin/ln -s "$(LIBSO)" "$(LIBSOS)"
+	-@/bin/ls -l "$(LIBSOS)" "$(LIBSO)"
 
 soinstall: $(LIBSO)
-	cp $(LIBSO) $(PREFIX)/lib/$(LIBSO)
-	/bin/rm -f $(PREFIX)/lib/$(LIBSOS)
-	( cd $(PREFIX)/lib ; /bin/ln -s $(LIBSO) $(LIBSOS) )
-	cp sio.h usio.h $(PREFIX)/include
-	chmod a+r $(PREFIX)/lib/$(LIBSO) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
-	-@/bin/ls -l $(PREFIX)/lib/$(LIBSO) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
+	cp "$(LIBSO)" "$(PREFIX)/lib/$(LIBSO)"
+	/bin/rm -f "$(PREFIX)/lib/$(LIBSOS)"
+	( cd "$(PREFIX)/lib" ; /bin/ln -s "$(LIBSO)" "$(LIBSOS)" )
+	cp sio.h usio.h "$(PREFIX)/include"
+	chmod a+r "$(PREFIX)/lib/$(LIBSO)" "$(PREFIX)/include/sio.h" "$(PREFIX)/include/usio.h"
+	-@/bin/ls -l "$(PREFIX)/lib/$(LIBSO)" "$(PREFIX)/include/sio.h" "$(PREFIX)/include/usio.h"
 
 ucase_c: ucase_c/ucase_c.c $(LIB)
 	( cd ucase_c ; $(MAKE) "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" "LIBS=$(LIBS)" )

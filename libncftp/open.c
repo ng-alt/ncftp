@@ -670,7 +670,67 @@ FTPInitialLogEntry(const FTPCIPtr cip)
 			gnu_get_libc_version(),
 			gnu_get_libc_release()
 		);
-#endif
+#endif	/* GLIBC */
+
+#ifdef MACOSX
+/*
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+<plist version="0.9">
+<dict>
+	<key>ProductBuildVersion</key>
+	<string>5S66</string>
+	<key>ProductName</key>
+	<string>Mac OS X</string>
+	<key>ProductVersion</key>
+	<string>10.1.5</string>
+</dict>
+</plist>
+*/
+		{
+			char osx_ver[32], osx_build[32];
+			char line[256], *cp, *cp2; 
+			FILE *fp;
+
+			memset(osx_ver, 0, sizeof(osx_ver));
+			memset(osx_build, 0, sizeof(osx_build));
+
+			fp = fopen("/System/Library/CoreServices/SystemVersion.plist", "r");
+
+			if (fp != NULL) {
+				memset(line, 0, sizeof(line));
+				while (fgets(line, sizeof(line) - 1, fp) != NULL) {
+					cp = strstr(line, "<key>ProductVersion</key>");
+					if (cp != NULL) {
+						memset(line, 0, sizeof(line));
+						if (fgets(line, sizeof(line) - 2, fp) != NULL) {
+							for (cp = line; ((*cp != '\0') && (! isdigit(*cp))); ) cp++;
+							for (cp2 = cp; ((*cp2 != '\0') && (! isspace(*cp2)) && (*cp2 != '<') && (*cp2 != '>')); ) cp2++;
+							cp2[0] = '\0';
+							STRNCPY(osx_ver, cp);
+						}
+					}
+
+					cp = strstr(line, "<key>ProductBuildVersion</key>");
+					if (cp != NULL) {
+						memset(line, 0, sizeof(line));
+						if (fgets(line, sizeof(line) - 2, fp) != NULL) {
+							for (cp = line; ((*cp != '\0') && (! isdigit(*cp))); ) cp++;
+							for (cp2 = cp; ((*cp2 != '\0') && (! isspace(*cp2)) && (*cp2 != '<') && (*cp2 != '>')); ) cp2++;
+							cp2[0] = '\0';
+							STRNCPY(osx_build, cp);
+						}
+					}
+				}
+				fclose(fp);
+			}
+			PrintF(cip, "Sysinfo: Mac OS X %s (Build %s)\n",
+				osx_ver,
+				osx_build
+			);
+		}
+#endif	/* MACOSX */
+
 	} else {
 		/* Starting a new set of opens, but simply update
 		 * the timestamp rather than re-log the headers.
@@ -840,6 +900,17 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->firewallType = kFirewallNotInUse;
 	cip->startingWorkingDirectory = NULL;
 	cip->shutdownUnusedSideOfSockets = 0;
+
+#ifdef MACOSX
+	/* For Mac OS 9 compatibility you could set this to '\r' */
+	cip->textEOLN[0] = '\n';
+#elif (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+	cip->textEOLN[0] = '\r';
+	cip->textEOLN[1] = '\n';
+#else	/* UNIX */
+	cip->textEOLN[0] = '\n';
+#endif
+
 	InitLineList(&cip->lastFTPCmdResultLL);
 	(void) STRNCPY(cip->magic, kLibraryMagic);
 	(void) STRNCPY(cip->user, "anonymous");

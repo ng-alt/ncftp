@@ -43,7 +43,7 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 		h = NULL;
 		memset(usehpbuf, 0, hpbufsize);
 		rc = gethostbyname2_r(name, AF_INET, hp, usehpbuf, hpbufsize, &h, &my_h_errno);
-		if ((rc == 0) && (my_h_errno == 0))
+		if ((rc == 0) && (h != NULL))
 			return (0);
 		if ((rc == ERANGE) || ((rc == -1) && (errno == ERANGE))) {
 			hpbufsize *= 2;
@@ -129,7 +129,7 @@ GetHostByAddr(struct hostent *const hp, void *addr, int asize, int atype, char *
 		h = NULL;
 		memset(usehpbuf, 0, hpbufsize);
 		rc = gethostbyaddr_r((gethost_addrptr_t) addr, asize, atype, hp, usehpbuf, hpbufsize, &h, &my_h_errno);
-		if ((rc == 0) && (my_h_errno == 0))
+		if ((rc == 0) && (h != NULL))
 			return (0);
 		if ((rc == ERANGE) || ((rc == -1) && (errno == ERANGE))) {
 			hpbufsize *= 2;

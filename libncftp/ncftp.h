@@ -13,7 +13,7 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.1.4 (July 2, 2002)"
+#define kLibraryVersion "@(#) LibNcFTP 3.1.5 (October 13, 2002)"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */
@@ -205,7 +205,7 @@ extern "C"
  * It also specifies the minimum version that is binary-compatibile with
  * this version.  (So this may not necessarily be kLibraryVersion.)
  */
-#define kLibraryMagic "LibNcFTP 3.1.4"
+#define kLibraryMagic "LibNcFTP 3.1.5"
 
 #ifndef longest_int
 #define longest_int long long
@@ -403,11 +403,14 @@ typedef struct FTPConnectionInfo {
 	struct timeval connectTime;		/* Do not modify. */
 	struct timeval loginTime;		/* Do not modify. */
 	struct timeval disconnectTime;		/* Do not modify. */
+	struct timeval lastCmdStart;		/* Do not modify. */
+	struct timeval lastCmdFinish;		/* Do not modify. */
 	int numDownloads;			/* Do not modify. */
 	int numUploads;				/* Do not modify. */
 	int numListings;			/* Do not modify. */
 
 	int doNotGetStartingWorkingDirectory;	/* You may modify this. */
+	char textEOLN[4];			/* Set automatically per platform. */
 #if USE_SIO
 	char srlBuf[768];
 	SReadlineInfo ctrlSrl;			/* Do not use or modify. */
@@ -1009,9 +1012,9 @@ int ConcatFileToFileInfoList(FTPFileInfoListPtr, char *);
 int LineListToFileInfoList(FTPLineListPtr, FTPFileInfoListPtr);
 int LineToFileInfoList(FTPLinePtr, FTPFileInfoListPtr);
 void URLCopyToken(char *, size_t, const char *, size_t);
-int UnMlsT(const char *const, const MLstItemPtr);
-int UnMlsD(FTPFileInfoListPtr, FTPLineListPtr);
-int UnLslR(FTPFileInfoListPtr, FTPLineListPtr, int);
+int UnMlsT(const FTPCIPtr, const char *const, const MLstItemPtr);
+int UnMlsD(const FTPCIPtr, FTPFileInfoListPtr, FTPLineListPtr);
+int UnLslR(const FTPCIPtr, FTPFileInfoListPtr, FTPLineListPtr, int);
 void TraceResponse(const FTPCIPtr, ResponsePtr);
 void PrintResponse(const FTPCIPtr, FTPLineListPtr);
 void DoneWithResponse(const FTPCIPtr, ResponsePtr);

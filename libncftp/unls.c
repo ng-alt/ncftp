@@ -480,10 +480,10 @@ UnLslRLine(	char *const line,
 
 
 int
-UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
+UnLslR(const FTPCIPtr cip, FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 {
-	char curdir[256];
-	char line[256];
+	char curdir[512];
+	char line[512];
 	int len;
 	size_t curdirlen = 0;
 	char fname[256];
@@ -503,6 +503,8 @@ UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 	size_t maxPlugLen = 0;
 	size_t fileLen;
 	int plugend;
+	int skipdir = 0;
+	int cwdlen;
 
 	if (Localtime(time(&now), &nowtm) == NULL)
 		thisyear = 1970;	/* should never happen */
@@ -510,6 +512,8 @@ UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 		thisyear = nowtm.tm_year + 1900;
 
 	curdir[0] = '\0';
+	cip->buf[0] = '\0';
+	cwdlen = 0;
 
 	InitFileInfoList(filp);
 	for (lp = llp->first; lp != NULL; lp = lp->next) {
@@ -547,6 +551,8 @@ UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 		}
 
 		if (rc == 0) {
+			if (skipdir != 0)
+				continue;
 			cp = fname + curdirlen;
 			if ((cp[0] == '.') && ((cp[1] == '\0') || ((cp[1] == '.') && (cp[2] == '\0'))))
 				continue;	/* ignore . and .. */
@@ -554,6 +560,31 @@ UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 			cp = fname;
 			if ((cp[0] == '.') && ((cp[1] == '/') || (cp[1] == '\\')))
 				cp += 2;
+			if ((*cp == '/') || (*cp == '\\')) {
+				/* Absolute pathnames not allowed unless
+				 * they are in the cwd.
+				 */
+				if (cip->buf[0] == '\0') {
+					(void) FTPGetCWD(cip, cip->buf, cip->bufSize);
+					cwdlen = strlen(cip->buf);
+				}
+				/* In root directory (cwdlen == 1), paths
+				 * from root are OK.
+				 */
+				if (cwdlen > 1) {
+					if (memcmp(cp, cip->buf, cwdlen) == 0) {
+						/* Abs path prefixed with cwd */
+						cp += cwdlen;
+						if ((*cp == '/') || (*cp == '\\'))
+							cp++;
+					} else {
+						/* Abs path not prefixed with cwd */
+						continue;
+					}
+				}
+			}
+			if (PathContainsIntermediateDotDotSubDir(cp))
+				continue;
 			fileLen = strlen(cp);
 			if (fileLen > maxFileLen)
 				maxFileLen = fileLen;
@@ -598,6 +629,33 @@ UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 				(void) memcpy(curdir, line, (size_t) len + 1);
 				curdirlen = (size_t) len;
 			}
+			skipdir = 0;
+			cp = curdir;
+			if ((*cp == '/') || (*cp == '\\')) {
+				skipdir = 1;	/* absolute pathnames not allowed */
+				if (cip->buf[0] == '\0') {
+					(void) FTPGetCWD(cip, cip->buf, cip->bufSize);
+					cwdlen = strlen(cip->buf);
+				}
+				if (cwdlen == 1) {
+					/* In root directory, so paths
+					 * from root are OK.
+					 */
+					skipdir = 0;
+				} else {
+					if (memcmp(cp, cip->buf, cwdlen) == 0) {
+						cp += cwdlen;
+						if ((*cp == '/') || (*cp == '\\'))
+							cp++;
+						memmove(curdir, cp, strlen(cp) + 1);
+						skipdir = 0;
+						cp = curdir;
+					}
+				}
+			}
+			if (PathContainsIntermediateDotDotSubDir(cp)) {
+				skipdir = 1;
+			}
 		}
 	}
 
@@ -612,13 +670,14 @@ UnLslR(FTPFileInfoListPtr filp, FTPLineListPtr llp, int serverType)
 
 
 int
-UnMlsT(const char *const line0, const MLstItemPtr mlip)
+UnMlsT(const FTPCIPtr UNUSED(cip), const char *const line0, const MLstItemPtr mlip)
 {
 	char *cp, *val, *fact;
 	int ec;
 	size_t len;
 	char line[1024];
-	
+
+	LIBNCFTP_USE_VAR(cip);
 	memset(mlip, 0, sizeof(MLstItem));
 	mlip->mode = -1;
 	mlip->fsize = kSizeUnknown;
@@ -746,7 +805,7 @@ UnMlsT(const char *const line0, const MLstItemPtr mlip)
 
 
 int
-UnMlsD(FTPFileInfoListPtr filp, FTPLineListPtr llp)
+UnMlsD(const FTPCIPtr cip, FTPFileInfoListPtr filp, FTPLineListPtr llp)
 {
 	MLstItem mli;
 	char plug[64];
@@ -766,10 +825,14 @@ UnMlsD(FTPFileInfoListPtr filp, FTPLineListPtr llp)
 	InitFileInfoList(filp);
 	for (lp = llp->first; lp != NULL; lp = lp->next) {
 		linesread++;
-		rc = UnMlsT(lp->line, &mli);
+		rc = UnMlsT(cip, lp->line, &mli);
 		if (rc == 0) {
-			linesconverted++;
+			if (PathContainsIntermediateDotDotSubDir(mli.fname)) {
+				linesignored++;
+				continue;
+			}
 			fileLen = strlen(mli.fname);
+			linesconverted++;
 			if (fileLen > maxFileLen)
 				maxFileLen = fileLen;
 			fi.relnameLen = fileLen;

@@ -157,6 +157,8 @@
 
 #undef HAVE_STATFS_F_BAVAIL
 
+#undef HAVE_STATVFS_F_FRSIZE
+
 /* Define if your struct stat has st_blksize.  */
 #undef HAVE_ST_BLKSIZE
 

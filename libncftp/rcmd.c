@@ -477,7 +477,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 		cp = str;
 		if (strncmp(code, cp, SZ(3)) == 0) {
 			cp += 3;
-			if (*cp == ' ')
+			if (*cp != '-')
 				continuation = 0;
 			++cp;
 		}
@@ -503,6 +503,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 #ifndef NO_SIGNALS
 	(void) signal(SIGPIPE, osigpipe);
 #endif
+	(void) gettimeofday(&cip->lastCmdFinish, NULL);
 	return (kNoErr);
 }	/* GetResponse */
 
@@ -609,6 +610,8 @@ SendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 			return (cip->errNo);
 		}
 		(void) signal(SIGPIPE, osigpipe);
+		(void) gettimeofday(&cip->lastCmdStart, NULL);
+		memset(&cip->lastCmdFinish, 0, sizeof(cip->lastCmdFinish));
 		return (kNoErr);
 	}
 	return (kErrNotConnected);
@@ -664,8 +667,9 @@ FTPCmd(const FTPCIPtr cip, const char *const cmdspec, ...)
 		(void) alarm(0);
 #endif	/* NO_SIGNALS */
 
-	if (result == kNoErr)
+	if (result == kNoErr) {
 		result = rp->codeType;
+	}
 	DoneWithResponse(cip, rp);
 	return (result);
 }	/* FTPCmd */
@@ -777,8 +781,9 @@ RCmd(const FTPCIPtr cip, ResponsePtr rp, const char *cmdspec, ...)
 		(void) alarm(0);
 #endif	/* NO_SIGNALS */
 
-	if (result == kNoErr)
+	if (result == kNoErr) {
 		result = rp->codeType;
+	}
 	return (result);
 }	/* RCmd */
 

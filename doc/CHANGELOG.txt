@@ -1,6 +1,23 @@
 NcFTP Change Log:
 ================
 
+3.1.5, 2002-10-13
+
+ + Bug fixed where cd messages from remote server were not being displayed.
+
+ + It's now possible to capture the output of the progress reports from
+   ncftpget/put by redirecting descriptor(s) to a file.  Previous releases
+   required a "tty" to enable progress reports.
+
+ + Compatibility fixes for AIX, Linux, Mac OS X, IRIX 6.2 and SunOS 4.
+
+ + Be less pedantic about incorrectly formatted multi-line responses.
+
+ + Bug fixed where NcFTP could hang at exit.
+
+ + For ASCII transfers, try harder to handle non-native end-of-line formats.
+
+
 3.1.4, 2002-07-02
 
  + Bug fixed in Win32 port which could cause NcFTP to mis-parse output

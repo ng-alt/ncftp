@@ -376,7 +376,7 @@ gl_getc(void)
 	if (errno != EINTR)
 	    break;
     }
-    if (c != (-1))
+    if (c > 0)
 	    c = (int) ch;
 #endif	/* __unix__ */
 #ifdef MSDOS
@@ -714,7 +714,7 @@ getline(char *prompt)
 	FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
 #endif
 
-    while ((c = gl_getc()) != (-1)) {
+    while ((c = gl_getc()) > 0) {
 	gl_extent = 0;  	/* reset to full extent */
 	/* Note: \n may or may not be considered printable */
 	if ((c != '\t') && ((isprint(c) != 0) || ((c & 0x80) != 0))) {
@@ -871,6 +871,7 @@ vi_break:
 		break;
 	      case '\002': gl_fixup(gl_prompt, -1, gl_pos-1);	/* ^B */
 		break;
+	      case 0:
 	      case '\004':					/* ^D */
 		if (gl_cnt == 0) {
 		    gl_buf[0] = 0;
