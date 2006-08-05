@@ -1,6 +1,107 @@
 NcFTP Change Log:
 ================
 
+3.2.0, 2006-08-05
+
+  + Fixed problem where ncftpbatch may requeue downloads when the local file
+    was the same as the remote file.
+
+  + ncftpls has been enhanced so that using the new -m option will
+    have it try a machine-readable list command.  These commands need to be
+    implemented on the remote server for it to work.
+
+  + ncftpls can now try to attempt to filter the files with a wildcard
+    with the new -i option.  For this option to work, this functionality
+    must be properly implemented in the FTP server software.
+
+  + ncftpls can also now behave similar to /usr/bin/find, with the new -g
+    option.  When invoked with -gg, it appends a slash to directory pathnames
+    so you can distinguish files from directories.
+
+  + Fixed a problem with ASCII translation where a CR+LF may not have
+    been converted to the local text EOLN format if the CR+LF was split
+    over an internal block boundary.  The ASCII translation code has
+    been rewritten so it is also more tolerant of malformatted text,
+    such as CR+CR+LF end-of-lines.
+ 
+  + You can now edit remote files, thanks to <jess AT thrysoee.dk>.  The
+    new "edit" command downloads to a temporary file, runs your $EDITOR,
+    and uploads any changes back to the remote server.  Naturally this
+    requires both read and write permission on the remote server.
+
+  + Handling "~" in paths a little better.  Try to expand it to the
+    remote home directory for remote commands, and the local home directory
+    for local commands.
+
+  + Progress meters now output to stderr.  This eliminates a problem
+    when using ncftpput with "-c" mode, which would result in a corrupted
+    file.
+
+  + More careful about trimming the $HOME/.ncftp/log file so it does not
+    get too small.
+
+  + You can now resume uploads when uploading into a temporary file
+    (e.g. ncftpput's -S and -T options for using a temporary suffix or prefix).
+
+  + The utility programs' "-X" option has been enhanced so it will
+    automatically translate some /usr/bin/ftp commands into the raw RFC 959
+    FTP protcool commands that are required for this feature.
+
+  + Fixes for Cygwin.
+
+  + Some fixes for largefile support on Windows.
+
+  + You can now resume transfers in ASCII mode, rather than just binary.
+
+  + Fixed a problem with recursive uploads for Windows.
+
+  + Opening a site with a bookmark no longer assumes that the server's
+    software has the same configuration (i.e. if it did not support SIZE
+    before, it now checks for SIZE each time rather than assuming each
+    time the site is opened that the server does not support SIZE).
+
+  + You can now use an empty password if your user account does not have
+    a password.
+
+  + Fixed a problem in the "ls" implementation for international
+    month names.
+
+  + Fixed a bug where Type of Service socket options were being set
+    with IPPROTO_TCP instead of IPPROTO_IP.
+
+
+3.1.9, 2005-04-06
+
+  + Renamed internal library function getline() to gl_getline()
+    to avoid namespace collision with glibc.
+
+  + Renamed internal library function Duration() to FTPDuration()
+    to avoid namespace collision on Mac OS X.
+
+  + Recognize additional error response codes to SITE UTIME, to prevent
+    using it if the server doesn't support it.
+
+  + If the server does not support setting timestamps in MDTM, quit
+    trying it if it fails the first time.
+
+  + Do not allow control characters such as NUL, CR, LF in FTP URLs, to
+    avoid command injection as described by
+    Albert Puigsech Galicia <ripe AT 7a69ezine.org>.
+
+  + Fixed a problem where a timed-out transfer may have been detected
+    but still locked up the process (Thanks, IWAI, Masaharu).
+
+  + Ncftpget and ncftpput now accept a "-C" parameter which is similar
+    to the "-c" option (ftp "cat" mode), where stdin (stdout) is not used
+    and the filename is specified as a parameter instead.  This is useful
+    if you don't want to specify a password on the command line.
+
+  + Ncftpput now allows the "-m" option in conjunction with the "-c" or "-C"
+    options.
+
+  + Small compatibility fixes for Mac OS X, Solaris 10, Linux.
+
+
 3.1.8.1, 2004-07-27
 
   + A fix for some DNS resolution problems on Linux.
@@ -110,7 +211,7 @@ NcFTP Change Log:
   + Problem fixed where a malicious or trojaned FTP server could send back
     pathnames with directories different from the directory requested.
     For example, if you did:
-      cd /pub
+      cd /pub ;
       get *.zip
     the malicious server could
     send back a pathname like ../../../some/other/dir/filename.here

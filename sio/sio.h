@@ -123,10 +123,10 @@ typedef struct SReadlineInfo {
 #endif
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-#	define SETERRNO errno = WSAGetLastError();
+#	define SIOSETERRNO errno = WSAGetLastError();
 #	define SETWSATIMEOUTERR WSASetLastError(WSAETIMEDOUT);
 #else
-#	define SETERRNO
+#	define SIOSETERRNO
 #	define SETWSATIMEOUTERR
 #endif
 

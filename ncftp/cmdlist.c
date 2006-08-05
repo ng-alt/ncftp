@@ -1,6 +1,6 @@
 /* cmdlist.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -47,7 +47,7 @@ Command gCommands[] = {
 		SpoolGetCmd,
 "[-flags] file1 [file2...]\n\
 Flags:\n\
-  -z   : Get the remote file X, and name it to Y.\n\
+  -z   : Get the remote file file1, and name it to file2.\n\
   -@ <time> : Wait until <time> to do the transfer.\n\
               It must be expressed as one of the following:\n\
 	          YYYYMMDDHHMMSS\n\
@@ -61,7 +61,7 @@ Flags:\n\
 		SpoolPutCmd,
 "[-flags] file1 [file2...]\n\
 Flags:\n\
-  -z   : Send the local file X, and name the remote copy to Y.\n\
+  -z   : Send the local file file1, and name the remote copy to file2.\n\
   -@ <time> : Wait until <time> to do the transfer.\n\
               It must be expressed as one of the following:\n\
 	          YYYYMMDDHHMMSS\n\
@@ -153,16 +153,26 @@ Flags:\n\
 		ListCmd,
 		"[items to list]",
 		"prints a verbose directory listing",
-		kCmdMustBeConnected | kCompleteRemoteDir,
+		kCmdMustBeConnected | kCompleteRemoteDir | kCompleteRemoteFile,
 		kNoMin, kNoMax,
 	},
 	{ "echo",
 		EchoCmd,
 		"[items to echo]",
 		"echos back to screen",
-		kCmdHidden,
+		kCmdHidden | kCompleteLocalFile | kCompleteLocalDir,
 		kNoMin, kNoMax,
 	},
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
+	{ "edit",
+		EditCmd,
+		"file1 [file2...]",
+		"edit remote files",
+		kCmdMustBeConnected | kCompleteRemoteFile,
+		1, kNoMax,
+	},
+#endif
 	{ "exit",
 		(CmdProc) QuitCmd,
 		"",
@@ -175,7 +185,7 @@ Flags:\n\
 "[-flags] file1 [file2...]\n\
 Flags:\n\
   -R   : Recursive.  Useful for fetching whole directories.\n\
-  -z   : Get the remote file X, and name it to Y.\n\
+  -z   : Get the remote file file1, and name it to file2.\n\
   -a   : Get files using ASCII mode.\n\
   -A   : Append entire remote file to the local file.\n\
   -f   : Force overwrite (do not try to auto-resume transfers).\n\
@@ -302,7 +312,7 @@ Examples:\n\
 		ListCmd,
 		"[items to list]",
 		"prints a remote directory listing",
-		kCmdMustBeConnected | kCompleteRemoteDir,
+		kCmdMustBeConnected | kCompleteRemoteDir | kCompleteRemoteFile,
 		kNoMin, kNoMax,
 	},
 	{ "mget",
@@ -310,7 +320,7 @@ Examples:\n\
 "[-flags] file1 [file2...]\n\
 Flags:\n\
   -R   : Recursive.  Useful for fetching whole directories.\n\
-  -z   : Get the remote file X, and name it to Y.\n\
+  -z   : Get the remote file file1, and name it to file2.\n\
   -a   : Get files using ASCII mode.\n\
   -A   : Append entire remote file to the local file.\n\
   -f   : Force overwrite (do not try to auto-resume transfers).\n\
@@ -349,7 +359,7 @@ Examples:\n\
 		PutCmd,
 "[-flags] file1 [file2...]\n\
 Flags:\n\
-  -z   : Send the local file X, and name the remote copy to Y.\n\
+  -z   : Send the local file file1, and name the remote copy to file2.\n\
   -f   : Force overwrite (do not try to auto-resume transfers).\n\
   -a   : Send files using ASCII mode.\n\
   -A   : Append entire local file to the remote file.\n\
@@ -416,7 +426,7 @@ Examples:\n\
 		PutCmd,
 "[-flags] file1 [file2...]\n\
 Flags:\n\
-  -z   : Send the local file X, and name the remote copy to Y.\n\
+  -z   : Send the local file file1, and name the remote copy to file2.\n\
   -f   : Force overwrite (do not try to auto-resume transfers).\n\
   -a   : Send files using ASCII mode.\n\
   -A   : Append entire local file to the remote file.\n\

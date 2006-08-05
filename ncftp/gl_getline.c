@@ -1,5 +1,5 @@
-/* Based on: "$Id: getline.c,v 3.11 1993/12/02 15:54:31 thewalt Exp thewalt $"; */
-static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris Thewalt";
+/* Based on: "$Id: gl_getline.c,v 3.11 1993/12/02 15:54:31 thewalt Exp thewalt $"; */
+static const char copyright[] = "gl_getline:  Copyright (C) 1991, 1992, 1993, Chris Thewalt";
 
 /*
  * Copyright (C) 1991, 1992, 1993 by Chris Thewalt (thewalt@ce.berkeley.edu)
@@ -159,8 +159,8 @@ static const char copyright[] = "getline:  Copyright (C) 1991, 1992, 1993, Chris
 #include <ctype.h>
 #include <signal.h>
 
-#define _getline_c_ 1
-#include "getline.h"
+#define _gl_getline_c_ 1
+#include "gl_getline.h"
 
 static int gl_tab(char *buf, int offset, int *loc, size_t bufsize);
 
@@ -574,7 +574,7 @@ gl_init(void)
     int w;
 
 	/* Useless code, but prevents copyright from being optimized away. */
-	if (strncmp(copyright, "getline", 7) != 0)
+	if (strncmp(copyright, "gl_getline", 7) != 0)
 		exit(1);
 
     if (gl_init_done < 0) {		/* -1 only on startup */
@@ -593,7 +593,7 @@ gl_init(void)
         hist_init();
     }
     if (isatty(0) == 0 || isatty(1) == 0)
-	gl_error("\n*** Error: getline(): not interactive, use stdio.\n");
+	gl_error("\n*** Error: gl_getline(): not interactive, use stdio.\n");
     gl_char_init();
     gl_init_done = 1;
 }
@@ -716,7 +716,7 @@ static void raise(int sig)
 
 
 char *
-getline(char *prompt)
+gl_getline(char *prompt)
 {
     int             c, loc, tmp, lastch;
     int vi_count, count;
@@ -1103,7 +1103,7 @@ ansi:
     gl_buf[0] = 0;
     gl_cleanup();
     return NULL;
-}	/* getline */
+}	/* gl_getline */
 
 
 
@@ -1114,7 +1114,7 @@ gl_addchar(int c)
     int  i;
 
     if (gl_cnt >= GL_BUF_SIZE - 1)
-	gl_error("\n*** Error: getline(): input buffer overflow\n");
+	gl_error("\n*** Error: gl_getline(): input buffer overflow\n");
     if (gl_overwrite == 0 || gl_pos == gl_cnt) {
         for (i=gl_cnt; i >= gl_pos; i--)
             gl_buf[i+1] = gl_buf[i];
@@ -1137,7 +1137,7 @@ gl_yank(void)
     if (len > 0) {
 	if (gl_overwrite == 0) {
             if (gl_cnt + len >= GL_BUF_SIZE - 1) 
-	        gl_error("\n*** Error: getline(): input buffer overflow\n");
+	        gl_error("\n*** Error: gl_getline(): input buffer overflow\n");
             for (i=gl_cnt; i >= gl_pos; i--)
                 gl_buf[i+len] = gl_buf[i];
 	    for (i=0; i < len; i++)
@@ -1146,7 +1146,7 @@ gl_yank(void)
 	} else {
 	    if (gl_pos + len > gl_cnt) {
                 if (gl_pos + len >= GL_BUF_SIZE - 1) 
-	            gl_error("\n*** Error: getline(): input buffer overflow\n");
+	            gl_error("\n*** Error: gl_getline(): input buffer overflow\n");
 		gl_buf[gl_pos + len] = 0;
             }
 	    for (i=0; i < len; i++)
@@ -1186,7 +1186,7 @@ gl_newline(void)
     int loc = gl_width - 5;	/* shifts line back to start position */
 
     if (gl_cnt >= GL_BUF_SIZE - 1) 
-        gl_error("\n*** Error: getline(): input buffer overflow\n");
+        gl_error("\n*** Error: gl_getline(): input buffer overflow\n");
     if (gl_out_hook) {
 	change = gl_out_hook(gl_buf);
         len = (int) strlen(gl_buf);
@@ -1505,7 +1505,7 @@ gl_histadd(const char *const buf)
     const char *p = buf;
     int len;
 
-    /* in case we call gl_histadd() before we call getline() */
+    /* in case we call gl_histadd() before we call gl_getline() */
     if (gl_init_done < 0) {		/* -1 only on startup */
         hist_init();
         gl_init_done = 0;
@@ -1836,6 +1836,11 @@ gl_display_matches(int nused)
 		/* Find the greatest amount that matches. */
 		for (glen = 0; ; glen++) {
 			allmatch = 1;
+			if (gl_matchlist[0][glen] == '\0') {
+				gl_beep();
+				gl_putc('\n');
+				return;
+			}
 			for (i=1; i<nused; i++) {
 				if (gl_matchlist[0][glen] != gl_matchlist[i][glen]) {
 					allmatch = 0;
@@ -1861,6 +1866,11 @@ gl_display_matches(int nused)
 		}
 
 		/* Subtract amount we'll skip for each item. */
+		if (imaxlen == (unsigned int) glen) {
+			gl_beep();
+			gl_putc('\n');
+			return;
+		}
 		imaxlen -= glen;
 
 		ncol = (gl_termw - 8) / ((int) imaxlen + 2);

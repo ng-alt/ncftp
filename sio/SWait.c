@@ -19,8 +19,9 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 		errno = EBADF;
 		return (0);
 	}
+	errno = 0;
 
-	if (tlen <= 0) {
+	if (tlen < 0) {
 		forever {
 			MY_FD_ZERO(&ss);
 #if defined(__DECC) || defined(__DECCXX)
@@ -36,6 +37,35 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 			if (result == 1) {
 				/* ready */
 				return (1);
+			} else if ((result < 0) && (errno != EINTR)) {
+				/* error */
+				return (0);
+			}
+			/* else try again */
+		}
+		/*NOTREACHED*/
+	} else if (tlen == 0) {
+		forever {
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			ss2 = ss;
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
+			result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, &tv);
+			if (result == 1) {
+				/* ready */
+				return (1);
+			} else if (result == 0) {
+				/* timed-out */
+				errno = ETIMEDOUT;
+				return (0);
 			} else if ((result < 0) && (errno != EINTR)) {
 				/* error */
 				return (0);
@@ -108,8 +138,9 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 		errno = EBADF;
 		return (0);
 	}
+	errno = 0;
 
-	if (tlen <= 0) {
+	if (tlen < 0) {
 		forever {
 			MY_FD_ZERO(&ss);
 #if defined(__DECC) || defined(__DECCXX)
@@ -125,6 +156,35 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 			if (result == 1) {
 				/* ready */
 				return (1);
+			} else if ((result < 0) && (errno != EINTR)) {
+				/* error */
+				return (0);
+			}
+			/* else try again */
+		}
+		/*NOTREACHED*/
+	} else if (tlen == 0) {
+		forever {
+			MY_FD_ZERO(&ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message save
+#pragma message disable trunclongint
+#endif
+			MY_FD_SET(sfd, &ss);
+#if defined(__DECC) || defined(__DECCXX)
+#pragma message restore
+#endif
+			ss2 = ss;
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
+			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, &tv);
+			if (result == 1) {
+				/* ready */
+				return (1);
+			} else if (result == 0) {
+				/* timed-out */
+				errno = ETIMEDOUT;
+				return (0);
 			} else if ((result < 0) && (errno != EINTR)) {
 				/* error */
 				return (0);

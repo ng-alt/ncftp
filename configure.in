@@ -19,6 +19,13 @@ dnl ---------------------------------------------------------------------------
 dnl
 wi_ENV_VAR_MESSAGES
 wi_OS_VAR
+
+case "$os" in
+	linux)
+		OS="linux-$arch-$libc"
+		;;
+esac
+
 if test -f sh/install-sh ; then chmod 755 sh/*.sh sh/config.* sh/install-sh ; fi
 AC_CONFIG_AUX_DIR([sh])
 AC_PROG_CC
@@ -105,12 +112,13 @@ dnl Checks for library functions.
 dnl ---------------------------------------------------------------------------
 dnl
 wi_FUNC_GETCWD
-AC_CHECK_FUNCS(fstat64 getdomainname gethostname getpass getpassphrase gnu_get_libc_release gnu_get_libc_version inet_aton inet_ntop llseek lseek64 lstat64 memmove mktime open64 pathconf readlink res_init setlocale setpgid setpgrp setsid setvbuf sigaction sigsetjmp stat64 strcasecmp strcoll strdup strerror strncoll strstr strtoq symlink sysconf sysctl sysinfo syslog uname waitpid)
+AC_CHECK_FUNCS(fstat64 getdomainname gethostname getpass getpassphrase gnu_get_libc_release gnu_get_libc_version inet_aton inet_ntop llseek lseek64 lstat64 memmove mktime open64 pathconf readlink res_init setlocale setpgid setpgrp setsid setvbuf sigaction sigsetjmp stat64 strcasecmp strcoll strdup strerror strncoll strstr strtoq symlink sysconf sysctl sysinfo syslog tcgetattr uname waitpid)
 AC_CHECK_FUNCS(gethostbyaddr_r gethostbyname_r gethostbyname2_r getlogin_r getpwnam_r _posix_getpwnam_r getpwuid_r _posix_getpwuid_r getservbyname_r getservbyport_r gmtime_r localtime_r readdir_r)
 wi_SNPRINTF
 wi_FUNC_SIGSETJMP
-AC_FUNC_SETPGRP
-AC_FUNC_SETVBUF_REVERSED
+wi_FUNC_SETPGRP
+wi_FUNC_SETVBUF
+AC_FUNC_ALLOCA	dnl Only needed for Linux, and for one function in Sio.
 wi_CURSES_FEATURES
 if test "x$LIBCURSES" = "x" ; then
 	VIS_DPROGS="# ../bin/ncftpbookmarks${EXEEXT}"
@@ -128,7 +136,8 @@ AC_SYS_LONG_FILE_NAMES
 AC_PROG_MAKE_SET
 wi_PROG_TAR
 wi_CREATE_TAR_FILES
-AC_PROG_RANLIB
+wi_PROG_RANLIB
+wi_PROG_AR
 AC_PROG_INSTALL
 wi_PROG_CCDV
 wi_MANDIR
@@ -203,9 +212,22 @@ STRN_VERSION=`sed -n '/gStrnLibVersion\[\]/{
 	p
 	q
 }' Strn/Strncpy.c`
+
+Z00="unknown_id"
+Z31=''
+if [ -x /sbin/md5 ] ; then
+	Z00=`hostname | tr '[A-Z]' '[a-z]' | /sbin/md5`
+elif [ -x /usr/bin/md5sum ] ; then
+	Z00=`hostname -f | tr '[A-Z]' '[a-z]' | /usr/bin/md5sum | cut -d ' ' -f1`
+fi
+
+case "$Z00" in
+	'e85dfd19937dece65225d717f4cd5f22'|'816c501837158512dc4f606d58f4993b')
+		Z31='	scp -p "$(STGZFILE)" build@Src:src/ncftp/current/ ; mv ncftp-*-src.* /tmp'
+		;;
+	
+esac
 changequote([, ])dnl
-
-
 
 dnl ---------------------------------------------------------------------------
 dnl Create Makefiles and config.h files.
@@ -217,10 +239,10 @@ AC_SUBST(CPPFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(SFLAG)
-AC_SUBST(STRIP)
 AC_SUBST(DEFS)
 AC_SUBST(MAKE)
 AC_SUBST(Z30)
+AC_SUBST(Z31)
 AC_SUBST(LIBSET)
 AC_SUBST(MAINDIR)
 AC_SUBST(NCFTP_VERSION)

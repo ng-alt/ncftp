@@ -82,6 +82,7 @@ libncftp/pch.mk.gcc-gch
 libncftp/u_miscdebug.c
 libncftp/u_feat.c
 libncftp/u_decodehost.c
+libncftp/io_getmem.c
 Strn/syshdrs.h
 Strn/configure.in
 Strn/DStrCat.c
@@ -106,7 +107,6 @@ Strn/Strn.h
 Strn/Strnpcat.c
 Strn/Strnpcpy.c
 Strn/Strntok.c
-Strn/Strn.version
 Strn/strtokc.c
 Strn/config.h.in
 sh_util/ncftpget.c
@@ -154,7 +154,7 @@ doc/LICENSE.txt
 doc/what_changed_between_v2_v3.txt
 Makefile.in
 configure
-config.h.in
+DONATE.txt
 README.txt
 mac/setup/ncftp_dist/NcFTP.pmsp
 mac/setup/ncftp_dist/Resources/preinstall
@@ -202,14 +202,14 @@ ncftp/spool.c
 ncftp/spool.h
 ncftp/preffw.c
 ncftp/log.c
-ncftp/getline.c
-ncftp/getline.h
+ncftp/gl_getline.h
 ncftp/ncftp.dsp
 ncftp/ncftp.dsw
 ncftp/ncftp.ico
 ncftp/rc.rc
 ncftp/resource.h
 ncftp/spoolutil.c
+ncftp/gl_getline.c
 sh/fixfcase.sh
 sh/dos2unix.sh
 sh/unix2dos.sh
@@ -221,6 +221,7 @@ sh/autoconfall.sh
 sh/man2html.sh
 sh/config.sub
 sh/winsetver.pl
+sh/diff.sh
 autoconf/acconfig.h
 autoconf/aclocal.m4
 sio/sio.dsw
@@ -265,7 +266,6 @@ sio/UAccept.c
 sio/DNSUtil.c
 sio/pch.mk.macosx
 sio/pch.mk.none
-sio/sio.version
 sio/config.h.in
 sio/pch.mk.gcc-gch
 win/bmed/bmed.clw
@@ -291,4 +291,5 @@ win/bmed/BookmarkProperties.cpp
 win/setup/ncftp.wse
 NcFTP_All.dsp
 NcFTP_All.dsw
+config.h.in
 Makefile.bin.in

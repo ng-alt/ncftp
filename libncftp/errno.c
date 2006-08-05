@@ -1,6 +1,6 @@
 /* errno.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -111,6 +111,11 @@ static const char *gErrList[kErrLast - kErrFirst + 2] = {
 	"remote file appears to be the same as the local file, upload is not necessary",	/* -197 */
 	"data connection did not originate from same IP address as control connection to server",	/* -198 */
 	"data connection did not originate from correct port number",	/* -199 */
+	"internal error: bug in library code detected",			/* -200 */
+	"remote server does not support setting a RESTart point",	/* -201 */
+	"miscellaneous error occurred while trying to open the host", 	/* -202 */
+	"miscellaneous error occurred while trying to login to the host", /* -203 */
+	"ascii seek error",						/* -204 */
 	NULL,								
 };
 

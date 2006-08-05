@@ -17,7 +17,8 @@ typedef enum ExitStatus {
 	kExitInitLibraryFailed,
 	kExitInitConnInfoFailed,
 	kExitSpoolFailed,
-	kExitNoMemory
+	kExitNoMemory,
+	kExitMkdirFailed
 } ExitStatus;
 
 #define kKilobyte 1024

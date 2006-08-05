@@ -6,12 +6,15 @@
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
-#undef SNPRINTF_TERMINATES
+#undef SNPRINTF_RETURNS_PTR
 
-#undef SPRINTF_RETURNS_PTR
+#undef SNPRINTF_TERMINATES
 
 /* Define if you have the ANSI C header files.  */
 #undef STDC_HEADERS
+
+/* Define to the full path of the Tar program, if you have it. */
+#undef TAR
 
 /* Define if you have the snprintf function.  */
 #undef HAVE_SNPRINTF

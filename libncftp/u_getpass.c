@@ -1,11 +1,14 @@
 /* u_getpass.c
  *
- * Copyright (c) 2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2006 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
 
 #include "syshdrs.h"
+#if ((defined(HAVE_TCGETATTR)) && (defined(HAVE_TERMIOS_H)))
+#	include <termios.h>
+#endif
 #ifdef PRAGMA_HDRSTOP
 #	pragma hdrstop
 #endif
@@ -51,6 +54,26 @@ GetPass(const char *const prompt, char *const pwbuf, const size_t pwbufsize)
 
 	(void) fflush(stdout);
 	(void) fflush(stdin);
+	return (pwbuf);
+#elif ((defined(HAVE_TCGETATTR)) && (defined(HAVE_TERMIOS_H)))
+	/* Should also work for Cygwin. */
+	struct termios old, new;
+
+	(void) memset(pwbuf, 0, pwbufsize);
+	if (! isatty(fileno(stdout)))
+		return (pwbuf);
+	(void) fputs(prompt, stdout);
+	(void) fflush(stdout);
+	if (tcgetattr(fileno(stdout), &old) != 0)
+		return (pwbuf);
+	new = old;
+	new.c_lflag &= ~ECHO;
+	if (tcsetattr(fileno(stdout), TCSAFLUSH, &new) != 0)
+		return (pwbuf);
+	(void) FGets(pwbuf, pwbufsize, stdin);
+	(void) fflush(stdout);
+	(void) fflush(stdin);
+	(void) tcsetattr(fileno(stdout), TCSAFLUSH, &old);
 	return (pwbuf);
 #else
 	(void) memset(pwbuf, 0, pwbufsize);

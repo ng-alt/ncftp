@@ -1,6 +1,6 @@
 /* gpshare.c
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  * Shared routines for ncftpget and ncftpput.
@@ -160,8 +160,8 @@ PrSizeAndRateMeter(const FTPCIPtr cip, int mode)
 					(void) fprintf(stderr, "\r%s\r", line);
 				}
 
-				(void) fprintf(stdout, "%s\n", line);
-				(void) fflush(stdout);
+				(void) fprintf(stderr, "%s\n", line);
+				(void) fflush(stderr);	/* redundant */
 			}
 			break;
 	}
@@ -185,7 +185,7 @@ PrStatBar(const FTPCIPtr cip, int mode)
 
 	switch (mode) {
 		case kPrInitMsg:
-			fflush(stdout);
+			fflush(stderr);	/* shouldn't be needed for stderr */
 			if (cip->expectedSize == kSizeUnknown) {
 				cip->progress = PrSizeAndRateMeter;
 				PrSizeAndRateMeter(cip, mode);
@@ -302,8 +302,8 @@ PrStatBar(const FTPCIPtr cip, int mode)
 				(void) fprintf(stderr, "\r%s\r", line);
 			}
 
-			(void) fprintf(stdout, "%s\n", line);
-			(void) fflush(stdout);
+			(void) fprintf(stderr, "%s\n", line);
+			(void) fflush(stderr);	/* redundant */
 			break;
 	}
 }	/* PrStatBar */
@@ -336,14 +336,24 @@ ReadConfigFile(const char *fn, FTPCIPtr cip)
 		cp = line + strlen(line) - 1;
 		if (*cp == '\n')
 			*cp = '\0';
-		if (strncmp(line, "user", 4) == 0) {
+		if (strncmp(line, "username", 8) == 0) {
+			(void) STRNCPY(cip->user, line + 9);
+			goodfile = 1;
+		} else if (strncmp(line, "user", 4) == 0) {
 			(void) STRNCPY(cip->user, line + 5);
+			goodfile = 1;
+		} else if (strncmp(line, "login", 5) == 0) {
+			(void) STRNCPY(cip->user, line + 6);
 			goodfile = 1;
 		} else if (strncmp(line, "password", 8) == 0) {
 			(void) STRNCPY(cip->pass, line + 9);
+			if (cip->pass[0] == '\0')
+				cip->passIsEmpty = 1;
 			goodfile = 1;
 		} else if ((strncmp(line, "pass", 4) == 0) && (isspace((int) line[4]))) {
 			(void) STRNCPY(cip->pass, line + 5);
+			if (cip->pass[0] == '\0')
+				cip->passIsEmpty = 1;
 			goodfile = 1;
 		} else if (strncmp(line, "host", 4) == 0) {
 			(void) STRNCPY(cip->host, line + 5);
@@ -355,6 +365,8 @@ ReadConfigFile(const char *fn, FTPCIPtr cip)
 			(void) STRNCPY(cip->acct, line + 5);
 		} else if (strncmp(line, "account", 7) == 0) {
 			(void) STRNCPY(cip->acct, line + 8);
+		} else if (strncmp(line, "port", 4) == 0) {
+			cip->port = atoi(line + 5);
 		}
 	}
 	if ((fp != NULL) && (fp != stdin))
@@ -489,22 +501,108 @@ void ClosePager(FILE *fp)
 }	/* ClosePager */
 
 
+static const char *gUsrBinFTPCommands[] = {
+	"cd ..",
+	"cd",
+	"mkdir",
+	"md",
+	"rmdir",
+	"rm",
+	"del",
+	"delete",
+	"ascii",
+	"binary",
+	"bye",
+	"quit",
+	"exit",
+	"close",
+	"dir",
+	"ls",
+	"mls",
+	"chmod",
+	"chown",
+	"chgrp",
+	"pwd",
+	"quote",
+	"ln -s",
+	"umask",
+	NULL
+};
 
+static const char *gValidFTPProtocolCommands[] = {
+	"CDUP",
+	"CWD",
+	"MKD",
+	"MKD",
+	"RMD",
+	"DELE",
+	"DELE",
+	"DELE",
+	"TYPE A",
+	"TYPE I",
+	"QUIT",
+	"QUIT",
+	"QUIT",
+	"QUIT",
+	"STAT",
+	"STAT",
+	"MLST",
+	"SITE CHMOD",
+	"SITE CHOWN",
+	"SITE CHGRP",
+	"PWD",
+	"",
+	"SITE SYMLINK",
+	"SITE UMASK",
+	NULL
+};
 
 int
 AdditionalCmd(FTPCIPtr const cip, const char *const spec, const char *const arg)
 {
-	int rc;
+	int i, skip, nospace, rc;
 	char cmd[500], *dst, *dlim;
-	const char *src, *s2;
+	const char *src, *s2, *repl;
 
 	rc = kNoErr;
 	if ((spec != NULL) && (spec[0] != '\0')) {
 		src = spec;
-		dlim = cmd + sizeof(cmd);
-		--dlim;
+		memset(cmd, 0, sizeof(cmd));
+		dlim = cmd + sizeof(cmd) - 1;
 		while (*src) {
 			dst = cmd;
+			while ((*src != '\0') && (isspace((int) *src)))
+				src++;
+			for (i=0, repl=NULL, skip=0; gUsrBinFTPCommands[i] != NULL; i++) {
+				if (strncasecmp(src, gUsrBinFTPCommands[i], strlen(gUsrBinFTPCommands[i])) == 0) {
+					repl = gValidFTPProtocolCommands[i];
+					skip = strlen(gUsrBinFTPCommands[i]);
+					break;
+				}
+			}
+			if (skip != 0) {
+				if ((src[skip] == '\0') || (isspace((int) src[skip]))) {
+					src += skip;
+				} else {
+					/* It just started with the command so it
+					 * wasn't a full match for the entire word.
+					 */
+					repl = NULL;
+				}
+			}
+			if (repl != NULL) {
+				nospace = (*repl == '\0') ? 1 : 0;
+				for (s2 = repl; *s2 != '\0'; s2++) {
+					if (dst < dlim)
+						*dst++ = *s2;
+				}
+				if ((*src != '\0') && (isspace((int) *src))) {
+					if ((nospace == 0) && (dst < dlim))
+						*dst++ = ' ';
+					while ((*src != '\0') && (isspace((int) *src)))
+						src++;
+				}
+			}
 			for ( ; *src != '\0'; src++) {
 				if ((*src == '%') && (src[1] == 's')) {
 					for (s2 = arg; *s2 != '\0'; s2++) {

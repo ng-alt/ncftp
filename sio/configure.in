@@ -82,6 +82,7 @@ dnl Checks for library functions.
 dnl ---------------------------------------------------------------------------
 dnl
 AC_CHECK_FUNCS(gethostbyaddr_r gethostbyname_r gethostname getdomainname getservbyname_r getservbyport_r inet_ntop recvmsg sigaction sigsetjmp strerror)
+AC_FUNC_ALLOCA	dnl Only needed for Linux
 wi_FUNC_SIGSETJMP
 
 
@@ -93,7 +94,8 @@ dnl
 AC_PROG_MAKE_SET
 wi_PROG_TAR
 wi_CREATE_TAR_FILES
-AC_PROG_RANLIB
+wi_PROG_RANLIB
+wi_PROG_AR
 wi_PROG_CCDV
 CPPFLAGS="-I. $CPPFLAGS"
 wi_BEAUTIFY_ENVIRONMENT_VARIABLES

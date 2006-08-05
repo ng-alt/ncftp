@@ -1,6 +1,6 @@
 /* ncftpput.c
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  * A simple, non-interactive utility to send files to a remote FTP server.
@@ -16,12 +16,12 @@
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
-#	include "..\ncftp\getline.h"
+#	include "..\ncftp\gl_getline.h"
 #else
 #	include "../ncftp/util.h"
 #	include "../ncftp/spool.h"
 #	include "../ncftp/pref.h"
-#	include "../ncftp/getline.h"
+#	include "../ncftp/gl_getline.h"
 #endif
 
 #include "gpshare.h"
@@ -48,7 +48,8 @@ Usage(void)
 	(void) fprintf(fp, "Usages:\n");
 	(void) fprintf(fp, "  ncftpput [flags] remote-host remote-dir local-files...   (mode 1)\n");
 	(void) fprintf(fp, "  ncftpput -f login.cfg [flags] remote-dir local-files...  (mode 2)\n");
-	(void) fprintf(fp, "  ncftpput -c remote-host remote-path-name < stdin  (mode 3)\n");
+	(void) fprintf(fp, "  ncftpput -c remote-host remote-path-name < stdin         (mode 3)\n");
+	(void) fprintf(fp, "  ncftpput -C remote-host local-path-name remote-path-name (mode 4)\n");
 	(void) fprintf(fp, "\nFlags:\n\
   -u XX  Use username XX instead of anonymous.\n\
   -p XX  Use password XX with the username.\n\
@@ -64,7 +65,9 @@ Usage(void)
   -v/-V  Do (do not) use progress meters.\n\
   -f XX  Read the file XX for host, user, and password information.\n");
 	(void) fprintf(fp, "\
-  -c     Use stdin as input file to write on remote host.\n\
+  -h XX  Connect to host XX.  Useful for overriding host in -f config.file.\n\
+  -c     Read locally from stdin and write remotely to specified pathname.\n\
+  -C     Similar to -c, except a local pathname is specified.\n\
   -A     Append to remote files instead of overwriting them.\n\
   -z/-Z  Do (do not) try to resume uploads (default: -Z).\n\
   -T XX  Upload into temporary files prefixed by XX.\n");
@@ -173,6 +176,7 @@ main(int argc, char **argv)
 	char *Umask = NULL;
 	char *dstdir = NULL;
 	char *dstfile = NULL;
+	char *lfile = NULL;
 	char **files = (char **) 0;
 	int progmeters;
 	int usingcfg = 0;
@@ -182,6 +186,7 @@ main(int argc, char **argv)
 	int batchmode = 0;
 	int spooled = 0;
 	int i;
+	int ascii = 0;
 	char *ufilep;
 	const char *udirp;
 	char ufile[256];
@@ -225,7 +230,7 @@ main(int argc, char **argv)
 	perfilecmd[0] = '\0';
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:o:AT:S:EFcyZzDbB:W:X:Y:")) > 0) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:U:t:mar:RvVf:o:AT:S:EFcCyZzDbB:W:X:Y:")) > 0) {
 		if (c == 'b') {
 			batchmode++;
 		}
@@ -233,11 +238,11 @@ main(int argc, char **argv)
 
 	if (batchmode > 0) {
 		GetoptReset(&opt);
-		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
+		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:U:t:mar:RvVf:AT:S:EFcCyZzDbB:W:X:Y:")) > 0) switch(c) {
 			case 'v': case 'V': case 'A': case 'B': case 'S':
 			case 'T': case 'd': case 'e': case 'U': case 't':
 			case 'm': case 'r': case 'c': case 'y': case 'z':
-			case 'Z':
+			case 'Z': case 'C':
 				(void) fprintf(stderr, "The \"-%c\" option is not valid when used with conjunction with \"-%c\".\n", c, 'b');
 				exit(kExitUsage);
 				break;
@@ -245,7 +250,7 @@ main(int argc, char **argv)
 	}
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:o:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:U:t:mar:RvVf:o:AT:S:EFcCyZzDbB:W:X:Y:")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
 			break;
@@ -261,7 +266,14 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			if (fi.pass[0] == '\0')
+				fi.passIsEmpty = 1;
 			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
+			break;
+		case 'h':
+			(void) STRNCPY(fi.host, opt.arg);
+			memset(opt.arg, 0, strlen(fi.user));
 			opt.arg[0] = '?';
 			break;
 		case 'e':
@@ -299,6 +311,7 @@ main(int argc, char **argv)
 			break;
 		case 'a':
 			xtype = kTypeAscii;	/* Use ascii. */
+			ascii++;
 			break;
 		case 'r':
 			SetRedial(&fi, opt.arg);
@@ -337,6 +350,9 @@ main(int argc, char **argv)
 		case 'c':
 			ftpcat = 1;
 			break;
+		case 'C':
+			ftpcat = 2;
+			break;
 		case 'y':
 			tryUtime = 1;
 			break;
@@ -368,10 +384,8 @@ main(int argc, char **argv)
 			Usage();
 	}
 
-	if ((wantMkdir != 0) && (ftpcat != 0)) {
-		(void) fprintf(stderr, "The \"-%c\" option is not valid when used with conjunction with \"-%c\".\n", 'm', 'c');
-		exit(kExitUsage);
-	}
+	if ((perfilecmd[0] != '\0') && (rflag != 0))
+		(void) fprintf(stderr, "Warning: your -X command is only applied once per command-line parameter, and not for each file in the directory.\n");
 
 	if (usingcfg != 0) {
 		if (ftpcat == 0) {
@@ -379,10 +393,15 @@ main(int argc, char **argv)
 				Usage();
 			dstdir = argv[opt.ind + 0];
 			files = argv + opt.ind + 1;
+		} else if (ftpcat == 2) {
+			if (opt.ind > argc - 2)
+				Usage();
+			lfile = argv[opt.ind + 0];
+			dstfile = argv[opt.ind + 1];
 		} else {
 			if (opt.ind > argc - 1)
 				Usage();
-			dstfile = argv[opt.ind + 1];
+			dstfile = argv[opt.ind + 0];
 		}
 	} else {
 		if (ftpcat == 0) {
@@ -391,6 +410,12 @@ main(int argc, char **argv)
 			(void) STRNCPY(fi.host, argv[opt.ind]);
 			dstdir = argv[opt.ind + 1];
 			files = argv + opt.ind + 2;
+		} else if (ftpcat == 2) {
+			if (opt.ind > argc - 3)
+				Usage();
+			(void) STRNCPY(fi.host, argv[opt.ind]);
+			lfile = argv[opt.ind + 1];
+			dstfile = argv[opt.ind + 2];
 		} else {
 			if (opt.ind > argc - 2)
 				Usage();
@@ -400,7 +425,7 @@ main(int argc, char **argv)
 	}
 
 	if (strcmp(fi.user, "anonymous") && strcmp(fi.user, "ftp")) {
-		if (fi.pass[0] == '\0') {
+		if ((fi.pass[0] == '\0') && (fi.passIsEmpty == 0)) {
 			(void) gl_getpass("Password: ", fi.pass, sizeof(fi.pass));
 		}
 	}
@@ -411,6 +436,12 @@ main(int argc, char **argv)
 		fi.hasSITE_UTIME = 0;
 	if (nD >= 2)
 		deleteflag = kDeleteYes;
+	if (ascii > 1) {
+		/* This is used internally for testing.
+		 * Valid values as of this release are -1, 0, 1.
+		 */
+		fi.asciiTranslationMode = ascii - 3;
+	}
 
 	if (MayUseFirewall(fi.host, gFirewallType, gFirewallExceptionList) != 0) {
 		fi.firewallType = gFirewallType; 
@@ -465,7 +496,7 @@ main(int argc, char **argv)
 				0
 			);
 			if ((result == 0) && (batchmode < 3)) {
-				fprintf(stdout, "  + Spooled; sending remotely as %s/%s.\n", dstdir, ufilep);
+				(void) fprintf(stdout, "  + Spooled; sending remotely as %s/%s.\n", dstdir, ufilep);
 				spooled++;
 			}
 		}
@@ -503,6 +534,13 @@ main(int argc, char **argv)
 		es = kExitChdirTimedOut;
 		if (wantMkdir != 0) {
 			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirFullPath|kChdirOneSubdirAtATime|kChdirAndMkdir);
+			if (result == kErrMKDFailed) {
+				FTPPerror(&fi, result, kErrMKDFailed, "ncftpput: Could not create directory", dstdir);
+				(void) FTPCloseHost(&fi);
+				es = kExitMkdirFailed;
+				DisposeWinsock();
+				exit((int) es);
+			}
 		} else {
 			result = FTPChdir3(&fi, dstdir, NULL, 0, kChdirFullPath|kChdirOneSubdirAtATime);
 		}
@@ -524,11 +562,29 @@ main(int argc, char **argv)
 				es = kExitXferFailed;
 			else
 				es = kExitSuccess;
+		} else if (ftpcat == 2) {
+			result = kNoErr;
+			if (wantMkdir)
+				result = FTPMkParentDir(&fi, dstfile, 1, NULL);
+			if (result != kNoErr) {
+				es = kExitMkdirFailed;
+			} else if ((result = FTPPutOneFile3(&fi, lfile, dstfile, xtype, -1, appendflag, tmppfx, tmpsfx, resumeflag, deleteflag, kNoFTPConfirmResumeUploadProc, 0)) < 0) {
+				FTPPerror(&fi, result, kErrCouldNotStartDataTransfer, "ncftpput", dstfile);
+				es = kExitXferFailed;
+			} else {
+				es = kExitSuccess;
+				(void) AdditionalCmd(&fi, perfilecmd, argv[opt.ind + 1]);
+			}
 		} else {
 			fi.progress = (FTPProgressMeterProc) 0;
-			if (FTPPutOneFile2(&fi, NULL, dstfile, xtype, STDIN_FILENO, appendflag, tmppfx, tmpsfx) < 0)
+			result = kNoErr;
+			if (wantMkdir)
+				result = FTPMkParentDir(&fi, dstfile, 1, NULL);
+			if (result != kNoErr) {
+				es = kExitMkdirFailed;
+			} else if (FTPPutOneFile3(&fi, NULL, dstfile, xtype, STDIN_FILENO, appendflag, tmppfx, tmpsfx, resumeflag, deleteflag, kNoFTPConfirmResumeUploadProc, 0) < 0) {
 				es = kExitXferFailed;
-			else {
+			} else {
 				es = kExitSuccess;
 				(void) AdditionalCmd(&fi, perfilecmd, argv[opt.ind + 1]);
 			}

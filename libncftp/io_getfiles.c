@@ -1,6 +1,6 @@
 /* io_getfiles.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -198,6 +198,22 @@ FTPGetFiles3(
 						}
 						*cp = c;
 					}
+				}
+				if (xtype == kTypeAscii) {
+					/* Make sure we got the SIZE from
+					 * a SIZE command, and not a
+					 * directory listing, which may
+					 * not have taken into the account
+					 * the required end-of-line format
+					 * for text files sent over FTP.
+					 */
+					if ((resumeflag == kResumeYes) || (resumeProc != kNoFTPConfirmResumeDownloadProc)) {
+						FTPCheckForRestartModeAvailability(cip); 
+					}
+					result = FTPSetTransferType(cip, xtype);
+					if (result < 0)
+						return (result);
+					(void) FTPFileSize(cip, filePtr->rname, &filePtr->size, xtype);
 				}
 				result = FTPGetOneF(cip, filePtr->rname, filePtr->lname, xtype, -1, filePtr->size, filePtr->mdtm, resumeflag, appendflag, deleteflag, resumeProc);
 

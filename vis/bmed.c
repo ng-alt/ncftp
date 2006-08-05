@@ -1,4 +1,10 @@
-/* bookmark editor */
+/* bmed.c (bookmark editor) 
+ *
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
+ * All rights reserved.
+ *
+ */
+
 
 #include "syshdrs.h"
 #ifdef PRAGMA_HDRSTOP

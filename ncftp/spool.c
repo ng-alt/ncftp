@@ -1,6 +1,6 @@
 /* spool.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */

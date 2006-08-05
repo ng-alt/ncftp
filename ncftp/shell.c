@@ -1,6 +1,6 @@
 /* shell.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -68,10 +68,14 @@ int gRunningCommand = 0;
 /* If set, we need to abort the current session. */
 int gCancelCtrl = 0;
 
+/* If set, the timestamp of when a command was initiated. */
+time_t gCmdStart;
+
 extern Command gCommands[];
 extern size_t gNumCommands;
 extern FTPConnectionInfo gConn;
 extern int gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk;
+extern char gStartDir[], gHome[];
 
 
 /* This is used as the comparison function when we sort the name list. */
@@ -217,20 +221,22 @@ PrintCmdUsage(CommandPtr c)
 
 /* Parse a command line into an array of arguments. */
 int
-MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t dbufsize, int *noglobargv, int readlineHacks)
+MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t dbufsize, int *noglobargv, int readlineHacks, int fromReadln)
 {
 	int c;
 	int retval;
 	char *dlim;
 	char *dcp;
 	char *scp;
+	const char *vcp;
 	char *arg;
-	static char xclam[4];
+	CommandPtr cmdp;
 
 	*cargc = 0;
 	scp = line;
 	dlim = dbuf + dbufsize - 1;
 	dcp = dbuf;
+	(void) memset(dbuf, 0, dbufsize);
 
 	for (*cargc = 0; *cargc < cargcmax; ) {
 		/* Eat preceding junk. */
@@ -257,14 +263,34 @@ MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t 
 			if (scp[1] == '!') {
 				scp[1] = '\0';
 			} else if ((scp[1] != '\0') && (!isspace((int) scp[1]))) {
-				xclam[0] = '!';
-				xclam[1] = '\0';
-				cargv[0] = xclam;
-				scp++;
-				arg = dcp;
-				cargv[*cargc] = arg;
-				noglobargv[*cargc] = 0;
-				(*cargc)++;
+				if (dcp >= dlim)
+					goto toolong;
+				*dcp++ = *scp++;	/* '!' */
+				if (dcp >= dlim)
+					goto toolong;
+				*dcp++ = '\0';
+				continue;
+			}
+		}
+
+		/* Tilde expansion for this user -- local or remote as needed. */
+		if ((*cargc > 1) && (fromReadln == 0) && (scp[0] == '~') && ((scp[1] == '\0') || (scp[1] == '/') || isspace(scp[1]))) {
+			scp++;
+			vcp = NULL;
+			cmdp = GetCommandByName(cargv[0], 0);
+			if ((cmdp != kAmbiguousCommand) && (cmdp != kNoCommand)) {
+				if (((cmdp->flags & (kCompleteRemoteFile|kCompleteRemoteDir)) != 0) && (gStartDir[0] != '\0')) {
+					vcp = gStartDir;
+				} else if (((cmdp->flags & (kCompleteLocalFile|kCompleteLocalDir)) != 0) && (gHome[0] != '\0')) {
+					vcp = gHome;
+				}
+			}
+			if (vcp != NULL) {
+				while (*vcp != '\0') {
+					if (dcp >= dlim)
+						goto toolong;
+					*dcp++ = *vcp++;
+				}
 			}
 		}
 
@@ -508,7 +534,7 @@ CommandShell(void)
 #else
 	int sj;
 #endif
-	time_t cmdStart, cmdStop;
+	time_t cmdStop;
 	int oldcount;
 
 	/* Execution may jump back to this point to restart the shell. */
@@ -574,14 +600,14 @@ CommandShell(void)
 			bUsed = MakeArgv(lineRead + tUsed, &ai.cargc, ai.cargv,
 				(int) (sizeof(ai.cargv) / sizeof(char *)),
 				ai.argbuf, sizeof(ai.argbuf),
-				ai.noglobargv, 0);
+				ai.noglobargv, 0, 0);
 			if (bUsed <= 0)
 				break;
 			tUsed += bUsed;	
 			if (ai.cargc == 0)
 				continue;
 			gRunningCommand = 1;
-			(void) time(&cmdStart);
+			(void) time(&gCmdStart);
 			if (DoCommand(&ai) < 0) {
 				(void) time(&cmdStop);
 				gRunningCommand = 0;
@@ -589,7 +615,7 @@ CommandShell(void)
 			}
 			(void) time(&cmdStop);
 			gRunningCommand = 0;
-			if ((cmdStop - cmdStart) > kBeepAfterCmdTime) {
+			if ((cmdStop - gCmdStart) > kBeepAfterCmdTime) {
 				/* Let the user know that a time-consuming
 				 * operation has completed.
 				 */

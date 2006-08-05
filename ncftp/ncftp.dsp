@@ -101,7 +101,7 @@ SOURCE=.\cmds.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\getline.c
+SOURCE=.\gl_getline.c
 # End Source File
 # Begin Source File
 
@@ -169,7 +169,7 @@ SOURCE=.\cmds.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\getline.h
+SOURCE=.\gl_getline.h
 # End Source File
 # Begin Source File
 

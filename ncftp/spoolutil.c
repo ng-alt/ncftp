@@ -1,6 +1,6 @@
 /* spoolutil.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -139,7 +139,8 @@ SpoolX(
 	const time_t when,
 	const unsigned int delaySinceLastFailure,
 	const char *const manualOverrideFeatures,
-	const int reserved)
+	const int UNUSED(reserved)
+	)
 {
 	char sdir2[256];
 	char pass[160];
@@ -154,6 +155,7 @@ SpoolX(
 	mode_t um;
 #endif
 
+	LIBNCFTP_USE_VAR(reserved);
 	gSpoolSerial++;
 	SpoolName(sname2, sizeof(sname2), op[0], gSpoolSerial, when);
 

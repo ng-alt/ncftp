@@ -13,12 +13,31 @@ ncftpput</b> - Internet file transfer program for scripts
 <blockquote>
 <P>
 <B>ncftpput</B>
-[<I>options</I>]<I></I> <I>remote-host</I> "remote-directory" "local-files..." <P>
-<B>ncftpput</B> -f <I>login.cfg</I>
-[<I>options</I>]<I></I> <I>remote-directory</I> "local-files..." <P>
-<B>ncftpput</B> -c <I>remote-host</I> "remote-path-name"
-&lt; <I>stdin</I>  
+[<I>options</I>]<I></I> <I>remote-host remote-directory local-files...</I>
+<P>
+<B>ncftpput</B> <tt>-f</tt> <I>login.cfg</I>
+[<I>options</I>] <I>remote-directory local-files...</I>
+<P>
+<B>ncftpput</B> <tt>-c</tt> <I>remote-host remote-path-name</I> <tt>&lt; stdin</tt>  
+<P>
+<B>ncftpput</B> <tt>-C</tt> <I>remote-host local-path-name remote-path-name</I>
 </blockquote>
+<center>
+<p>
+<form action="https://www.paypal.com/cgi-bin/webscr" method="post">
+<input type="hidden" name="cmd" value="_xclick">
+<input type="hidden" name="business" value="sales@ncftp.com">
+<input type="hidden" name="item_name" value="NcFTP Client">
+<input type="hidden" name="item_number" value="NcFTP">
+<input type="hidden" name="no_shipping" value="2">
+<input type="hidden" name="no_note" value="1">
+<input type="hidden" name="currency_code" value="USD">
+<input type="hidden" name="tax" value="0">
+<input type="hidden" name="bn" value="PP-DonationsBF">
+<input type="image" src="https://www.paypal.com/en_US/i/btn/x-click-butcc-donate.gif" border="0" name="submit" alt="Make a donation!">
+<img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+</form>
+</center>
 <H2>Options</H2>
  Command line flags:
 <blockquote>
@@ -64,6 +83,12 @@ default is to use progress meters if the output stream is a TTY. </DD>
 <DT><B>-f </B><I>XX</I> </DT>
 <DD>Read
 the file <I>XX</I> for host, user, and password information. </DD>
+
+<DT><B>-c</B> </DT>
+<DD>Read locally from standard input and write remotely to specified pathname.</DD>
+
+<DT><B>-C</B> </DT>
+<DD>Similar to <b>-c</b>, except a local pathname is specified rather than reading from standard input.</DD>
 
 <DT><B>-A</B> </DT>
 <DD>Append to remote

@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -56,6 +56,7 @@ extern int gSOBufsize;
 extern FTPProgressMeterProc gProgressMeter;
 extern char gOurHostName[64];
 extern int gGetOurHostNameResult;
+extern char gStartDir[];
 
 static void
 Usage(void)
@@ -128,6 +129,7 @@ InitConnectionInfo(void)
 	gConn.maxDials = (-1);	/* Dial forever, until they hit ^C. */
 	gUnprocessedJobs = 0;
 	gPrevRemoteCWD[0] = '\0';
+	gStartDir[0] = '\0';
 	gConn.dataSocketRBufSize = gConn.dataSocketSBufSize = gSOBufsize;
 	if (gRedialDelay >= 10)
 		gConn.redialDelay = gRedialDelay;
@@ -155,6 +157,8 @@ CloseHost(void)
 	}
 	gConn.ctrlTimeout = 3;
 	(void) FTPCloseHost(&gConn);
+	gPrevRemoteCWD[0] = '\0';
+	gStartDir[0] = '\0';
 }	/* CloseHost */
 
 
@@ -351,15 +355,21 @@ PostInit(void)
 
 
 
-/* Try to get the user to evaluate my commercial offerings. */
+/* Try to get the user to evaluate our commercial offerings. */
 static void
 Plug(void)
 {
 #if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 	/* NcFTPd hasn't been ported to Windows. */
 #else
-	if ((gDoNotDisplayAds == 0) && ((gNumProgramRuns % 7) == 2)) {
-		(void) printf("\n\n\n\tThank you for using NcFTP Client.\n\tAsk your system administrator to try NcFTPd Server!\n\thttp://www.ncftpd.com\n\n\n\n");
+	if (gDoNotDisplayAds == 0) {
+		if ((gNumProgramRuns % 4) == 3) {
+			if ((rand() % 3) == 2) {
+				(void) printf("\n\n\n\tThank you for using NcFTP Client.\n\tAsk your system administrator to try NcFTPd Server!\n\thttp://www.ncftp.com/ncftpd/\n\n\n\n");
+			} else {
+				(void) printf("\n\n\n\tThank you for using NcFTP Client.\n\tIf you find it useful, please consider making a donation!\n\thttp://www.ncftp.com/ncftp/donate.html\n\n\n\n");
+			}
+		}
 	}
 #endif
 }	/* Plug */

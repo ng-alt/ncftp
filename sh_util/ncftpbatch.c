@@ -1,6 +1,6 @@
 /* ncftpbatch.c
  * 
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  * 
  */
@@ -51,6 +51,7 @@ int gSpooled = 0;
 char gSpoolDir[256];
 char gLogFileName[256];
 struct dirent *gDirentBuf = NULL;
+size_t gDirentBufSize = 0;
 extern int gFirewallType;
 extern char gFirewallHost[64];
 extern char gFirewallUser[32];
@@ -114,8 +115,7 @@ jmp_buf gCancelJmp;
 
 extern const char gOS[], gVersion[];
 
-extern struct dirent *Readdir(DIR *const dir, struct dirent *const dp);
-
+extern struct dirent *Readdir(DIR *const dir, struct dirent *const dp, const size_t sz);
 static void ErrBox(const char *const fmt, ...)
 #if (defined(__GNUC__)) && (__GNUC__ >= 2)
 __attribute__ ((format (printf, 1, 2)))
@@ -594,6 +594,7 @@ PostInit(void)
 		exit(1);
 	}
 	gDirentBuf = direntbuf;
+	gDirentBufSize = debufsize;
 }	/* PostInit */
 
 
@@ -952,7 +953,7 @@ LogEndItemResult(int uiShow, const char *const fmt, ...)
 	va_list ap;
 	char buf[512];
 
-	strcpy(buf, "\nresult=");
+	(void) strcpy(buf, "\nresult=");
 
 	va_start(ap, fmt);
 #ifdef HAVE_VSNPRINTF
@@ -1067,6 +1068,8 @@ DoItem(void)
 		gConn.port = gPort;
 		(void) STRNCPY(gConn.user, gRUser);
 		(void) STRNCPY(gConn.pass, gRPass);
+		if ((gConn.pass[0] == '\0') && (strcmp(gConn.user, "anonymous")) && (strcmp(gConn.user, "ftp")) && (gConn.user[0] != '\0'))
+			gConn.passIsEmpty = 1;
 		(void) STRNCPY(gConn.acct, gRAcct);
 		gConn.maxDials = 1;
 		gConn.dataPortMode = gPassive;
@@ -1156,7 +1159,7 @@ DoItem(void)
 		if (result == kErrCouldNotStartDataTransfer) {
 			LogEndItemResult(1, "Remote item %s is no longer retrievable.\n", gRFile);
 			result = 0;	/* file no longer on host */
-		} else if (result == kErrRemoteSameAsLocal) {
+		} else if ((result == kErrRemoteSameAsLocal) || (result == kErrLocalSameAsRemote)) {
 			LogEndItemResult(1, "Remote item %s is already present locally.\n", gRFile);
 			result = 0;
 		} else if (result == kErrLocalFileNewer) {
@@ -1183,7 +1186,7 @@ DoItem(void)
 		if (result == kErrCouldNotStartDataTransfer) {
 			LogEndItemResult(1, "Remote item %s is no longer sendable.  Perhaps permission denied on destination?\n", gRFile);
 			result = 0;	/* file no longer on host */
-		} else if (result == kErrLocalSameAsRemote) {
+		} else if ((result == kErrRemoteSameAsLocal) || (result == kErrLocalSameAsRemote)) {
 			LogEndItemResult(1, "Local item %s is already present on remote host.\n", gLFile);
 			result = 0;
 		} else if (result == kErrRemoteFileNewer) {
@@ -1414,7 +1417,7 @@ EventShell(volatile unsigned int sleepval)
 		}
 
 		for (nItems = 0, nProcessed = 0, nFinished = 0; ; ) {
-			if (Readdir(DIRp, dent) == NULL)
+			if (Readdir(DIRp, dent, gDirentBufSize) == NULL)
 				break;
 
 			YieldUI(0);
@@ -1615,7 +1618,7 @@ ListQueue(void)
 
 	dent = gDirentBuf;
 	for (nItems = 0; ; ) {
-		if (Readdir(DIRp, dent) == NULL)
+		if (Readdir(DIRp, dent, gDirentBufSize) == NULL)
 			break;
 		
 		(void) STRNCPY(gItemPath, gSpoolDir);

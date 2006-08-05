@@ -1,6 +1,6 @@
 /* c_utime.c
  *
- * Copyright (c) 2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -90,7 +90,7 @@ FTPUtime(const FTPCIPtr cip, const char *const file, time_t actime, time_t modti
 				cip->hasSITE_UTIME = kCommandAvailable;
 				result = kNoErr;
 				DoneWithResponse(cip, rp);
-			} else if (UNIMPLEMENTED_CMD(rp->code)) {
+			} else if ((FTP_UNIMPLEMENTED_CMD(rp->code)) || (FTP_SYNTAX_ERROR_IN_PARAMETERS(rp->code))) {
 				cip->hasSITE_UTIME = kCommandNotAvailable;
 				cip->errNo = kErrUTIMENotAvailable;
 				result = kErrUTIMENotAvailable;
@@ -115,16 +115,50 @@ FTPUtime(const FTPCIPtr cip, const char *const file, time_t actime, time_t modti
 		}
 	}
 	if (result == kErrUTIMENotAvailable) {
-		if (cip->hasMDTM == kCommandNotAvailable) {
+		if ((cip->hasMDTM == kCommandNotAvailable) || (cip->hasMDTM_set == kCommandNotAvailable)) {
 			cip->errNo = kErrUTIMENotAvailable;
 			result = kErrUTIMENotAvailable;
 		} else {
-			result = FTPCmd(cip, "MDTM %s %s", mstr, file); 	
-			if ((result == 2) || (result == 0)) {
-				result = kNoErr;
+			rp = InitResponse();
+			if (rp == NULL) {
+				result = kErrMallocFailed;
+				cip->errNo = kErrMallocFailed;
+				FTPLogError(cip, kDontPerror, "Malloc failed.\n");
 			} else {
-				cip->errNo = kErrUTIMENotAvailable;
-				result = kErrUTIMENotAvailable;
+				result = RCmd(cip, rp, "MDTM %s %s", mstr, file); 	
+				if (result < 0) {
+					DoneWithResponse(cip, rp);
+					return (result);
+				} else if (result == 2) {
+					cip->hasMDTM_set = kCommandAvailable;
+					result = kNoErr;
+				} else {
+					/* Ideally, we would only disable
+					 * the MDTM_set feature if we
+					 * received a code that corresponds
+					 * to an unimplemented command.
+					 * Unfortunately, since the regular
+					 * syntax of MDTM uses a pathname
+					 * parameter, we'll often get back
+					 * a 550 response when we try to
+					 * set the timestamp, because a
+					 * server that doesn't support this
+					 * feature reads the timestamp
+					 * as a pathname which doesn't
+					 * exist.  As a result, this feature
+					 * could get disabled if a server
+					 * which does support the feature
+					 * returns a 550 when it turns
+					 * out that the file exists but
+					 * we didn't have permission to
+					 * change the timestamp.
+					 */
+					if ((FTP_UNIMPLEMENTED_CMD(rp->code)) || (FTP_SYNTAX_ERROR_IN_PARAMETERS(rp->code)) || (rp->code == 550))
+						cip->hasMDTM_set = kCommandNotAvailable;
+					cip->errNo = kErrUTIMENotAvailable;
+					result = kErrUTIMENotAvailable;
+				}
+				DoneWithResponse(cip, rp);
 			}
 		}
 	}

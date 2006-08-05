@@ -15,9 +15,27 @@ ncftpget</b> - Internet file transfer program for scripts
 <P><B>ncftpget</B> <tt>-f</tt> login.cfg [<I>options</I>] <I>local-directory</I>  <i>remote-files...</i></p>
 <P><B>ncftpget</B> [<I>options</I>] <I>ftp://url.style.host/path/name</I></p>
 <P><B>ncftpget</B> <tt>-c</tt> [<I>options</I>] <I>remote-host</I> <i>remote-file</i><tt> &gt; stdout</tt></p>
+<P><B>ncftpget</B> <tt>-C</tt> [<I>options</I>] <I>remote-host</I> <i>remote-file</i> <i>local-path-name</i></p>
 <P><B>ncftpget</B> <tt>-c</tt> [<I>options</I>] <I>ftp://url.style.host/path/name</I><tt> &gt; stdout</tt></p>
  
 </blockquote>
+
+<center>
+<p>
+<form action="https://www.paypal.com/cgi-bin/webscr" method="post">
+<input type="hidden" name="cmd" value="_xclick">
+<input type="hidden" name="business" value="sales@ncftp.com">
+<input type="hidden" name="item_name" value="NcFTP Client">
+<input type="hidden" name="item_number" value="NcFTP">
+<input type="hidden" name="no_shipping" value="2">
+<input type="hidden" name="no_note" value="1">
+<input type="hidden" name="currency_code" value="USD">
+<input type="hidden" name="tax" value="0">
+<input type="hidden" name="bn" value="PP-DonationsBF">
+<input type="image" src="https://www.paypal.com/en_US/i/btn/x-click-butcc-donate.gif" border="0" name="submit" alt="Make a donation!">
+<img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+</form>
+</center>
  
 <H2>Options</H2>
  Command line flags:
@@ -59,7 +77,10 @@ meters if the output stream is a TTY. </DD>
 and password information. </DD>
 
 <DT><B>-c</B> </DT>
-<DD>Send output to standard out, rather than writing to a local file.</DD>
+<DD>Read from remote host and write locally to standard out.</DD>
+
+<DT><B>-C</B> </DT>
+<DD>Read from remote host and write locally to specified pathname.</DD>
 
 <DT><B>-A</B> </DT>
 <DD>Append to local files, instead of overwriting

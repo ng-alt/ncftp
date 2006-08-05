@@ -51,10 +51,13 @@ dnl ---------------------------------------------------------------------------
 dnl Checks for system characteristics.
 dnl ---------------------------------------------------------------------------
 dnl
-AC_PROG_RANLIB
+wi_PROG_RANLIB
+wi_PROG_AR
 wi_PROG_CCDV_NO_CREATE
 CPPFLAGS="-I. $CPPFLAGS"
 wi_BEAUTIFY_ENVIRONMENT_VARIABLES
+wi_PROG_TAR
+wi_CREATE_TAR_FILES
 
 
 

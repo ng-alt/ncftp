@@ -254,7 +254,7 @@ GetSocketTypeOfService(const int fd)
 
 	opt = -2;
 	optsize = (sockopt_size_t) sizeof(opt);
-	if (getsockopt(fd, IPPROTO_TCP, IP_TOS, (char *) &opt, &optsize) < 0)
+	if (getsockopt(fd, IPPROTO_IP, IP_TOS, (char *) &opt, &optsize) < 0)
 		return (-1);
 	return (opt);
 }	/* GetSocketTypeOfService */
@@ -279,7 +279,7 @@ SetSocketTypeOfService(const int fd, const int tosType)
 	int opt;
 
 	opt = tosType;
-	return (setsockopt(fd, IPPROTO_TCP, IP_TOS, (char *) &opt, (sockopt_size_t) sizeof(opt)));
+	return (setsockopt(fd, IPPROTO_IP, IP_TOS, (char *) &opt, (sockopt_size_t) sizeof(opt)));
 }	/* SetSocketTypeOfService */
 #endif	/* IP_TOS */
 

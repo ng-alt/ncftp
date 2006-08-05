@@ -1,3 +1,18 @@
+dnl NcFTP Software
+dnl Do not remove these header dnl lines.
+dnl
+dnl wi_CACHE_CHECK_GUESS_MESSAGE(MESSAGE, CACHE-ID, COMMANDS)
+dnl ---define(wi_CACHE_CHECK_GUESS_MESSAGE,
+AC_DEFUN(wi_CACHE_CHECK_GUESS_MESSAGE,
+[AC_MSG_CHECKING([$1])
+AC_CACHE_VAL([$2], [$3])
+AC_MSG_RESULT([$]guess[$]$2)
+guess=""
+])
+dnl
+dnl
+dnl
+dnl
 AC_DEFUN(wi_ARG_WITH_SOCKS5, [
 	AC_ARG_WITH(socks5,[  --with-socks5           try to find and use the SOCKS5 library],wi_want_socks5=$withval,wi_want_socks5=no)
 ])
@@ -97,7 +112,7 @@ AC_CACHE_CHECK([if the C compiler can use precompiled headers], [wi_cv_cc_precom
 	result="no"
 	if test "${use_precomp-yes}" != no ; then
 		wi_cv_cc_precomp_type="unknown"
-		/bin/rm -f pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch pchtest.h.gch
+		rm -f pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch pchtest.h.gch
 		cat <<EOF > pchtest.h
 /* pchtest.h */
 #include <stdio.h>
@@ -109,7 +124,7 @@ EOF
 /* pchtest.c */
 #include "pchtest.h"
 
-main()
+int main(int argc, char **argv)
 {
 	if (FOOBAR == 33)
 		exit(0);
@@ -153,18 +168,23 @@ EOF
 			fi
 		else
 			#
-			# IRIX, Compaq C
+			# IRIX, Compaq C, Sun C
 			#
 			cat <<EOF > pchtest.c
 #include "pchtest.h"
 #pragma hdrstop
 #include <stdarg.h>
 
-main() { exit(0); }
+int main(int argc, char **argv)
+{
+	if (FOOBAR == 33)
+		exit(0);
+	exit(1);
+}
 EOF
-			for pchflags in "-pch -no_pch_messages" "-pch" "-LANG:pch"
+			for pchflags in "-xpch=auto" "-pch -no_pch_messages" "-pch" "-LANG:pch"
 			do
-				/bin/rm -f pchtest.pch
+				rm -rf SunWS_cache pchtest.pch pchtest.cpch
 				echo ${CC-cc} $CPPFLAGS $pchflags pchtest.c -o pchtest >&5
 				${CC-cc} $CPPFLAGS $pchflags pchtest.c -o pchtest >&5 2>&5
 				if test -f pchtest.pch ; then
@@ -173,11 +193,17 @@ EOF
 					wi_CFLAGS_TO_ADD_LATER="$wi_CFLAGS_TO_ADD_LATER $pchflags"
 					AC_DEFINE(PRAGMA_HDRSTOP)
 					break
+				elif test -d SunWS_cache ; then
+					result="yes"
+					wi_cv_cc_precomp_type="SunWS"
+					wi_CFLAGS_TO_ADD_LATER="$wi_CFLAGS_TO_ADD_LATER $pchflags -erroff=E_PCH_CONDITIONAL_PREFIX"
+					AC_DEFINE(PRAGMA_HDRSTOP)
+					break
 				fi
 			done
 			unset pchflags
 		fi
-		/bin/rm -f pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch pchtest.h.gch
+		rm -rf SunWS_cache pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch pchtest.cpch pchtest.h.gch
 	fi
 	wi_cv_cc_precomp="$result"
 ])
@@ -191,17 +217,17 @@ AC_CACHE_CHECK([if shell can test for symlinks], [wi_cv_shell_test_symlinks], [
 wi_cv_shell_test_symlinks="no"
 wi_cv_test_L="false"
 wi_cv_test_not_L=":"
-/bin/rm -f config.lnk
+rm -f config.lnk
 if test ! -f "config.lnk" ; then
-	/bin/ln -s /bin/ln config.lnk
+	ln -s /bin/sh${ac_exeext} config.lnk
 	if test -f "config.lnk" ; then
-		( if test -L config.lnk ; then /bin/rm -f config.lnk ; fi ) 2>/dev/null
+		( if test -L config.lnk ; then rm -f config.lnk ; fi ) 2>/dev/null
 		if test ! -f "config.lnk" ; then
 			wi_cv_shell_test_symlinks="yes"
 			wi_cv_test_L='test -L'
 			wi_cv_test_not_L='test ! -L'
 		else
-			( if test -h config.lnk ; then /bin/rm -f config.lnk ; fi ) 2>/dev/null
+			( if test -h config.lnk ; then rm -f config.lnk ; fi ) 2>/dev/null
 			if test ! -f "config.lnk" ; then
 				wi_cv_shell_test_symlinks="yes"
 				wi_cv_test_L='test -h'
@@ -209,7 +235,7 @@ if test ! -f "config.lnk" ; then
 			fi
 		fi
 	fi
-	/bin/rm -f config.lnk
+	rm -f config.lnk
 fi
 ])
 test_L="$wi_cv_test_L"
@@ -572,6 +598,24 @@ if test "$wi_os_default_cflags" = yes ; then
 			yes_hpux*)
 				wi_os_default_cflags="-Ae -g +w1 +DAportable"
 				;;
+			no_solaris*86|no_solaris*intel)
+				# Not really any significant differences
+				# from the sparc flags, but reserved for
+				# future use.
+				#
+				if test "$wi_cv_sunwspro_cc_version2" -ge 530 ; then
+					wi_os_default_cflags="-xipo -xO4 -xc99 -xbuiltin -xstrconst -dalign -Qn -errtags=yes -erroff=E_END_OF_LOOP_CODE_NOT_REACHED -mc"
+				else
+					wi_os_default_cflags="-xO4 -xstrconst -dalign -Qn"
+				fi
+				;;
+			yes_solaris*86|yes_solaris*intel)
+				if test "$wi_cv_sunwspro_cc_version2" -ge 530 ; then
+					wi_os_default_cflags="-g -xc99 -xstrconst -dalign -Qn -errtags=yes -erroff=E_END_OF_LOOP_CODE_NOT_REACHED"
+				else
+					wi_os_default_cflags="-g -xstrconst -dalign -Qn"
+				fi
+				;;
 			no_solaris*)
 				if test "$wi_cv_sunwspro_cc_version2" -ge 530 ; then
 					wi_os_default_cflags="-xipo -xO5 -xc99 -xbuiltin -xstrconst -dalign -Qn -errtags=yes -erroff=E_END_OF_LOOP_CODE_NOT_REACHED -mc"
@@ -587,10 +631,10 @@ if test "$wi_os_default_cflags" = yes ; then
 				fi
 				;;
 			no_tru64*)
-				wi_os_default_cflags="-O4 -tune host -std1 -readonly_strings -portable -warnprotos -msg_enable level6 -msg_disable longlongtype,hexoctunsign,unusedincl,unnecincl,nestincl,unusedtop,unknownmacro,ignorecallval,strctpadding,truncintasn,truncintcast,trunclongcast,ansialiascast,conststocls,unrefsdecl,subscrbounds2"
+				wi_os_default_cflags="-O4 -tune host -std1 -readonly_strings -portable -warnprotos -msg_enable level6 -msg_disable longlongtype,hexoctunsign,unusedincl,unnecincl,nestincl,unusedtop,unknownmacro,ignorecallval,strctpadding,truncintasn,truncintcast,trunclongcast,ansialiascast,conststocls,unrefsdecl,subscrbounds2,intconcastsgn,longlongsufx,unreachcode,valuepres,embedcomment"
 				;;
 			yes_tru64*)
-				wi_os_default_cflags="-g -std1 -readonly_strings -portable -warnprotos -msg_enable level6 -msg_disable longlongtype,hexoctunsign,unusedincl,unnecincl,nestincl,unusedtop,unknownmacro,ignorecallval,strctpadding,truncintasn,truncintcast,trunclongcast,ansialiascast,conststocls,unrefsdecl,subscrbounds2"
+				wi_os_default_cflags="-g -std1 -readonly_strings -portable -warnprotos -msg_enable level6 -msg_disable longlongtype,hexoctunsign,unusedincl,unnecincl,nestincl,unusedtop,unknownmacro,ignorecallval,strctpadding,truncintasn,truncintcast,trunclongcast,ansialiascast,conststocls,unrefsdecl,subscrbounds2,intconcastsgn,longlongsufx,unreachcode,valuepres,embedcomment"
 				;;
 			no_unixware*|no_openunix*)
 				wi_os_default_cflags='-O -K inline -K host -Q n'
@@ -613,7 +657,26 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_SFLAG, [AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING([for strip])
+changequote({{, }})dnl
 STRIP="strip"
+if [ "x$cross_compiling" = "xyes" ] ; then
+	machine=`${CC-gcc} -dumpmachine 2>/dev/null`
+	case "$CC" in
+		*${machine}*)
+			f=`echo "$CC" | sed 's|/[^/]*$||'`
+			if [ -x "$f/${machine}-strip" ] ; then
+				STRIP="$f/${machine}-strip"
+			elif [ -x "$f/strip" ] ; then
+				STRIP="$f/strip"
+			fi
+			;;
+	esac
+	unset machine f
+fi
+changequote([, ])dnl
+AC_MSG_RESULT([$STRIP])
+AC_SUBST(STRIP)
 if test "$SFLAG" = "" ; then
 	SFLAG="-s"
 	case "$OS" in
@@ -626,16 +689,27 @@ fi
 # Was it ./configure --enable-debug ?
 #
 if test "$DEBUGBUILD" = yes ; then
+	# It was directly indicated by the user with --enable-debug.
 	SFLAG=""
-	STRIP=":"
-fi
-case "$CFLAGS" in
-	"-g"|"-g "*|*" -g"|*" -g "*|*"-g"[0-9]*)
-		# SFLAG="# $SFLAG"
-		SFLAG=""
+	if test "x$STRIP" = "x" ; then
 		STRIP=":"
-		;;
-esac
+	else
+		STRIP=": #${STRIP}"
+	fi
+else
+	# Not directly indicated, but maybe their CFLAGS hint at a debug build.
+	case "$CFLAGS" in
+		"-g"|"-g "*|*" -g"|*" -g "*|*"-g"[0-9]*)
+			# SFLAG="# $SFLAG"
+			SFLAG=""
+			if test "x$STRIP" = "x" ; then
+				STRIP=":"
+			else
+				STRIP=": #${STRIP}"
+			fi
+			;;
+	esac
+fi
 STRIPFLAG="$SFLAG"
 ])
 dnl
@@ -735,16 +809,98 @@ fi
 dnl
 dnl
 dnl
+AC_DEFUN(wi_USE_STATIC_LIBGCC, [
+	if test "x$ac_cv_prog_gcc" = "xyes" ; then
+		case "$CFLAGS" in
+			*-static-libgcc*)
+				;;
+			*)
+				oldCFLAGS="$CFLAGS"
+				CFLAGS="$CFLAGS -static-libgcc"
+				#
+				# Now check if this version of GCC
+				# accepts this flag...
+				#
+				AC_TRY_COMPILE([],[int junk;],[],[CFLAGS="$oldCFLAGS"])
+				unset oldCFLAGS
+				;;
+		esac
+	fi
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_PROG_LDD, [
+AC_CACHE_CHECK([for ldd], [wi_cv_prog_ldd], [
+wi_cv_prog_ldd="no"
+changequote({{, }})dnl
+	cat > conftest.c <<EOF
+#include <stdio.h>
+#include <stdlib.h>
+int main(int argc, char **argv)
+{
+	(void) printf("%s\n", ((argc > 66) ? argv[0] : "Hello World"));
+	exit(0);
+}
+EOF
+	${CC-cc} $CFLAGS $CPPFLAGS conftest.c -o conftest 1>&5
+	wi_cv_prog_ldd=`ldd ./conftest 2>&1 | sed -n -e '/lib/{s/.*/yes/g;p;q;}' -e '${s/.*/no/g;p;q;}'`
+	/bin/rm -f conftest*
+changequote([, ])dnl
+])
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_STATIC_LIBGCC, [AC_REQUIRE([wi_PROG_LDD])
+AC_CACHE_CHECK([if compiled programs use a shared library version of libgcc], [wi_cv_shared_libgcc], [
+changequote({{, }})dnl
+	if test "$wi_cv_prog_ldd" = no ; then
+		wi_cv_shared_libgcc="unknown (ldd is not available to check)"
+	else
+		cat > conftest.c <<EOF
+#include <stdio.h>
+#include <stdlib.h>
+int main(int argc, char **argv)
+{
+	(void) printf("%s\n", ((argc > 66) ? argv[0] : "Hello World"));
+	exit(0);
+}
+EOF
+		${CC-cc} $CFLAGS $CPPFLAGS conftest.c -o conftest 1>&5
+		wi_cv_shared_libgcc=`ldd ./conftest 2>&1 | sed -n -e '/libgcc/{s/.*/yes/g;p;q;}' -e '${s/.*/no/g;p;q;}'`
+		/bin/rm -f conftest*
+	fi
+changequote([, ])dnl
+])
+	if test "$wi_cv_shared_libgcc" != no ; then
+		wi_USE_STATIC_LIBGCC
+	fi
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_CROSS_COMPILER_CFLAGS, [
+	if test "x$cross_compiling" = "xyes" ; then
+		wi_USE_STATIC_LIBGCC
+	fi
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_CFLAGS, [AC_REQUIRE([AC_PROG_CC])
 	wi_PROG_GCC_VERSION
 	AC_REQUIRE_CPP()
 	wi_PROG_SUN_WORKSHOP_CC_VERSION
 	wi_OS_DEFAULT_CFLAGS
 	wi_CFLAGS_NO_Y2K_WARNINGS
+	wi_PROG_LDD
+	wi_STATIC_LIBGCC
+	wi_CROSS_COMPILER_CFLAGS
 changequote(<<, >>)dnl
 	add_O0="no"
 	if [ "$NOOPTCFLAGS" = "" ] ; then
-		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[0-9A-Za-z]*//g;s/-xO[0-9]//g;s/-Wc,-O3//g;s/-IPA//g;s/-xipo//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
+		NOOPTCFLAGS=`echo "$CFLAGS" | sed 's/[-+]O[0-9A-Za-z]*//g;s/-xO[0-9]//g;s/-Wc,-O3//g;s/-IPA//g;s/-xipo=?[0-9]?//g;s/\ \ */ /g;s/^\ *//;s/\ *$//;'`
 		if [ "$GCC" = "yes" ] ; then
 			add_O0="yes"
 		else
@@ -784,6 +940,7 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_HPUX_GCC___STDC_EXT__, [
+CFLAGS=`echo "$CFLAGS" | sed s/-D__STDC_EXT__//g`
 AC_MSG_CHECKING([if -D__STDC_EXT__ is needed with GCC on HP-UX])
 AC_TRY_RUN([
 #include <stdio.h>
@@ -815,7 +972,7 @@ main()
 ],[
 	# action if cross-compiling, guess
 	CFLAGS="-D__STDC_EXT__ $CFLAGS"
-	AC_MSG_RESULT(yes)
+	AC_MSG_RESULT([(guessing) yes])
 ])
 ])
 dnl
@@ -890,7 +1047,7 @@ dnl
 dnl
 AC_DEFUN(wi_STRUCT_TIMEVAL_FIELD_TYPES, [
 wi_struct_timeval_field_checks="cached"
-AC_CACHE_CHECK([what type the tv_sec field of struct timeval is],[wi_cv_struct_timeval_tv_sec], [
+wi_CACHE_CHECK_GUESS_MESSAGE([what type the tv_sec field of struct timeval is],[wi_cv_struct_timeval_tv_sec], [
 wi_struct_timeval_field_checks="uncached"
 wi_PREREQ_UNISTD_H([$0])
 AC_TRY_RUN([
@@ -971,26 +1128,32 @@ main(int argc, char **argv)
 }
 ],[
 	# action if true
+	guess=""
 	if test -f conftest.out ; then
 		wi_cv_struct_timeval_tv_sec="`sed -n '1,1p' conftest.out`"
 		wi_cv_struct_timeval_tv_usec="`sed -n '2,2p' conftest.out`"
 	fi
 ],[
 	# action if false
+	guess=""
 	wi_cv_struct_timeval_tv_sec="long"
 	wi_cv_struct_timeval_tv_usec="long"
 ],[
 	# action if cross compiling
+	guess="(guessing) "
+	guess2="$guess"
 	wi_cv_struct_timeval_tv_sec="long"
 	wi_cv_struct_timeval_tv_usec="long"
 ])
-	/bin/rm -f conftest.out
+	rm -f conftest.out
 ])
 if test "$wi_struct_timeval_field_checks" = "uncached" ; then
+	guess="$guess2"
 	AC_MSG_CHECKING([what type the tv_usec field of struct timeval is])
-	AC_MSG_RESULT([$wi_cv_struct_timeval_tv_usec])
+	AC_MSG_RESULT([$guess$wi_cv_struct_timeval_tv_usec])
 else
-	AC_CACHE_CHECK([what type the tv_usec field of struct timeval is],[wi_cv_struct_timeval_tv_usec], [:])
+	guess="$guess2"
+	wi_CACHE_CHECK_GUESS_MESSAGE([what type the tv_usec field of struct timeval is],[wi_cv_struct_timeval_tv_usec], [:])
 fi
 AC_DEFINE_UNQUOTED(tv_sec_t, $wi_cv_struct_timeval_tv_sec)
 AC_DEFINE_UNQUOTED(tv_usec_t, $wi_cv_struct_timeval_tv_usec)
@@ -1054,16 +1217,19 @@ main()
 }],[
 	# action if true
 	wi_cv_insecure_chown=yes
+	guess=""
 	AC_DEFINE(INSECURE_CHOWN)
 ],[
 	# action if false
+	guess=""
 	wi_cv_insecure_chown=no
 ],[
 	# action if cross-compiling, guess
+	guess="(guessing) "
 	wi_cv_insecure_chown=no
 ])
 
-AC_MSG_RESULT($wi_cv_insecure_chown)
+AC_MSG_RESULT($guess$wi_cv_insecure_chown)
 ])
 dnl
 dnl
@@ -1089,6 +1255,9 @@ AC_TRY_COMPILE([
 ],[
 	optind = (optarg == 0) ? 66 : 99;
 ],[wi_cv_getopt_decl="automatic"],[wi_cv_getopt_decl="unknown"])
+
+
+
 if test "$wi_cv_getopt_decl" = unknown ; then
 AC_TRY_COMPILE([
 /* includes */
@@ -1103,7 +1272,16 @@ AC_TRY_COMPILE([
 #include <getopt.h>
 ],[
 	optind = (optarg == 0) ? 66 : 99;
-],[wi_cv_getopt_decl="getopt.h"],[wi_cv_getopt_decl="manual"])
+],[
+#
+# Looks like <getopt.h> declares the variables as extern.
+#
+wi_cv_getopt_decl="getopt.h"],[
+#
+# You'll need to declare them yourself.
+#
+wi_cv_getopt_decl="manual"
+])
 fi
 ])
 if test "$wi_cv_getopt_decl" = "getopt.h" ; then
@@ -1116,7 +1294,9 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_LIB_SNPRINTF, [
-if test "$ac_cv_func_snprintf" = "no" ; then
+changequote(<<, >>)dnl
+if [ "$ac_cv_func_snprintf" = "no" ] || [ "$wi_cv_snprintf_terminates" = "no" ] || [ "$wi_cv_snprintf_returns_ptr" = "yes" ] ; then
+changequote([, ])dnl
 	AC_CHECK_LIB(snprintf,snprintf)
 	if test "$ac_cv_lib_snprintf_snprintf" = yes ; then
 		unset ac_cv_func_snprintf ac_cv_func_vsnprintf
@@ -1131,9 +1311,6 @@ dnl
 AC_DEFUN(wi_SNPRINTF_TERMINATES, [
 if test "$ac_cv_func_snprintf" != "no" ; then
 AC_MSG_CHECKING(if snprintf works correctly)
-	if test "$ac_cv_func_snprintf" = "no" ; then
-		AC_CHECK_LIB(snprintf,snprintf)
-	fi
 wi_PREREQ_UNISTD_H([$0])
 AC_TRY_RUN([
 	/* program */
@@ -1149,6 +1326,9 @@ AC_TRY_RUN([
 #include <strings.h>
 #endif
 #include <stdlib.h>
+#ifdef HAVE_SNPRINTF_H
+#	include <snprintf.h>
+#endif
  
 main()
 {
@@ -1170,31 +1350,94 @@ main()
 	# action if true
 	wi_cv_snprintf_terminates=yes
 	AC_DEFINE(SNPRINTF_TERMINATES)
-	x="yes";
+	guess=""
+	x="yes"
 ],[
 	# action if false
   	wi_cv_snprintf_terminates=no
-	x="no";
+	guess=""
+	x="no"
 ],[
 	# action if cross compiling
-	wi_cv_snprintf_terminates=no
-	x="unknown";
+	wi_cv_snprintf_terminates=yes
+	AC_DEFINE(SNPRINTF_TERMINATES)
+	guess="(guessing) "
+	x="yes"
 ])
-AC_MSG_RESULT($x)
+AC_MSG_RESULT($guess$x)
 fi
 ])
 dnl
 dnl
 dnl
+AC_DEFUN(wi_SNPRINTF_RETVAL, [
+AC_MSG_CHECKING([what snprintf() returns])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#include <stdlib.h>
+#ifdef HAVE_SNPRINTF_H
+#	include <snprintf.h>
+#endif
+ 
+main()
+{
+	int result;
+	char s[8];
+
+	result = (int) snprintf(s, sizeof(s) - 1, "%d", 22);
+	if (result == 2)
+		exit(0);
+	exit(1);
+
+}
+],[
+	# action if true
+	wi_cv_snprintf_returns_ptr=no
+	guess=""
+	x="length of data written"
+],[
+	# action if false
+  	wi_cv_snprintf_returns_ptr=yes
+	AC_DEFINE(SNPRINTF_RETURNS_PTR)
+	guess=""
+	x="pointer to data"
+],[
+	# action if cross compiling
+	wi_cv_snprintf_returns_ptr=no
+	guess="(guessing) "
+	x="length of data written"
+])
+AC_MSG_RESULT($guess$x)
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_SNPRINTF, [
-wi_SPRINTF_RETVAL
 dnl Uncache these -- config.cache doesn't cache it right for this case.
 unset ac_cv_func_snprintf
 unset ac_cv_func_vsnprintf
 
 AC_CHECK_FUNCS(snprintf vsnprintf)
-wi_SNPRINTF_TERMINATES
-wi_LIB_SNPRINTF
+if test "$ac_cv_func_snprintf" = yes ; then
+	wi_SNPRINTF_TERMINATES
+	wi_SNPRINTF_RETVAL
+	wi_LIB_SNPRINTF
+else
+	wi_LIB_SNPRINTF
+	wi_SNPRINTF_TERMINATES
+	wi_SNPRINTF_RETVAL
+fi
 ])
 dnl
 dnl
@@ -1262,7 +1505,7 @@ AC_DEFUN(wi_UNIX_DOMAIN_SOCKETS, [
 if test "x$want_unix_domain_sockets" != xno ; then
 	wi_PREREQ_UNISTD_H([$0])
 	AC_CHECK_HEADERS(sys/un.h)
-	AC_CACHE_CHECK([for UNIX domain sockets], [wi_cv_unix_domain_sockets], [
+	wi_CACHE_CHECK_GUESS_MESSAGE([for UNIX domain sockets], [wi_cv_unix_domain_sockets], [
 	AC_TRY_RUN([
 #if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
 #	define _ALL_SOURCE 1
@@ -1287,12 +1530,15 @@ main()
 	exit(0);			/* do have UNIX domain sockets */
 }],[
 	# action if true
+	guess=""
 	wi_cv_unix_domain_sockets=yes
 ],[
 	# action if false
+	guess=""
 	wi_cv_unix_domain_sockets=no
 ],[
 	# action if cross-compiling, guess
+	guess="(guessing) "
 	wi_cv_unix_domain_sockets=yes
 ])
 ])
@@ -1343,7 +1589,7 @@ AC_DEFUN(wi_LIB_RESOLV, [
 dnl
 dnl AC_MSG_WARN([the following check may take several minutes if networking is not up.  You may want to bring it up now and restart configure, otherwise please be patient.])
 dnl
-AC_CACHE_CHECK([if we need to look for -lresolv], [wi_cv_look_for_resolv], [
+wi_CACHE_CHECK_GUESS_MESSAGE([if we need to look for a separate DNS resolver library], [wi_cv_look_for_resolv], [
 wi_PREREQ_UNISTD_H([$0])
 AC_TRY_RUN([
 #if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
@@ -1368,8 +1614,19 @@ main()
 			exit(1);
 	}
 	exit(0);
-}],wi_cv_look_for_resolv=no,wi_cv_look_for_resolv=yes,wi_cv_look_for_resolv=yes)
-])
+}],[
+	# action if true
+	guess=""
+	wi_cv_look_for_resolv=no
+],[
+	# action if false
+	guess=""
+	wi_cv_look_for_resolv=yes
+],[
+	# action if cross compiling
+	guess="(guessing) "
+	wi_cv_look_for_resolv=yes
+])])
 
 if test "$wi_cv_look_for_resolv" = yes ; then
 AC_CHECK_LIB(resolv,main)
@@ -1538,6 +1795,52 @@ AC_MSG_RESULT($wi_cv_utmp_ut_name)
 dnl
 dnl
 dnl
+AC_DEFUN(wi_UTMP_UT_TYPE, [
+AC_MSG_CHECKING([for ut_type field in struct utmp])
+AC_TRY_LINK([
+	/* includes */
+#include <unistd.h>
+#include <sys/types.h>
+#include <utmp.h>
+],[
+struct utmp u;
+
+u.ut_type[0] = '\0';
+exit(((int) &u.ut_type) & 0xff);	/* bogus code, of course. */
+],[
+	wi_cv_utmp_ut_type=yes
+	AC_DEFINE(HAVE_UTMP_UT_TYPE)
+],[
+	wi_cv_utmp_ut_type=no
+])
+AC_MSG_RESULT($wi_cv_utmp_ut_type)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_UTMPX_UT_TYPE, [
+AC_MSG_CHECKING([for ut_type field in struct utmpx])
+AC_TRY_LINK([
+	/* includes */
+#include <unistd.h>
+#include <sys/types.h>
+#include <utmpx.h>
+],[
+struct utmpx u;
+
+u.ut_type = 0;
+exit(((int) &u.ut_type) & 0xff);	/* bogus code, of course. */
+],[
+	wi_cv_utmpx_ut_type=yes
+	AC_DEFINE(HAVE_UTMPX_UT_TYPE)
+],[
+	wi_cv_utmpx_ut_type=no
+])
+AC_MSG_RESULT($wi_cv_utmpx_ut_type)
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_UTMPX_UT_SYSLEN, [
 AC_MSG_CHECKING([for ut_syslen field in struct utmpx])
 AC_TRY_LINK([
@@ -1557,6 +1860,29 @@ exit(((int) &u.ut_syslen) & 0xff);	/* bogus code, of course. */
 	wi_cv_utmpx_ut_syslen=no
 ])
 AC_MSG_RESULT($wi_cv_utmpx_ut_syslen)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_UTMPX_UT_USER, [
+AC_MSG_CHECKING([for ut_user field in struct utmpx])
+AC_TRY_LINK([
+	/* includes */
+#include <unistd.h>
+#include <sys/types.h>
+#include <utmpx.h>
+],[
+struct utmpx u;
+
+u.ut_user = 0;
+exit(((int) &u.ut_user) & 0xff);	/* bogus code, of course. */
+],[
+	wi_cv_utmpx_ut_user=yes
+	AC_DEFINE(HAVE_UTMPX_UT_USER)
+],[
+	wi_cv_utmpx_ut_user=no
+])
+AC_MSG_RESULT($wi_cv_utmpx_ut_user)
 ])
 dnl
 dnl
@@ -1935,18 +2261,21 @@ main()
 ],[
 	# action if true
 	wi_cv_sprintf_returns_ptr=no
-	x="length of data written";
+	guess=""
+	x="length of data written"
 ],[
 	# action if false
   	wi_cv_sprintf_returns_ptr=yes
 	AC_DEFINE(SPRINTF_RETURNS_PTR)
-	x="pointer to data";
+	guess=""
+	x="pointer to data"
 ],[
 	# action if cross compiling
 	wi_cv_sprintf_returns_ptr=no
-	x="unknown";
+	guess="(guessing) "
+	x="length of data written"
 ])
-AC_MSG_RESULT($x)
+AC_MSG_RESULT($guess$x)
 ])
 dnl
 dnl
@@ -2018,7 +2347,11 @@ LIBS="$ac_save_LIBS"
 
 if test "$crypt_lib" = NONE ; then
 	crypt_lib=c
-	AC_MSG_RESULT([none?])
+	if test "x$cross_compiling" = xyes ; then
+		AC_MSG_RESULT([cannot tell for cross compilations; you may need to add -lcrypt or similar to LIBS manually in the Makefile.])
+	else
+		AC_MSG_RESULT([none?])
+	fi
 else
 	AC_MSG_RESULT([lib${crypt_lib}])
 fi
@@ -2112,36 +2445,52 @@ wi_cv_lib_readline=no
 wi_cv_lib_readline_result=no
 ac_save_LIBS="$LIBS"
 # Note: $LIBCURSES is permitted to be empty.
-for LIBREADLINE in "-lreadline" "-lreadline $LIBCURSES" "-lreadline -ltermcap" "-lreadline -lncurses" "-lreadline -lcurses"
-do
+if test "x$cross_compiling" = xyes ; then
+	if test "x$LIBCURSES" = x ; then
+		LIBREADLINE="-lreadline -lcurses"
+	else
+		LIBREADLINE="-lreadline ${LIBCURSES}"
+	fi
 	LIBS="$ac_save_LIBS $LIBREADLINE"
-	AC_TRY_RUN([
-	/* program */
+	guess="(guessing) "
+	wi_cv_lib_readline=yes
+else
+	for LIBREADLINE in "-lreadline" "-lreadline $LIBCURSES" "-lreadline -ltermcap" "-lreadline -lncurses" "-lreadline -lcurses"
+	do
+		LIBS="$ac_save_LIBS $LIBREADLINE"
+		AC_TRY_RUN([
+			/* program */
 #include <stdio.h>
 #include <stdlib.h>
- 
-main(int argc, char **argv)
-{
-	/* Note:  don't actually call readline, since it may block;
-	 * We just want to see if it (dynamic) linked in okay.
-	 */
-	if (argc == 0)	/* never true */
-		readline(0);
-	exit(0);
-}
-],[
-	# action if true
-	wi_cv_lib_readline=yes
-],[
-	# action if false
-	wi_cv_lib_readline=no
-],[
-	# action if cross compiling
-	wi_cv_lib_readline=no
-])
+		 
+			main(int argc, char **argv)
+			{
+				/* Note:  don't actually call readline,
+				 * since it may block;
+				 * We just want to see if it
+				 * (dynamic) linked in okay.
+				 */
+				if (argc == 0)	/* never true */
+					readline(0);
+				exit(0);
+			}
+		],[
+			# action if true
+			guess=""
+			wi_cv_lib_readline=yes
+		],[
+			# action if false
+			guess=""
+			wi_cv_lib_readline=no
+		],[
+			# action if cross compiling
+			guess="(guessing) "
+			wi_cv_lib_readline=yes
+		])
 
-	if test "$wi_cv_lib_readline" = yes ; then break ; fi
-done
+		if test "x$wi_cv_lib_readline" = xyes ; then break ; fi
+	done
+fi
 
 # Now try it again, to be sure it is recent enough.
 # rl_function_of_keyseq appeared in version 2.0
@@ -2167,7 +2516,7 @@ if test "$wi_cv_lib_readline" = no ; then
 	# restore LIBS
 	LIBS="$ac_save_LIBS"
 else
-	/bin/rm -f readline.ver
+	rm -f readline.ver
 	touch readline.ver
 
 	AC_TRY_RUN([
@@ -2194,18 +2543,21 @@ main()
 	],[
 		# action if true
 		rl_library_version=`sed -n 1,1p readline.ver 2>/dev/null`
+		guess=""
 		rlver=`sed -n 2,2p readline.ver 2>/dev/null`
-		/bin/rm -f readline.ver
+		rm -f readline.ver
 	],[
 		# action if false
 		rl_library_version=''
+		guess=""
 		rlver=''
-		/bin/rm -f readline.ver
+		rm -f readline.ver
 	],[
 		# action if cross compiling
 		rl_library_version=''
+		guess="(guessing) "
 		rlver=''
-		/bin/rm -f readline.ver
+		rm -f readline.ver
 	])
 
 	case "$rlver" in
@@ -2307,16 +2659,20 @@ main()
 
 ],[
 	# action if true
+	guess=""
 	wi_cv_type_long_long=yes
 	LONGEST_INT="long long"
 ],[
 	# action if false
+	guess=""
   	wi_cv_type_long_long=no
 ],[
 	# action if cross compiling
-	wi_cv_type_long_long=no
+	guess="(guessing) "
+	wi_cv_type_long_long=yes
+	LONGEST_INT="long long"
 ])
-AC_MSG_RESULT($wi_cv_type_long_long)
+AC_MSG_RESULT($guess$wi_cv_type_long_long)
 
 if test "$wi_cv_type_long_long" = yes ; then
 	
@@ -2350,13 +2706,15 @@ main()
 }
 ],[
 	# action if true
+	guess=""
 	wi_cv_printf_long_long="%lld"
 ],[
 	# action if false
-	:
+	guess=""
 ],[
 	# action if cross compiling
-	:
+	guess="(guessing) "
+	wi_cv_printf_long_long="%lld"
 ])
 
 
@@ -2405,7 +2763,7 @@ else
 	wi_cv_printf_long_long_msg_result="$wi_cv_printf_long_long"
 fi
 
-AC_MSG_RESULT($wi_cv_printf_long_long_msg_result)
+AC_MSG_RESULT($guess$wi_cv_printf_long_long_msg_result)
 
 	
 AC_MSG_CHECKING([how to scan a 64-bit integral type])
@@ -2441,13 +2799,15 @@ main()
 }
 ],[
 	# action if true
+	guess=""
 	wi_cv_scanf_long_long="%lld"
 ],[
 	# action if false
-	:
+	guess=""
 ],[
 	# action if cross compiling
-	:
+	guess="(guessing) "
+	wi_cv_scanf_long_long="%lld"
 ])
 
 
@@ -2499,7 +2859,7 @@ else
 	wi_cv_scanf_long_long_msg_result="$wi_cv_scanf_long_long"
 fi
 
-AC_MSG_RESULT($wi_cv_scanf_long_long_msg_result)
+AC_MSG_RESULT($guess$wi_cv_scanf_long_long_msg_result)
 
 fi
 
@@ -2587,7 +2947,7 @@ changequote(<<, >>)dnl
 			mv "$h_tmp" "$h_file"
 			chmod a+r "$h_file"
 		fi
-		/bin/rm -f "$h_tmp"
+		rm -f "$h_tmp"
 		unset h_tmp longest_int_subst
 	fi
 changequote([, ])dnl
@@ -2607,10 +2967,22 @@ dnl LONGEST_INT should most often be "long long" if wi_USE_LONG_LONG has been ru
 dnl
 	longest_int_subst="${LONGEST_INT-long}"
 dnl
+changequote({{, }})dnl
+	if sed 's!\ */\*\ set\ by\ configure\ at\ .*\*/!!' "$h_file" > "$h_tmp" ; then
+		touch -r "$h_file" "$h_tmp"
+		if cmp -s "$h_file" "$h_tmp" ; then
+			:
+		else
+			/bin/mv "$h_tmp" "$h_file"
+			chmod a+r "$h_file"
+		fi
+	fi
 	if sed 's/^#define longest_int.*/#define longest_int '"$longest_int_subst"'/;s/^#define longest_uint.*/#define longest_uint unsigned '"$longest_int_subst"'/;' "$h_file" > "$h_tmp" ; then
-		cmp -s "$h_file" "$h_tmp"
-		if test $? -ne 0 ; then 
-			mv "$h_tmp" "$h_file"
+		if cmp -s "$h_file" "$h_tmp" ; then
+			datestr=`date '+%Y-%m-%d %H:%M:%S'`
+			sed '/^#define longest_u?int/{s!$!    /* set by configure at '"${datestr}"' */!;}' "$h_tmp" > "$h_file"
+			unset datestr
+			/bin/rm -f "$h_tmp"
 			chmod a+r "$h_file"
 		fi
 	fi
@@ -2618,6 +2990,7 @@ dnl
 	unset h_tmp longest_int_subst
 fi
 unset h_file
+changequote([, ])dnl
 ])
 dnl
 dnl
@@ -2630,19 +3003,37 @@ if test -f "$h_file" && $test_not_L "$h_file" ; then
 dnl
 dnl wi_cv_struct_stat64=yes
 dnl
+changequote({{, }})dnl
+	if sed 's!\ */\*\ set\ by\ configure\ at\ .*\*/!!' "$h_file" > "$h_tmp" ; then
+		touch -r "$h_file" "$h_tmp"
+		if cmp -s "$h_file" "$h_tmp" ; then
+			:
+		else
+			/bin/mv "$h_tmp" "$h_file"
+			chmod a+r "$h_file"
+		fi
+	fi
 	if test "x$wi_cv_struct_stat64" = xyes ; then
 		if sed 's/^#define Stat .*/#define Stat stat64/;s/^#define Lstat .*/#define Lstat lstat64/;s/^#define Fstat .*/#define Fstat fstat64/;' "$h_file" > "$h_tmp" ; then
-			cmp -s "$h_file" "$h_tmp"
-			if test $? -ne 0 ; then 
-				mv "$h_tmp" "$h_file"
+			if cmp -s "$h_file" "$h_tmp" ; then
+				:
+			else
+				datestr=`date '+%Y-%m-%d %H:%M:%S'`
+				sed '/^#define [SLFs]*tat /{s!$!    /* set by configure at '"${datestr}"' */!;}' "$h_tmp" > "$h_file"
+				unset datestr
+				/bin/rm -f "$h_tmp"
 				chmod a+r "$h_file"
 			fi
 		fi
 	else
 		if sed 's/^#define Stat .*/#define Stat stat/;s/^#define Lstat .*/#define Lstat lstat/;s/^#define Fstat .*/#define Fstat fstat/;' "$h_file" > "$h_tmp" ; then
-			cmp -s "$h_file" "$h_tmp"
-			if test $? -ne 0 ; then 
-				mv "$h_tmp" "$h_file"
+			if cmp -s "$h_file" "$h_tmp" ; then
+				:
+			else
+				datestr=`date '+%Y-%m-%d %H:%M:%S'`
+				sed '/^#define [SLFs]*tat /{s!$!    /* set by configure at '"${datestr}"' */!;}' "$h_tmp" > "$h_file"
+				unset datestr
+				/bin/rm -f "$h_tmp"
 				chmod a+r "$h_file"
 			fi
 		fi
@@ -2651,6 +3042,7 @@ dnl
 	unset h_tmp longest_int_subst
 fi
 unset h_file
+changequote([, ])dnl
 ])
 dnl
 dnl
@@ -2827,7 +3219,7 @@ changequote([, ])dnl
 $1
 # Done using the temporary directory here.
 
-/bin/rm -r "$wi_tmpdir"
+rm -r "$wi_tmpdir"
 unset wi_tmpdir
 ])
 dnl
@@ -3250,12 +3642,23 @@ if [ "x$x" != "xpax" ] ; then
 	#
 	x=`"$TAR" --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
 fi
+TARFLAGS="cvf"
 case "$x" in
 	*owner=NAME*)
-		TARFLAGS="-c --owner=root --group=bin --verbose -f"
-		;;
-	*)
-		TARFLAGS="cvf"
+		case "$OS" in
+			cygwin*)
+				;;
+			macosx*)
+				TARFLAGS="-c --owner=root --group=wheel --verbose -f"
+				;;
+			*)
+				if grep '^root:' /etc/group >/dev/null 2>&1 ; then
+					TARFLAGS="-c --owner=root --group=root --verbose -f"
+				elif grep '^wheel:' /etc/group >/dev/null 2>&1 ; then
+					TARFLAGS="-c --owner=root --group=wheel --verbose -f"
+				fi
+				;;
+		esac
 		;;
 esac
 changequote([, ])dnl
@@ -3699,13 +4102,13 @@ panic:
 EOF
 	changequote([, ])dnl
 	${CC-cc} $DEFS $CPPFLAGS $CFLAGS "ccdv.c" -o "ccdv" >/dev/null 2>&1
-	/bin/rm -f ccdv.c ccdv.o ccdv.c.gz.uu ccdv.c.gz
+	rm -f ccdv.c ccdv.o ccdv.c.gz.uu ccdv.c.gz
 	strip ./ccdv >/dev/null 2>&1
 	./ccdv >/dev/null 2>&1
 	if test $? -eq 96 ; then
 		CCDV="./ccdv"
 	else
-		/bin/rm -f ccdv
+		rm -f ccdv
 	fi
 fi
 if test "x$CCDV" != x ; then
@@ -3762,6 +4165,27 @@ do
 		LIBCURSES="-lkdfjkdjfs"
 	fi
 	LIBS="$ac_save_LIBS $LIBCURSES"
+	AC_TRY_LINK([
+		/* includes */
+#include <stdio.h>
+#include <stdlib.h>
+
+#ifdef HAVE_NCURSES_H
+#	include <ncurses.h>
+#else
+#	include <curses.h>
+#endif
+	],[
+		/* function body */
+		if (strcmp("jimmy", "floyd") == 0)
+			initscr();
+		exit(0);
+	],[
+		linked_with_LIBCURSES=yes
+	],[
+		linked_with_LIBCURSES=no
+	])
+	if test "x$linked_with_LIBCURSES" != "xyes" ; then continue ; fi
 	AC_TRY_RUN([
 	/* program */
 #include <stdio.h>
@@ -3779,20 +4203,24 @@ main(int argc, char **argv)
 	/* Note:  don't actually call curses, since it may block;
 	 * We just want to see if it (dynamic) linked in okay.
 	 */
-	if (argc == 4)
+	if (argc == 0)
 		initscr();
 	exit(0);
 }
 ],[
 	# action if true
 	wi_cv_lib_curses=yes
+	guess=""
 	wi_cv_lib_curses_result="yes"
 ],[
 	# action if false
 	wi_cv_lib_curses=no
+	guess=""
 ],[
 	# action if cross compiling
-	wi_cv_lib_curses=no
+	wi_cv_lib_curses=yes
+	wi_cv_lib_curses_result="yes"
+	guess="(guessing) "
 ])
 
 	if test "$wi_cv_lib_curses" = yes ; then break ; fi
@@ -4360,6 +4788,7 @@ archp=`uname -p 2>/dev/null | tr '[A-Z]' '[a-z]'`
 OS=''
 SYS=''
 NDEFS=''
+unset CDPATH	# Not relevant here, but needs to be done eventually.
 
 # Special case a few systems where if your CFLAGS appear
 # to want to generate for 32 bit, use that mode rather
@@ -4421,7 +4850,10 @@ case "$os" in
 		os_r1=`echo "$os_r" | cut -d. -f1`
 		os_r2=`echo "${os_r}" | cut -d. -f2`
 		os_int=`expr "$os_r1" '*' 100 + "$os_r2"`
-		OS="hpux${os_r}"
+		if [ "$arch" != "ia64" ] ; then
+			arch="hppa"
+		fi
+		OS="hpux${os_r}-$arch"
 		SYS=hpux
 		NDEFS="$NDEFS -DHPUX=$os_int"
 		;;
@@ -4501,7 +4933,7 @@ case "$os" in
 		NDEFS="$NDEFS -DLINUX=$os_int"
 
 		vertest="./vertest.$$"
-		/bin/rm -f "$vertest" "$vertest.c"
+		rm -f "$vertest" "$vertest.c"
 		cat <<EOF > "$vertest.c"
 #include <stdio.h>
 #include <gnu/libc-version.h>
@@ -4518,8 +4950,28 @@ EOF
 		echo $ac_n "checking version of C library""... $ac_c" 1>&6
 		echo "configure:: checking version of C library" >&5
 		${CC-cc} $DEFS $CPPFLAGS $CFLAGS "$vertest.c" -o "$vertest" >/dev/null 2>&1
-		if [ -x "$vertest" ] ; then libc=`$vertest` ; fi
-		/bin/rm -f "$vertest" "$vertest.c"
+		if [ -x "$vertest" ] ; then libc=`$vertest 2>/dev/null` ; fi
+		rm -f "$vertest" "$vertest.c"
+
+		if [ "$libc" = "" ] ; then
+			libc_sysroot=`"${CC-gcc}" -v 2>&1 | sed -n '/with-libc_sysroot/{s/^.*--with-libc_sysroot=//;s/ .*//;p;q;}'`	# Only results in non-empty with a GCC cross-compiler
+
+			libc_file=`/bin/ls -1 -t "${libc_sysroot}"/lib/libc.so.* 2>/dev/null | sed -n 1,1p`
+			if [ "$libc_file" != "" ] ; then
+				libc_file=`echo "$libc_file" | sed 's|^.*/||'`
+				libc_file="$libc_sysroot/lib/$libc_file"
+			elif [ -f "$libc_sysroot/usr/lib/libc.a" ] ; then
+				libc_file="$libc_sysroot/usr/lib/libc.a"
+			else
+				libc_file="/error"
+			fi
+
+			libc=`strings -n 40 "$libc_file" 2>/dev/null | fgrep 'GNU C Library' | sed 's/^.*version //;s/[^0-9\.].*$//;' | sed -n 1,1p`
+
+			if [ "$libc" != "" ] ; then
+				libc="glibc${libc}"
+			fi
+		fi
 
 		case "$libc" in
 			glibc*)
@@ -4534,19 +4986,7 @@ EOF
 				OS="linux-$arch"
 				;;
 			*)
-				if test -f /lib/libc-2.2.2.so ; then
-					NDEFS="$NDEFS -DLINUX_GLIBC=22002"
-					libc="glibc2.2"
-					OS="linux-$arch"
-				elif test -f /lib/libc-2.2.1.so ; then
-					NDEFS="$NDEFS -DLINUX_GLIBC=22001"
-					libc="glibc2.2"
-					OS="linux-$arch"
-				elif test -f /lib/libc-2.2.0.so ; then
-					NDEFS="$NDEFS -DLINUX_GLIBC=22000"
-					libc="glibc2.1"
-					OS="linux-$arch"
-				elif test -f /lib/libc-2.1.3.so ; then
+				if test -f /lib/libc-2.1.3.so ; then
 					NDEFS="$NDEFS -DLINUX_GLIBC=21003"
 					libc="glibc2.1"
 					OS="linux-$arch"
@@ -4672,8 +5112,8 @@ main()
 EOF
 			${CC-cc} "$HOME/macosver.c" -o "$HOME/macosver" > /dev/null 2>&1
 			os_v=`"$HOME/macosver" 2>/dev/null`
-			/bin/mv "$HOME/macosver" "$HOME/bin/macosver" 2>/dev/null
-			/bin/rm -f "$HOME/macosver.c" "$HOME/macosver"
+			mv "$HOME/macosver" "$HOME/bin/macosver" 2>/dev/null
+			rm -f "$HOME/macosver.c" "$HOME/macosver"
 		fi
 		if [ "$os_v" != "" ] ; then
 			OS="macosx${os_v}"
@@ -4691,7 +5131,7 @@ EOF
 		if [ "$arch" = "" ] ; then arch="sparc" ; fi
 		if [ "$archp" = "" ] ; then archp="$arch" ; fi
 		case "$os_r" in
-			5.[789]*|5.1[0-9][0-9]*)
+			5.[789]*|5.1[0-9]*)
 				os_r1=`echo "$os_r" | cut -d. -f2`
 				os_r2=`echo "$os_r" | cut -d. -f3`
 				if [ "$os_r2" = "" ] ; then os_r2=0 ; fi
@@ -4760,6 +5200,62 @@ AC_SUBST(HOME_OS)
 dnl
 dnl
 dnl
+AC_DEFUN(wi_SIZEOF_PTR, [
+AC_MSG_CHECKING(size of pointer)
+wi_PREREQ_UNISTD_H([$0])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+main()
+{
+	FILE *fp;
+
+	fp = fopen("conftest.out", "w");
+	if (fp != NULL) {
+		fprintf(fp, "%u\n", (unsigned int) sizeof(int *));
+		fclose(fp);
+		exit(0);	/* OK */
+	}
+	exit(1);		/* Not OK */
+}
+],[
+	# action if true
+	x=`cat conftest.out`
+	case "$x" in
+changequote(<<, >>)dnl
+		[0-9]*)
+changequote([, ])dnl
+			AC_DEFINE_UNQUOTED(SIZEOF_PTR, $x)
+			ac_cv_sizeof_ptr="$x"
+			;;
+		*)
+			x="failed"
+			;;
+	esac
+	rm -f conftest.out
+],[
+	# action if false
+	x="failed"
+	rm -f conftest.out
+],[
+	# action if cross compiling
+	x="unknown"
+	rm -f conftest.out
+])
+AC_MSG_RESULT($x)
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_SIZEOF_STRUCT_STAT, [
 AC_MSG_CHECKING(size of struct stat)
 wi_PREREQ_UNISTD_H([$0])
@@ -4803,15 +5299,15 @@ changequote([, ])dnl
 			x="failed"
 			;;
 	esac
-	/bin/rm -f conftest.out
+	rm -f conftest.out
 ],[
 	# action if false
-	x="failed";
-	/bin/rm -f conftest.out
+	x="failed"
+	rm -f conftest.out
 ],[
 	# action if cross compiling
-	x="unknown";
-	/bin/rm -f conftest.out
+	x="unknown"
+	rm -f conftest.out
 ])
 AC_MSG_RESULT($x)
 ])
@@ -4861,15 +5357,310 @@ changequote([, ])dnl
 			x="failed"
 			;;
 	esac
-	/bin/rm -f conftest.out
+	rm -f conftest.out
 ],[
 	# action if false
-	x="failed";
-	/bin/rm -f conftest.out
+	x="failed"
+	rm -f conftest.out
 ],[
 	# action if cross compiling
-	x="unknown";
-	/bin/rm -f conftest.out
+	x="unknown"
+	rm -f conftest.out
 ])
 AC_MSG_RESULT($x)
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_FUNC_MMAP,
+[AC_CHECK_HEADERS(stdlib.h unistd.h sys/stat.h sys/types.h)
+AC_CHECK_FUNCS(getpagesize)
+wi_CACHE_CHECK_GUESS_MESSAGE(for working mmap, ac_cv_func_mmap_fixed_mapped,
+[AC_TRY_RUN([
+/* Thanks to Mike Haertel and Jim Avera for this test.
+   Here is a matrix of mmap possibilities:
+	mmap private not fixed
+	mmap private fixed at somewhere currently unmapped
+	mmap private fixed at somewhere already mapped
+	mmap shared not fixed
+	mmap shared fixed at somewhere currently unmapped
+	mmap shared fixed at somewhere already mapped
+   For private mappings, we should verify that changes cannot be read()
+   back from the file, nor mmap's back from the file at a different
+   address.  (There have been systems where private was not correctly
+   implemented like the infamous i386 svr4.0, and systems where the
+   VM page cache was not coherent with the filesystem buffer cache
+   like early versions of FreeBSD and possibly contemporary NetBSD.)
+   For shared mappings, we should conversely verify that changes get
+   propogated back to all the places they're supposed to be.
+
+   Grep wants private fixed already mapped.
+   The main things grep needs to know about mmap are:
+   * does it exist and is it safe to write into the mmap'd area
+   * how to use it (BSD variants)  */
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
+#if HAVE_STDLIB_H
+# include <stdlib.h>
+#endif
+
+#if HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+
+#if HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+
+/* This mess was copied from the GNU getpagesize.h.  */
+#ifndef HAVE_GETPAGESIZE
+
+/* Assume that all systems that can run configure have sys/param.h.  */
+# ifndef HAVE_SYS_PARAM_H
+#  define HAVE_SYS_PARAM_H 1
+# endif
+
+# ifdef _SC_PAGESIZE
+#  define getpagesize() sysconf(_SC_PAGESIZE)
+# else /* no _SC_PAGESIZE */
+#  ifdef HAVE_SYS_PARAM_H
+#   include <sys/param.h>
+#   ifdef EXEC_PAGESIZE
+#    define getpagesize() EXEC_PAGESIZE
+#   else /* no EXEC_PAGESIZE */
+#    ifdef NBPG
+#     define getpagesize() NBPG * CLSIZE
+#     ifndef CLSIZE
+#      define CLSIZE 1
+#     endif /* no CLSIZE */
+#    else /* no NBPG */
+#     ifdef NBPC
+#      define getpagesize() NBPC
+#     else /* no NBPC */
+#      ifdef PAGESIZE
+#       define getpagesize() PAGESIZE
+#      endif /* PAGESIZE */
+#     endif /* no NBPC */
+#    endif /* no NBPG */
+#   endif /* no EXEC_PAGESIZE */
+#  else /* no HAVE_SYS_PARAM_H */
+#   define getpagesize() 8192	/* punt totally */
+#  endif /* no HAVE_SYS_PARAM_H */
+# endif /* no _SC_PAGESIZE */
+
+#endif /* no HAVE_GETPAGESIZE */
+
+#if !HAVE_STDLIB_H	/* MG */
+#ifdef __cplusplus
+extern "C" { void *malloc(unsigned); }
+#else
+char *malloc();
+#endif
+#endif			/* MG */
+
+int
+main()
+{
+	char *data, *data2, *data3;
+	int i, pagesize;
+	int fd;
+
+	pagesize = getpagesize();
+
+	/*
+	 * First, make a file with some known garbage in it.
+	 */
+	data = malloc(pagesize);
+	if (!data)
+		exit(1);
+	for (i = 0; i < pagesize; ++i)
+		*(data + i) = rand();
+	umask(0);
+	fd = creat("conftestmmap", 0600);
+	if (fd < 0)
+		exit(1);
+	if (write(fd, data, pagesize) != pagesize)
+		exit(1);
+	close(fd);
+
+	/*
+	 * Next, try to mmap the file at a fixed address which
+	 * already has something else allocated at it.  If we can,
+	 * also make sure that we see the same garbage.
+	 */
+	fd = open("conftestmmap", O_RDWR);
+	if (fd < 0)
+		exit(1);
+	data2 = malloc(2 * pagesize);
+	if (!data2)
+		exit(1);
+	data2 += (pagesize - ((int) data2 & (pagesize - 1))) & (pagesize - 1);
+	if (data2 != mmap(data2, pagesize, PROT_READ | PROT_WRITE,
+	    MAP_PRIVATE | MAP_FIXED, fd, 0L))
+		exit(1);
+	for (i = 0; i < pagesize; ++i)
+		if (*(data + i) != *(data2 + i))
+			exit(1);
+
+	/*
+	 * Finally, make sure that changes to the mapped area
+	 * do not percolate back to the file as seen by read().
+	 * (This is a bug on some variants of i386 svr4.0.)
+	 */
+	for (i = 0; i < pagesize; ++i)
+		*(data2 + i) = *(data2 + i) + 1;
+	data3 = malloc(pagesize);
+	if (!data3)
+		exit(1);
+	if (read(fd, data3, pagesize) != pagesize)
+		exit(1);
+	for (i = 0; i < pagesize; ++i)
+		if (*(data + i) != *(data3 + i))
+			exit(1);
+	close(fd);
+	unlink("conftestmmap");
+	exit(0);
+}
+],[
+	# action if true
+	guess=""
+	ac_cv_func_mmap_fixed_mapped=yes
+],[
+	# action if false
+	guess=""
+	ac_cv_func_mmap_fixed_mapped=no
+],[
+	# cross compiling, so have to guess...
+	# just look for existence of mmap.
+	#
+	AC_CHECK_FUNCS(mmap)
+	guess="(guessing) "
+	ac_cv_func_mmap_fixed_mapped=$ac_cv_func_mmap
+])])
+if test $ac_cv_func_mmap_fixed_mapped = yes; then
+  AC_DEFINE(HAVE_MMAP)
+fi
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_FUNC_SETVBUF, [
+AC_MSG_CHECKING([whether setvbuf behavior can be checked])
+if test "x$cross_compiling" = "xyes" ; then
+	AC_MSG_RESULT([no])
+else
+	AC_MSG_RESULT([yes])
+	dnl AC_FUNC_SETVBUF_REVERSED
+	AC_CACHE_CHECK(whether setvbuf arguments are reversed,
+	  ac_cv_func_setvbuf_reversed,
+	[AC_TRY_RUN([#include <stdio.h>
+	/* If setvbuf has the reversed format, exit 0. */
+	main () {
+	  /* This call has the arguments reversed.
+	     A reversed system may check and see that the address of main
+	     is not _IOLBF, _IONBF, or _IOFBF, and return nonzero.  */
+	  if (setvbuf(stdout, _IOLBF, (char *) main, BUFSIZ) != 0)
+	    exit(1);
+	  putc('\r', stdout);
+	  exit(0);			/* Non-reversed systems segv here.  */
+	}], ac_cv_func_setvbuf_reversed=yes, ac_cv_func_setvbuf_reversed=no, ac_cv_func_setvbuf_reversed=no)
+	rm -f core core.* *.core])
+	if test $ac_cv_func_setvbuf_reversed = yes; then
+	  AC_DEFINE(SETVBUF_REVERSED)
+	fi
+fi
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_FUNC_SETPGRP, [
+if test "x$ac_cv_func_setpgid" = "x" ; then
+	AC_CHECK_FUNCS(setpgid setpgrp)
+fi
+AC_MSG_CHECKING([if setpgrp behavior needs to be checked])
+if test "x$ac_cv_func_setpgid" = "xyes" ; then
+	# OK, we will be using setpgid instead of setpgrp then...
+	AC_MSG_RESULT([no])
+	ac_cv_func_setpgrp_void=dontcare
+elif test "x$cross_compiling" = "xyes" ; then
+	AC_MSG_RESULT([yes])
+	AC_MSG_CHECKING([whether setpgrp takes no argument])
+	case "`uname -a`" in
+		*BSD*|*bsd*)
+			ac_cv_func_setpgrp_void="no"
+			;;
+		*)
+			ac_cv_func_setpgrp_void="yes"
+			AC_DEFINE(SETPGRP_VOID)
+			;;
+	esac
+	AC_MSG_RESULT(["${ac_cv_func_setpgrp_void}?"])
+else
+	# We're not cross compiling, so we can try this check
+	AC_MSG_RESULT([yes])
+	AC_FUNC_SETPGRP
+fi
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_PROG_RANLIB, [
+changequote({{, }})dnl
+if test "x$cross_compiling" = "xyes" ; then
+	# Help out if the cross ranlib isn't in your path,
+	# for example, maybe you set CC=/path/to/cross-gcc
+	# rather than put PATH=/path/to/crosstools:$PATH
+	# and let cc be found in your PATH.
+	#
+	machine=`${CC-gcc} -dumpmachine 2>/dev/null`
+	case "$CC" in
+		*${machine}*)
+			f=`echo "$CC" | sed 's|/[^/]*$||'`
+			if [ -x "$f/${machine}-ranlib" ] ; then
+				RANLIB="$f/${machine}-ranlib"
+			elif [ -x "$f/ranlib" ] ; then
+				RANLIB="$f/ranlib"
+			fi
+			;;
+	esac
+	unset machine f
+fi
+changequote([, ])dnl
+AC_PROG_RANLIB
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_PROG_AR, [
+AC_MSG_CHECKING([for ar])
+changequote({{, }})dnl
+AR="ar"
+if [ "x$cross_compiling" = "xyes" ] ; then
+	machine=`${CC-gcc} -dumpmachine 2>/dev/null`
+	case "$CC" in
+		*${machine}*)
+			f=`echo "$CC" | sed 's|/[^/]*$||'`
+			if [ -x "$f/${machine}-ar" ] ; then
+				AR="$f/${machine}-ar"
+			elif [ -x "$f/ar" ] ; then
+				AR="$f/ar"
+			fi
+			;;
+	esac
+	unset machine f
+fi
+changequote([, ])dnl
+AC_MSG_RESULT([$AR])
+AC_SUBST(AR)
 ])

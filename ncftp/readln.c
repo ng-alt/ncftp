@@ -1,6 +1,6 @@
 /* rdline.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  *
  * Note: It should still be simple to backport the old GNU Readline
@@ -21,7 +21,7 @@
 #include "pref.h"
 #include "ls.h"
 #include "readln.h"
-#include "getline.h"
+#include "gl_getline.h"
 
 const char *tcap_normal = "";
 const char *tcap_boldface = "";
@@ -568,7 +568,7 @@ CompletionFunction(const char *text, int state)
 		bUsed = MakeArgv(cmdstart, &ai.cargc, ai.cargv,
 			(int) (sizeof(ai.cargv) / sizeof(char *)),
 			ai.argbuf, sizeof(ai.argbuf),
-			ai.noglobargv, 1);
+			ai.noglobargv, 1, 1);
 		if (bUsed <= 0)
 			return NULL;
 		if (ai.cargc == 0)
@@ -600,6 +600,7 @@ CompletionFunction(const char *text, int state)
 		cp = RemoteDirCompletionFunction(text, state);
 		return cp;
 	} else if ((flags & kCompleteBookmark) != 0) {
+		gl_filename_quoting_desired = 1;
 		cp = BookmarkCompletionFunction(text, state);
 		return cp;
 	} else if ((flags & kCompletePrefOpt) != 0) {
@@ -685,7 +686,7 @@ Readline(char *prompt)
 
 	forever {
 		if (gIsTTYr) {
-			line = getline(prompt);
+			line = gl_getline(prompt);
 		} else {
 			if (lbuf == NULL) {
 				lbuf = calloc((size_t) 512, (size_t) 1);
@@ -708,7 +709,7 @@ Readline(char *prompt)
 			break;
 
 		if (gl_get_result() == GL_EOF)
-			return NULL;	/* getline EOF */
+			return NULL;	/* gl_getline EOF */
 
 		/* Otherwise a signal was received.  Start over. */
 	}

@@ -1,5 +1,28 @@
-#ifndef GETLINE_H
-#define GETLINE_H
+/*
+ * gl_getline.h
+ *
+ * Copyright (C) 1991, 1992, 1993 by Chris Thewalt (thewalt@ce.berkeley.edu)
+ *
+ * Permission to use, copy, modify, and distribute this software 
+ * for any purpose and without fee is hereby granted, provided
+ * that the above copyright notices appear in all copies and that both the
+ * copyright notice and this permission notice appear in supporting
+ * documentation.  This software is provided "as is" without express or
+ * implied warranty.
+ *
+ * Thanks to the following people who have provided enhancements and fixes:
+ *   Ron Ueberschaer, Christoph Keller, Scott Schwartz, Steven List,
+ *   DaviD W. Sanderson, Goran Bostrom, Michael Gleason, Glenn Kasten,
+ *   Edin Hodzic, Eric J Bivona, Kai Uwe Rommel, Danny Quah, Ulrich Betzler
+ */
+
+/*
+ * Note:  This version has been updated by
+ *        Mike Gleason (http://www.NcFTP.com/contact/)
+ */
+
+#ifndef gl_getline_h
+#define gl_getline_h
 
 /* unix systems can #define POSIX to use termios, otherwise 
  * the bsd or sysv interface will be used 
@@ -19,7 +42,7 @@ typedef int (*gl_tab_hook_proc)(char *, int, int *, size_t);
 typedef size_t (*gl_strlen_proc)(const char *);
 typedef char * (*gl_tab_completion_proc)(const char *, int);
 
-char *getline(char *);			/* read a line of input */
+char *gl_getline(char *);		/* read a line of input */
 void gl_dispose(void);
 void gl_setwidth(int);			/* specify width of screen */
 void gl_setheight(int);			/* specify height of screen */
@@ -32,7 +55,7 @@ void gl_histloadfile(const char *const path);
 char *gl_getpass(const char *const prompt, char *const pass, int dsize);
 int gl_get_result(void);
 
-#ifndef _getline_c_
+#ifndef _gl_getline_c_
 
 extern gl_in_hook_proc gl_in_hook;
 extern gl_out_hook_proc gl_out_hook;
@@ -45,6 +68,6 @@ extern int gl_ellipses_during_completion;
 extern int gl_completion_exact_match_extra_char;
 extern char gl_buf[GL_BUF_SIZE];
 
-#endif /* ! _getline_c_ */
+#endif /* ! _gl_getline_c_ */
 
-#endif /* GETLINE_H */
+#endif /* gl_getline_h */

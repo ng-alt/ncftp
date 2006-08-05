@@ -84,7 +84,7 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 			IGNORE_SIGPIPE
 			result = connect(sfd, (const struct sockaddr *) addr,
 				(sockaddr_size_t) saddrsiz);
-			SETERRNO
+			SIOSETERRNO
 			RESTORE_SIGPIPE
 		} while ((result < 0) && (errno == EINTR));
 		return (result);
@@ -92,15 +92,15 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 
 #ifdef FIONBIO
 	if (SSetFIONBIO(sfd, 1) < 0) {
-		SETERRNO
+		SIOSETERRNO
 		return (-1);
 	}
 #else
 	if ((fcntl_opt = fcntl(sfd, F_GETFL, 0)) < 0) {
-		SETERRNO
+		SIOSETERRNO
 		return (-1);
 	} else if (fcntl(sfd, F_SETFL, fcntl_opt | O_NONBLOCK) < 0) {
-		SETERRNO
+		SIOSETERRNO
 		return (-1);
 	}
 #endif
@@ -122,7 +122,7 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 #endif
 		) {
 		cErrno = errno;
-		SETERRNO
+		SIOSETERRNO
 		shutdown(sfd, 2);
 		errno = cErrno;
 		return (-1);
@@ -157,7 +157,7 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 			return (kTimeoutErr);
 		} else if (errno != EINTR) {
 			/* Don't bother turning off FIONBIO */
-			SETERRNO
+			SIOSETERRNO
 			return (-1);
 		}
 	}
@@ -187,7 +187,7 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 		} else {
 			errno = 0;
 			(void) send(sfd, "\0", 1, 0);
-			SETERRNO
+			SIOSETERRNO
 		}
 #else
 		errno = 0;
@@ -233,13 +233,13 @@ connected:
 
 #ifdef FIONBIO
 	if (SSetFIONBIO(sfd, 0) < 0) {
-		SETERRNO
+		SIOSETERRNO
 		shutdown(sfd, 2);
 		return (-1);
 	}
 #else
 	if (fcntl(sfd, F_SETFL, fcntl_opt) < 0) {
-		SETERRNO
+		SIOSETERRNO
 		shutdown(sfd, 2);
 		return (-1);
 	}

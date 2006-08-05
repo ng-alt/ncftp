@@ -16,7 +16,7 @@
 	}
 #endif
 
-#if (((defined(MACOSX)) && (MACSOX < 10300)) || (defined(AIX) && (AIX < 430)) || (defined(DIGITAL_UNIX)) || (defined(SOLARIS)) || (defined(SCO)) || (defined(HPUX)))
+#if (((defined(MACOSX)) && (MACOSX < 10300)) || (defined(AIX) && (AIX < 430)) || (defined(DIGITAL_UNIX)) || (defined(SOLARIS)) || (defined(SCO)) || (defined(HPUX)))
 extern int getdomainname(char *name, gethostname_size_t namelen);
 #endif
 
@@ -31,7 +31,7 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 	h = gethostbyname_r(name, hp, hpbuf, hpbufsize, &h_errno_unused);
 	if (h != NULL)
 		return (0);
-#elif defined(HAVE_GETHOSTBYNAME2_R) && defined(LINUX)
+#elif defined(HAVE_GETHOSTBYNAME2_R) && defined(LINUX) && defined(HAVE_ALLOCA)
 	char *usehpbuf;
 	struct hostent *h;
 	int my_h_errno, rc;
@@ -57,7 +57,7 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 			errno = ENOENT;
 		break;
 	}
-#elif defined(HAVE_GETHOSTBYNAME_R) && defined(LINUX)
+#elif defined(HAVE_GETHOSTBYNAME_R) && defined(LINUX) && defined(HAVE_ALLOCA)
 	char *usehpbuf;
 	struct hostent *h;
 	int my_h_errno, rc;
@@ -117,7 +117,7 @@ GetHostByAddr(struct hostent *const hp, void *addr, int asize, int atype, char *
 	h = gethostbyaddr_r((gethost_addrptr_t) addr, asize, atype, hp, hpbuf, hpbufsize, &h_errno_unused);
 	if (h != NULL)
 		return (0);
-#elif defined(HAVE_GETHOSTBYADDR_R) && defined(LINUX)
+#elif defined(HAVE_GETHOSTBYADDR_R) && defined(LINUX) && defined(HAVE_ALLOCA)
 	char *usehpbuf;
 	struct hostent *h;
 	int my_h_errno, rc;

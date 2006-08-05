@@ -1,6 +1,6 @@
 /* c_mkdir.c
  *
- * Copyright (c) 2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -185,3 +185,36 @@ FTPMkdir(const FTPCIPtr cip, const char *const newDir, const int recurse)
 {
 	return (FTPMkdir2(cip, newDir, recurse, NULL));
 }	/* FTPMkdir */
+
+
+
+
+int
+FTPMkParentDir(const FTPCIPtr cip, const char *const path, const int recurse, const char *const curDir)
+{
+	char newDir[512];
+	char *cp;
+
+	if ((path == NULL) || (path[0] == '\0')) {
+		cip->errNo = kErrInvalidDirParam;
+		return (kErrInvalidDirParam);
+	}
+
+	STRNCPY(newDir, path);
+	if ((newDir[sizeof(newDir) - 2] != '\0') && (path[sizeof(newDir) - 1] != '\0')) {
+		/* Path too long to make a copy of it. */
+		cip->errNo = kErrInvalidDirParam;
+		return (kErrInvalidDirParam);
+	}
+
+	StrRemoveTrailingSlashes(newDir);
+	cp = StrRFindLocalPathDelim(newDir);
+	if (cp == newDir) {
+		/* File is in the root directory, which is already made. */
+		return (kNoErr);
+	}
+	*cp = '\0';
+
+	return (FTPMkdir2(cip, newDir, recurse, curDir));
+}	/* FTPMkParentDir */
+

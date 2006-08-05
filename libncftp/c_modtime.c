@@ -1,6 +1,6 @@
 /* c_modtime.c
  *
- * Copyright (c) 2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -50,8 +50,9 @@ FTPFileModificationTime(const FTPCIPtr cip, const char *const file, time_t *cons
 				*mdtm = UnMDTMDate(rp->msg.first->line);
 				cip->hasMDTM = kCommandAvailable;
 				result = kNoErr;
-			} else if (UNIMPLEMENTED_CMD(rp->code)) {
+			} else if (FTP_UNIMPLEMENTED_CMD(rp->code)) {
 				cip->hasMDTM = kCommandNotAvailable;
+				cip->hasMDTM_set = kCommandNotAvailable;
 				cip->errNo = kErrMDTMNotAvailable;
 				result = kErrMDTMNotAvailable;
 			} else {

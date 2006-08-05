@@ -1,6 +1,6 @@
 /* u_getutc.c
  *
- * Copyright (c) 2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */

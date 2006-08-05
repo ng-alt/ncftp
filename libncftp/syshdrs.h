@@ -1,6 +1,6 @@
 /* syshdrs.h
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -259,10 +259,12 @@
 #	define Lstat lstat
 #endif
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_LSEEK64)
-#	define Lseek(a,b,c) lseek64(a, (longest_int) b, c)
-#elif defined(HAVE_LONG_LONG) && defined(HAVE_LLSEEK)
-#	if 1
+#ifndef Lseek
+#	if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#		define Lseek(a,b,c) _lseeki64(a, (__int64) b, c)
+#	elif defined(HAVE_LONG_LONG) && defined(HAVE_LSEEK64)
+#		define Lseek(a,b,c) lseek64(a, (longest_int) b, c)
+#	elif defined(HAVE_LONG_LONG) && defined(HAVE_LLSEEK)
 #		if defined(LINUX) && (LINUX <= 23000)
 #			define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #		else
@@ -271,8 +273,6 @@
 #	else
 #		define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #	endif
-#else
-#	define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #endif
 
 #if (defined(AIX) && (AIX >= 430))

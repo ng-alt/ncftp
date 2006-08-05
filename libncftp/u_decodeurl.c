@@ -1,6 +1,6 @@
 /* u_decodeurl.c
  *
- * Copyright (c) 2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -33,6 +33,10 @@ URLCopyToken(char *dst, size_t dsize, const char *src, size_t howmuch)
 				h[2] = '\0';
 				hc = 0xeeff;
 				if ((sscanf(h, "%x", &hc) >= 0) && (hc != 0xeeff)) {
+					if ((hc == 0) || (hc == '\n') || (hc == '\r') || (hc == /* '\a' */ 0x07) || (hc == /* '\b' */ 0x08) || (hc == /* '\v' */ 0x0B) || (hc == /* '\f' */ 0x0C)) {
+						/* Do not allow these in URLs. */
+						break;
+					}
 					if (dst < dlim) {
 						*(unsigned char *)dst = (unsigned char) hc;
 						dst++;

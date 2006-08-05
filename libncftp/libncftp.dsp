@@ -193,6 +193,10 @@ SOURCE=.\io_getfiles.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\io_getmem.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\io_getonefile.c
 # End Source File
 # Begin Source File

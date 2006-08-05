@@ -1,6 +1,6 @@
 /* log.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -71,6 +71,7 @@ EndLog(void)
 	struct Stat st;
 	long fat;
 	char str[512];
+	char siteline[128];
 	char tmpLog[256];
 
 	if (gOurDirectoryPath[0] == '\0')
@@ -92,21 +93,27 @@ EndLog(void)
 	/* Want to make it so we're about 30% below capacity.
 	 * That way we won't trim the log each time we run the program.
 	 */
-	fat = (long) st.st_size - (long) gMaxLogSize + (long) (0.30 * gMaxLogSize);
+	fat = (long) st.st_size - (long) gMaxLogSize + (long) (0.20 * gMaxLogSize);
+	siteline[0] = '\0';
 	while (fat > 0L) {
 		if (fgets(str, (int) sizeof(str), oldfp) == NULL)
 			return;
 		fat -= (long) strlen(str);
+		if (! isspace((int) *str))
+			STRNCPY(siteline, str);
 	}
 	/* skip lines until a new site was opened */
-	for (;;) {
+	for (fat = 0; fat < (long) (0.10 * gMaxLogSize); ) {
 		if (fgets(str, (int) sizeof(str), oldfp) == NULL) {
 			(void) fclose(oldfp);
 			(void) remove(gLogFileName);
 			return;					   /* Nothing left, start anew next time. */
 		}
-		if (! isspace((int) *str))
+		fat += (long) strlen(str);
+		if (! isspace((int) *str)) {
+			siteline[0] = '\0';
 			break;
+		}
 	}
 
 	/* Copy the remaining lines in "old" to "new" */
@@ -115,6 +122,25 @@ EndLog(void)
 		(void) fclose(oldfp);
 		return;
 	}
+	if (siteline[0] != '\0') {
+		if (siteline[strlen(siteline) - 1] == '\n')
+			siteline[strlen(siteline) - 1] = '\0';
+		if (siteline[strlen(siteline) - 1] =='\r')
+			siteline[strlen(siteline) - 1] = '\0';
+#ifdef HAVE_STRSTR
+		if (strstr(siteline, "(other entries from this session have been purged)") != NULL) {
+#else
+		if (strchr(siteline, '(') != NULL) {
+#endif
+			(void) fprintf(newfp, "%s\n", siteline);
+		} else {
+			(void) fprintf(newfp, "%s %s\n",
+				siteline,
+				"(other entries from this session have been purged)"
+			);
+		}
+	}
+
 	(void) fputs(str, newfp);
 	while (fgets(str, (int) sizeof(str), oldfp) != NULL)
 		(void) fputs(str, newfp);

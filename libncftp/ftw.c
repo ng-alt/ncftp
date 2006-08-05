@@ -1,6 +1,6 @@
 /* Ftw.c
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -23,7 +23,7 @@ typedef struct FtwSubDirList {
 	char name[1];
 } FtwSubDirList;
 
-struct dirent *Readdir(DIR *const dir, struct dirent *const dp);
+struct dirent *Readdir(DIR *const dir, struct dirent *const dp, const size_t sz);
 
 
 
@@ -101,13 +101,13 @@ void closedir(DIR *dir)
  * with room for only one byte in the filename.
  */
 struct dirent *
-Readdir(DIR *const dir, struct dirent *const dp)
+Readdir(DIR *const dir, struct dirent *const dp, const size_t sz)
 {
 #if defined(MACOSX)
 	struct dirent *p;
 	p = readdir(dir);
 	if (p != NULL) {
-		memcpy(dp, p, sizeof(struct dirent));
+		memcpy(dp, p, sz);
 		return (dp);
 	}
 #elif defined(HAVE_READDIR_R) && ( (defined(SOLARIS) && (SOLARIS < 250)) || (defined(SCO)) || (defined(IRIX) && (IRIX < 6)) )
@@ -116,6 +116,7 @@ Readdir(DIR *const dir, struct dirent *const dp)
 	if (p != NULL)
 		return (dp);
 #elif defined(HAVE_READDIR_R) && (defined(HPUX) && (HPUX < 1100))
+	struct dirent *p;
 	if (readdir_r(dir, dp) >= 0)
 		return (dp);
 #elif defined(HAVE_READDIR_R)
@@ -127,12 +128,17 @@ Readdir(DIR *const dir, struct dirent *const dp)
 	struct dirent *p;
 	p = readdir(dir);
 	if (p != NULL) {
-		memcpy(dp, p, sizeof(struct dirent));
+#	if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+		memset(dp, 0, sz);
+		memcpy(dp, p, ((sz < sizeof(struct dirent)) ? sz : sizeof(struct dirent)));
+#	else
+		memcpy(dp, p, sz);
+#	endif
 		return (dp);
 	}
 #endif
 
-	memset(dp, 0, sizeof(struct dirent));
+	memset(dp, 0, sz);
 	return (NULL);
 }	/* Readdir */
 
@@ -203,7 +209,7 @@ FtwTraverse(const FtwInfoPtr ftwip, size_t dirPathLen, int depth)
 
 	dentp = (struct dirent *) ftwip->direntbuf;
 	for (;;) {
-		if (Readdir(DIRp, dentp) == NULL)
+		if (Readdir(DIRp, dentp, ftwip->direntbufSize) == NULL)
 			break;
 		cp = dentp->d_name;
 		if ((cp[0] == '.') && ((cp[1] == '\0') || ((cp[1] == '.') && (cp[2] == '\0'))))
@@ -392,6 +398,7 @@ Ftw(const FtwInfoPtr ftwip, const char *const path, FtwProc proc)
 	if (ftwip->direntbuf == NULL) {
 		return (-1);
 	}
+	ftwip->direntbufSize = debufsize;
 
 	ftwip->proc = proc;
 	if ((*proc)(ftwip) < 0) {

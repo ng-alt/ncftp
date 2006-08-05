@@ -1,5 +1,5 @@
-0.  For the attention-span challegenged
----------------------------------------
+0.  For the attention-span challenged
+-------------------------------------
 
 Want filename completion?  It's built-in, GNU Readline isn't necessary.
 Want full-screen support?  Install Ncurses if your OS's curses stinks.

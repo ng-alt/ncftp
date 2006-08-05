@@ -213,7 +213,13 @@
 
 #undef HAVE_UTMP_UT_TIME
 
+#undef HAVE_UTMP_UT_TYPE
+
 #undef HAVE_UTMPX_UT_SYSLEN
+
+#undef HAVE_UTMPX_UT_TYPE
+
+#undef HAVE_UTMPX_UT_USER
 
 /* Define if you have <vfork.h>.  */
 #undef HAVE_VFORK_H
@@ -362,11 +368,18 @@
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
+/* Define to sizeof(int *) */
+#undef SIZEOF_PTR
+
 /* Define to sizeof(struct stat) */
 #undef SIZEOF_STRUCT_STAT
 
 /* Define to sizeof(struct stat64), if you have it. */
 #undef SIZEOF_STRUCT_STAT64
+
+#undef SNPRINTF_RETURNS_PTR
+
+#undef SNPRINTF_TERMINATES
 
 #undef sockaddr_size_t
 
@@ -374,8 +387,6 @@
 #undef SOCKS
 
 #undef sockopt_size_t
-
-#undef SNPRINTF_TERMINATES
 
 #undef SPRINTF_RETURNS_PTR
 

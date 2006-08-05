@@ -1,7 +1,7 @@
 Document Type: WSE
 item: Global
   Version=8.14
-  Title=NcFTP 3.1.8 Installation
+  Title=NcFTP 3.2.0 Installation
   Flags=00010100
   Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
   Copy Default=1
@@ -21,7 +21,7 @@ item: Global
   Patch Flags=0000000000000001
   Patch Threshold=85
   Patch Memory=4000
-  EXE Filename=ncftp-3.1.8-win32.exe
+  EXE Filename=ncftp-3.2.0-win32.exe
   FTP Cluster Size=20
   Per-User Version ID=1
   Dialogs Version=7
@@ -59,8 +59,6 @@ item: Install File
   Source=D:\src\win\ncftp\doc\readme_windows.txt
   Destination=%TEMP%\%READMEFILE%
   Flags=0000000000100010
-  File Size=1108
-  File Date=20010413 171844
 end
 item: Set Variable
   Variable=FIND_DIRECTORY
@@ -117,7 +115,7 @@ item: Remark
 end
 item: Set Variable
   Variable=APPTITLE
-  Value=NcFTP 3.1.8
+  Value=NcFTP 3.2.0
   Flags=10000000
 end
 item: Remark
@@ -1248,6 +1246,13 @@ item: Include Script
   Pathname=%_WISE_%\INCLUDE\uninstal.wse
 end
 item: Install File
+  Source=d:\Src\win\ncftp\DONATE.txt
+  Destination=%MAINDIR%\DONATE.txt
+  Flags=0000000010000010
+  File Size=286
+  File Date=20060805 163410
+end
+item: Install File
   Source=d:\src\win\ncftp\doc\what_changed_between_v2_v3.txt
   Destination=%MAINDIR%\doc\what_changed_between_v2_v3.txt
   Flags=0000000010000010
@@ -1715,13 +1720,20 @@ item: Custom Dialog Set
       Create Flags=01010000000000000000000000000111
     end
     item: Static
-      Rectangle=90 10 260 63
+      Rectangle=90 10 260 108
       Enabled Color=00000000000000001111111111111111
       Create Flags=01010000000000000000000000000000
       Text=%APPTITLE% has been successfully installed.
       Text=
       Text=
-      Text=Press the Finish button to exit this installation.
+      Text=Press the Finish button to exit this installation. 
+      Text= 
+      Text= 
+      Text=
+      Text=If you are one of the many people since 1992 to find
+      Text=NcFTP Client useful, we would appreciate a donation,
+      Text=which you can start by visiting the site below.
+      Text=Your support allows us to keep maintaining the project!
       Text=
       Text French=L'installation de %APPTITLE% est réussie
       Text French=
@@ -1785,6 +1797,15 @@ item: Custom Dialog Set
       Text Dutch=<&Terug
       Text Norwegian=<&Tilbake
       Text Swedish=< &Tillbaka
+    end
+    item: Static
+      Rectangle=79 109 275 133
+      Enabled Color=00000000000000001111111111111111
+      Create Flags=01010000000000000000000000000001
+      Flags=0000000000000001
+      Name=Arial
+      Font Style=-16 0 0 0 700 0 0 0 0 3 2 1 34
+      Text=http://www.ncftp.com/ncftp/donate.html
     end
     item: Set Control Attribute
       Control Name=BACK

@@ -1,6 +1,6 @@
 /* u_feat.c
  *
- * Copyright (c) 2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -56,6 +56,7 @@ static const char *gConnInfoOptStrings[] = {
 	"PASV",
 	"SIZE",
 	"MDTM",
+	"MDTM_set",
 	"REST",
 	"NLST_a",
 	"NLST_d",
@@ -77,6 +78,7 @@ typedef enum ConnInfoOptions {
 	kOptPASV,
 	kOptSIZE,
 	kOptMDTM,
+	kOptMDTM_set,
 	kOptREST,
 	kOptNLST_a,
 	kOptNLST_d,
@@ -148,6 +150,9 @@ FTPManualOverrideFeatures(const FTPCIPtr cip)
 						break;
 					case kOptMDTM:
 						cip->hasMDTM = intval;
+						break;
+					case kOptMDTM_set:
+						cip->hasMDTM_set = intval;
 						break;
 					case kOptREST:
 						cip->hasREST = intval;

@@ -1,6 +1,6 @@
 /* io_get.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2006 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -10,8 +10,10 @@
 #	pragma hdrstop
 #endif
 
+#if 0	/* For now, don't do this, which takes a shortcut. */
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	define ASCII_TRANSLATION 0
+#endif
 #endif
 
 #ifndef ASCII_TRANSLATION
@@ -56,7 +58,7 @@ FTPGetOneF(
 	char *src, *srclim;
 	char *dst, *dstlim;
 	char outbuf[512];
-	int cr;
+	int cr, crcr, add_another_eoln, crcr_offset;
 #endif
 	longest_int tstartPoint;
 	volatile longest_int startPoint = 0;
@@ -136,7 +138,7 @@ FTPGetOneF(
 				zaction = (*resumeProc)(
 						cip,
 						&dstfile,
-						(longest_int) st.st_size,
+						(longest_int) st.st_size,	/* displays local size, not the FTP CR+LF size for ASCII text */
 						st.st_mtime,
 						file,
 						expectedSize,
@@ -155,8 +157,12 @@ FTPGetOneF(
 					 * the entire file, or just part of it.
 					 */
 
-					startPoint = (longest_int) st.st_size;
 					zaction = kConfirmResumeProcSaidResume;
+					startPoint = (longest_int) st.st_size;
+					if (xtype == kTypeAscii) {
+						if ((dstfile == NULL) || (dstfile[0] == '\0') || ((startPoint = FTPLocalASCIIFileSize(dstfile, cip->buf, cip->bufSize)) < 0))
+							zaction = kConfirmResumeProcSaidOverwrite;
+					}
 
 					/* If the local file exists and has a recent
 					 * modification time (< 12 hours) and
@@ -375,7 +381,7 @@ FTPGetOneF(
 		 *
 		 * So now we have to undo our seek.
 		 */
-		if (Lseek(fd, (off_t) 0, SEEK_SET) != (off_t) 0) {
+		if (Lseek(fd, 0, SEEK_SET) != 0) {
 			cip->errNo = kErrLseekFailed;
 			if (fdtouse < 0) {
 				(void) close(fd);
@@ -404,7 +410,7 @@ FTPGetOneF(
 
 #if ASCII_TRANSLATION
 	if (xtype == kTypeAscii) {
-		cr = 0;
+		cr = crcr = crcr_offset = add_another_eoln = 0;
 		/* Ascii */
 		for (;;) {
 			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
@@ -516,6 +522,12 @@ FTPGetOneF(
 				 * We also look for raw LFs and convert them
 				 * if needed.
 				 */
+				if (crcr != 0) {
+					/* Leftover CR from previous buffer */
+					crcr = 0;
+					crcr_offset = 0;
+					goto have_char_after_crcr;
+				}
 				if (cr != 0) {
 					/* Leftover CR from previous buffer */
 					cr = 0;
@@ -542,8 +554,23 @@ have_char_after_cr:
 							 * sends CR+CR+LF
 							 * eolns.
 							 */
-							if (((src + 1) < srclim) && (src[1] == '\n'))  {
-								src += 2;
+							crcr_offset = 1;
+have_char_after_crcr:
+							if ((src + crcr_offset) < srclim) {
+								if (src[crcr_offset] == '\n') {
+									src += 1 + crcr_offset;
+								} else {
+									/* CR+CR+some other character ==
+									 * Two blank lines for systems
+									 * that use CR only as EOLN.
+									 */
+									add_another_eoln++;
+									src += crcr_offset;
+								}
+							} else {
+								crcr = 1;
+								src++;
+								continue;
 							}
 						}
 						/* else {protocol violation: raw CR} */
@@ -577,6 +604,10 @@ add_eoln:
 					*dst++ = cip->textEOLN[0];
 					if (cip->textEOLN[1] != '\0')
 						*dst++ = cip->textEOLN[1];
+					if (add_another_eoln != 0) {
+						--add_another_eoln;
+						goto add_eoln;
+					}
 					continue;
 				}
 
@@ -607,7 +638,9 @@ add_eoln:
 			cip->bytesTransferred += (longest_int) nread;
 			FTPUpdateIOTimer(cip);
 		}
-		if (cr != 0) {
+		if (crcr != 0)
+			cr = 2;
+		while (--cr >= 0) {
 			/* Last block ended with a raw CR.
 			 * Write out one last end-of-line.
 			 */

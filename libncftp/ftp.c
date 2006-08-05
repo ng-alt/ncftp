@@ -1,6 +1,6 @@
 /* ftp.c
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -662,7 +662,7 @@ FTPSetStartOffset(const FTPCIPtr cip, longest_int restartPt)
 		} else if (result == 3) {
 			/* Success */
 			cip->hasREST = kCommandAvailable;
-		} else if (UNIMPLEMENTED_CMD(rp->code)) {
+		} else if (FTP_UNIMPLEMENTED_CMD(rp->code)) {
 			cip->hasREST = kCommandNotAvailable;
 			DoneWithResponse(cip, rp);
 			cip->errNo = kErrSetStartPoint;

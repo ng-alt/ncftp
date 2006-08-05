@@ -1,6 +1,6 @@
 /* open.c
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -114,7 +114,7 @@ FTPLoginHost(const FTPCIPtr cip)
 		/* Try to get the email address if you didn't specify
 		 * a password when the user is anonymous.
 		 */
-		if (cip->pass[0] == '\0') {
+		if ((cip->pass[0] == '\0') && (cip->passIsEmpty == 0)) {
 			FTPInitializeAnonPassword(cip->lip);
 			(void) STRNCPY(cip->pass, cip->lip->defaultAnonPassword);
 		}
@@ -210,7 +210,7 @@ FTPLoginHost(const FTPCIPtr cip)
 				
 			case 331:	/* 331 User name okay, need password. */
 				if ((cip->firewallType == kFirewallNotInUse) || (fwloggedin != 0) || (fwsentpass != 0)) {
-					if ((cip->pass[0] == '\0') && (cip->passphraseProc != kNoFTPGetPassphraseProc))
+					if ((cip->pass[0] == '\0') && (cip->passIsEmpty == 0) && (cip->passphraseProc != kNoFTPGetPassphraseProc))
 						(*cip->passphraseProc)(cip, &rp->msg, cip->pass, sizeof(cip->pass));
 					ReInitResponse(cip, rp);
 					result = RCmd(cip, rp, "PASS %s", cip->pass);
@@ -274,7 +274,7 @@ okay:
 	if (cip->onLoginMsgProc != 0)
 		(*cip->onLoginMsgProc)(cip, rp);
 	DoneWithResponse(cip, rp);
-	result = 0;
+	result = kNoErr;
 	cip->loggedIn = 1;
 
 	/* Make a note of what our root directory is.
@@ -299,13 +299,10 @@ okay:
 	 * are logged in and do not need it any more.
 	 */
 	if ((anonLogin == 0) && (cip->leavePass == 0))
-		(void) memset(cip->pass, '*', strlen(cip->pass));
+		(void) memset(cip->pass, '*', sizeof(cip->pass) - 1);
 
-	if (result < 0)
-		cip->errNo = result;
-	else
-		(void) gettimeofday(&cip->loginTime, NULL);
-	return result;
+	(void) gettimeofday(&cip->loginTime, NULL);
+	return result;	/* kNoErr */
 
 done:
 	DoneWithResponse(cip, rp);
@@ -322,13 +319,17 @@ done2:
 				/* Don't leave cleartext password in memory,
 				 * since we won't be redialing.
 				 */
-				(void) memset(cip->pass, '*', strlen(cip->pass));
+				(void) memset(cip->pass, '*', sizeof(cip->pass) - 1);
 		}
 	}
-	if (result < 0)
+	if (result > 0) {
+		result = cip->errNo = kErrLoginHostMiscErr;
+	}
+	if (result < 0) {
 		cip->errNo = result;
-	else
+	} else {
 		(void) gettimeofday(&cip->loginTime, NULL);
+	}
 	return result;
 }	/* FTPLoginHost */
 
@@ -400,6 +401,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 		cip->hasPASV = kCommandAvailable;
 		cip->hasSIZE = kCommandNotAvailable;
 		cip->hasMDTM = kCommandNotAvailable;
+		cip->hasMDTM_set = kCommandNotAvailable;
 		cip->hasREST = kCommandNotAvailable;
 		cip->NLSTfileParamWorks = kCommandAvailable;
 		cip->hasCLNT = kCommandNotAvailable;
@@ -447,6 +449,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 				cip->hasPASV = kCommandAvailable;
 				cip->hasSIZE = kCommandAvailable;
 				cip->hasMDTM = kCommandAvailable;
+				cip->hasMDTM_set = kCommandAvailable;
 				cip->hasREST = kCommandAvailable;
 				cip->NLSTfileParamWorks = kCommandAvailable;
 			} else if (cip->serverType == kServerTypeNcFTPd) {
@@ -840,6 +843,8 @@ FTPOpenHost(const FTPCIPtr cip)
 			 * from OpenControlConnection().
 			 */
 			PrintF(cip, "Cannot recover from miscellaneous open error %d.\n", result);
+			if (result > 0)
+				result = kErrOpenHostMiscErr;
 			return result;
 		}
 
@@ -858,6 +863,8 @@ FTPOpenHost(const FTPCIPtr cip)
 			}
 		}
 	}
+	if (result > 0)
+		result = kErrOpenHostMiscErr;
 	return (result);
 }	/* FTPOpenHost */
 
@@ -904,6 +911,7 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->hasPASV = kCommandAvailabilityUnknown;
 	cip->hasSIZE = kCommandAvailabilityUnknown;
 	cip->hasMDTM = kCommandAvailabilityUnknown;
+	cip->hasMDTM_set = kCommandAvailabilityUnknown;
 	cip->hasREST = kCommandAvailabilityUnknown;
 	cip->hasNLST_a = kCommandAvailabilityUnknown;
 	cip->hasNLST_d = kCommandAvailabilityUnknown;
@@ -924,7 +932,8 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->firewallType = kFirewallNotInUse;
 	cip->startingWorkingDirectory = NULL;
 	cip->shutdownUnusedSideOfSockets = 0;
-
+	cip->asciiTranslationMode = kAsciiTranslationModeDefault;
+	
 #ifdef MACOSX
 	/* For Mac OS 9 compatibility you could set this to '\r' */
 	cip->textEOLN[0] = '\n';

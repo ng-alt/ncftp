@@ -1,6 +1,6 @@
 /* ncftpls.c
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  * A non-interactive utility to list directories on a remote FTP server.
@@ -16,12 +16,12 @@
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
-#	include "..\ncftp\getline.h"
+#	include "..\ncftp\gl_getline.h"
 #else
 #	include "../ncftp/util.h"
 #	include "../ncftp/spool.h"
 #	include "../ncftp/pref.h"
-#	include "../ncftp/getline.h"
+#	include "../ncftp/gl_getline.h"
 #endif
 
 #include "gpshare.h"
@@ -38,6 +38,171 @@ extern char gFirewallExceptionList[256];
 extern int gFwDataPortMode;
 extern const char gOS[], gVersion[];
 
+static int FTPRemoteRecursiveMList(FTPCIPtr cip, const char *const rdir, /* FTPFileInfoListPtr files, */ FTPLineListPtr lines);
+
+static void
+FTPRemoteRecursiveMListSubdir(FTPCIPtr cip, char *const parentdir, const size_t pdsize, const size_t pdlen, const char *const subdir, FTPLineListPtr lines)
+{
+	size_t sdlen = strlen(subdir);
+	size_t newlen;
+	char *relpath = parentdir;
+	int mls = 1;
+	int unlsrc;
+	FTPFileInfoPtr fip;
+	FTPLineList ll;
+	FTPLinePtr lp;
+	FTPFileInfoList fil;
+	MLstItem mli;
+	char *cp;
+	char *newl;
+
+	if (pdlen + sdlen + /* '/' */ 1 + /* '\0' */ 1 > pdsize) {
+		return;
+	}
+
+	if (pdlen == 0) {
+		memcpy(relpath + 0, subdir, sdlen + /* '\0' */ 1);
+		newlen = sdlen;
+	} else {
+		relpath[pdlen] = '/';
+		memcpy(relpath + pdlen + 1, subdir, sdlen + /* '\0' */ 1);
+		newlen = pdlen + sdlen + 1;
+	}
+
+	(void) AddLine(lines, "");
+	if (Dynscpy(&newl, relpath, ":", 0) != NULL) {
+		(void) AddLine(lines, newl);
+		free(newl);
+	}
+
+	/* Paths collected must be relative. */
+	if (((FTPListToMemory2(cip, relpath, &ll, "-a", 0, &mls)) < 0) || (ll.first == NULL)) {
+		/* Not an error unless the first directory could not be opened. */
+		DisposeLineListContents(&ll);
+		goto done;
+	}
+
+	/* "MLSD" succeeded */
+	unlsrc = UnMlsD(cip, &fil, &ll);
+	if (unlsrc < 0) {
+		/* Return the lines as is -- even though it's invalid. */
+		goto done;
+	} else if (unlsrc == 0) {
+		/* empty */
+		goto done;
+	}
+	fip = fil.first;
+
+	/* Concat the raw MLST data. */
+	for (lp = ll.first; lp != NULL ; lp=lp->next) {
+		if (lp->line != NULL) {
+			if ((UnMlsT(cip, lp->line, &mli) == 0) && ((mli.ftype == '-') || (mli.ftype == 'd')) && (strchr(mli.fname, '/') == NULL) && ((cp = strchr(lp->line, ' ')) != NULL)) {
+				/* The server returned just a simple filename
+				 * for this item.  Try to prepend the relative
+				 * pathname to it.
+				 */
+				newl = NULL;
+				*cp++ = '\0';
+				if (Dynscpy(&newl, lp->line, " ", relpath, "/", cp, 0) != NULL) {
+					free(lp->line);
+					lp->line = newl;
+				}
+			}
+			(void) AddLine(lines, lp->line);
+		}
+	}
+	DisposeLineListContents(&ll);
+
+	/* Iterate through any subdirectories present. */
+	for (fip = fil.first; fip != NULL; fip = fip->next) {
+		if (fip->type != 'd')
+			continue;
+		FTPRemoteRecursiveMListSubdir(cip, parentdir, pdsize, newlen, fip->relname, lines);
+	}
+	DisposeFileInfoListContents(&fil);
+
+done:
+	relpath[pdlen] = '\0';
+}	/* FTPRemoteRecursiveMListSubdir */
+
+
+
+
+int
+FTPRemoteRecursiveMList(FTPCIPtr cip, const char *const rdir, FTPLineListPtr lines)
+{
+	FTPFileInfoList fil;
+	FTPFileInfoPtr fip;
+	int result, cwdresult;
+	char rcwd[512];
+	char startdir[512];
+	size_t sdlen;
+	int mls = 1;
+	int unlsrc;
+
+	rcwd[0] = '\0';
+	InitLineList(lines);
+
+	if (cip->hasMLSD != kCommandAvailable) {
+		return (kErrMLSDNotAvailable);
+	}
+
+	if ((result = FTPGetCWD(cip, rcwd, sizeof(rcwd))) < 0)
+		return (result);
+
+	if (rdir == NULL)
+		return (-1);
+
+	if (FTPChdir(cip, rdir) < 0) {
+		/* Probably not a directory.  */
+		return (cip->errNo = kErrNotADirectory);
+	}
+
+	STRNCPY(startdir, rdir);
+	sdlen = strlen(startdir);
+
+	/* Paths collected must be relative. */
+	if (((result = FTPListToMemory2(cip, "", lines, "-a", 0, &mls)) < 0) || (lines->first == NULL)) {
+		DisposeLineListContents(lines);
+		goto done;
+	}
+
+	/* "MLSD" succeeded */
+	unlsrc = UnMlsD(cip, &fil, lines);
+	if (unlsrc < 0) {
+		/* Return the lines as is -- even though it's invalid. */
+		result = kErrInvalidMLSTResponse;
+		goto done;
+	} else if (unlsrc == 0) {
+		/* empty */
+		result = kNoErr;
+		goto done;
+	}
+	fip = fil.first;
+
+	/* Iterate through any subdirectories present. */
+	for (fip = fil.first; fip != NULL; fip = fip->next) {
+		if (fip->type != 'd')
+			continue;
+		FTPRemoteRecursiveMListSubdir(cip, startdir, sizeof(startdir), sdlen, fip->relname, lines);
+	}
+	DisposeFileInfoListContents(&fil);
+
+done:
+	/* Ready to wrap things up -- revert to the state we had been in. */
+	if (rcwd[0] != '\0') {
+		if ((cwdresult = FTPChdir(cip, rcwd)) < 0) {
+			if (result == kNoErr)
+				result = cwdresult;
+		}
+	}
+
+	return (result);
+}	/* FTPRemoteRecursiveMList */
+
+
+
+
 static void
 Usage(void)
 {
@@ -48,10 +213,16 @@ Usage(void)
 	(void) fprintf(fp, "Usages:\n");
 	(void) fprintf(fp, "  ncftpls [FTP flags] [-x \"ls flags\"] ftp://url.style.host/path/name/\n");
 	(void) fprintf(fp, "\nls Flags:\n\
+  -m     Use machine readable (MLSD) list format, if the server supports it.\n\
   -1     Most basic format, one item per line.\n\
   -l     Long list format.\n\
+  -C     Columnized list format (default).\n\
   -R     Long list format, recurse subdirectories if server allows it.\n\
-  -x XX  Other flags to pass on to the remote server.\n");
+  -g     Recursive and print one path per line; like \"/usr/bin/find . -print\"\n\
+  -gg    As above, but append a \"/\" character to directory pathnames.\n\
+  -a     Show all files, if server allows it (as in \"/bin/ls -a\").\n\
+  -i XX  Filter the listing (if server supports it) with the wildcard XX.\n\
+  -x XX  List command flags to use on the remote server.\n");
 	(void) fprintf(fp, "\nFTP Flags:\n\
   -u XX  Use username XX instead of anonymous.\n\
   -p XX  Use password XX with the username.\n\
@@ -71,9 +242,17 @@ Usage(void)
   -Y XX  Send raw FTP command XX before logging out.\n\
   -r XX  Redial XX times until connected.\n");
 	(void) fprintf(fp, "\nExamples:\n\
-  ncftpls ftp://ftp.wustl.edu/pub/\n\
-  ncftpls -1 ftp://ftp.wustl.edu/pub/\n\
-  ncftpls -x \"-lrt\" ftp://ftp.wustl.edu/pub/\n");
+  ncftpls ftp://ftp.freebsd.org/pub/FreeBSD/\n\
+  ncftpls -1 ftp://ftp.freebsd.org/pub/FreeBSD/\n\
+  ncftpls -la -i '*.TXT' ftp://ftp.freebsd.org/pub/FreeBSD/\n\
+  ncftpls -m ftp://ftp.ncftp.com/ncftpd/\n\
+  ncftpls -x \"-lrt\" ftp://ftp.freebsd.org/pub/FreeBSD/\n");
+
+	(void) fprintf(fp, "%s", "\nNote: The standard specifies that URL pathnames are are relative pathnames.\n  For FTP, this means that URLs specify relative pathnames from the start\n  directory, which for user logins, are typically the user's home directory.\n  If you want to use absolute pathnames, you need to include a literal slash,\n  using the \"%2F\" code for a \"/\" character.  Examples:\n\n");
+
+	(void) fprintf(fp, "%s", "\
+  ncftpls -u linus ftp://ftp.kernel.org/%2Fusr/src/\n\
+  ncftpls ftp://steve@ftp.apple.com/%2Fetc/\n");
 
 	(void) fprintf(fp, "\nLibrary version: %s.\n", gLibNcFTPVersion + 5);
 	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (http://www.ncftp.com).\n");
@@ -109,39 +288,6 @@ Abort(int sigNum)
 
 
 
-static void
-SetLsFlags(char *dst, size_t dsize, int *longMode, const char *src)
-{
-	char *dlim = dst + dsize - 1;
-	int i, c;
-
-	for (i=0;;) {
-		c = *src++;
-		if (c == '\0')
-			break;
-		if (c == 'l') {
-			*longMode = 1;
-		} else if (c == '1') {
-			*longMode = 0;
-		} else if (c != '-') {
-			if (c == 'C') {
-				*longMode = 0;
-			}
-			if (i == 0) {
-				if (dst < dlim)
-					*dst++ = '-';
-			} 
-			i++;
-			if (dst < dlim)
-				*dst++ = (char) c;
-		}
-	}
-	*dst = '\0';
-}	/* SetLsFlags */
-
-
-
-
 main_void_return_t
 main(int argc, char **argv)
 {
@@ -153,13 +299,21 @@ main(int argc, char **argv)
 	char urlfile[128];
 	char rootcwd[256];
 	char curcwd[256];
-	int longMode = 0;
 	int i;
-	char lsflag[32] = "";
-	FTPLineList cdlist;
+	FTPLineList cdlist, dirlisting;
+	FTPLinePtr lp, lp2;
 	int rc;
 	int ndirs;
 	int dfmode = 0;
+	int tryMLSD = 0;
+	const char *pattern = "";
+	const char *patterntouse = NULL;
+	const char *userflags = NULL, *lsflagstouse;
+	int lslong = 0, lsrecursive = 0, lsall = 0, lsone = 0, lscolumned = -1, lslikefind = 0, lsF = 0;
+	char lsflags[32];
+	char *curdir, *coloncp, *slashcp, *lslinecp;
+	const char *tailcp;
+	MLstItem mli;
 	ResponsePtr rp;
 	FILE *ofp;
 	char precmd[320], postcmd[320], perfilecmd[320];
@@ -199,14 +353,13 @@ main(int argc, char **argv)
 	fi.host[0] = '\0';
 	urlfile[0] = '\0';
 	InitLineList(&cdlist);
-	SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-CF");
 	precmd[0] = '\0';
 	postcmd[0] = '\0';
 	perfilecmd[0] = '\0';
 	es = kExitSuccess;
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "1lRx:P:u:j:p:e:d:t:r:f:o:EFKW:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "1lRx:P:u:j:p:h:e:d:t:r:f:o:EFKW:X:Y:maCi:g")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
 			break;
@@ -222,7 +375,17 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			if (fi.pass[0] == '\0')
+				fi.passIsEmpty = 1;
 			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
+			break;
+		case 'h':
+			/* Doesn't make sense really, but implement for
+			 * compatibility with the other utilities.
+			 */
+			(void) STRNCPY(fi.host, opt.arg);
+			memset(opt.arg, 0, strlen(fi.user));
 			opt.arg[0] = '?';
 			break;
 		case 'e':
@@ -263,17 +426,37 @@ main(int argc, char **argv)
 		case 'F':
 			fi.dataPortMode = kPassiveMode;
 			break;
+		case 'i':
+			pattern = opt.arg;
+			break;
+		case 'a':
+			lsall = 1;
+			break;
 		case 'l':
-			SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-l");
+			lslong = 1;
 			break;
 		case '1':
-			SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-1");
+			lsone = 1;
+			break;
+		case 'C':
+			lscolumned = 1;
 			break;
 		case 'R':
-			SetLsFlags(lsflag, sizeof(lsflag), &longMode, "-lR");
+			lsrecursive = 1;
+			break;
+		case 'g':
+			lslikefind++;
+			lsone = 1;
+			lsrecursive = 1;
+			lslong = lscolumned = 0;
+			if (lslikefind > 1)
+				lsF = 1;
 			break;
 		case 'x':
-			SetLsFlags(lsflag, sizeof(lsflag), &longMode, opt.arg);
+			userflags = opt.arg;
+			break;
+		case 'm':
+			tryMLSD = 1;
 			break;
 		case 'K':
 			dfmode++;
@@ -296,6 +479,30 @@ main(int argc, char **argv)
 	if (opt.ind > argc - 1)
 		Usage();
 
+	STRNCPY(lsflags, "-CF");
+	if (lslong != 0) {
+		STRNCPY(lsflags, "-l");
+	} else if (lsone != 0) {
+		STRNCPY(lsflags, "-1");
+	}
+	if (lsrecursive != 0) {
+		if ((lsone == 0) && (lscolumned != 1)) {
+			/* Maintain backwards compatibility */
+			STRNCPY(lsflags, "-lR");
+		} else {
+			STRNCAT(lsflags, "R");
+		}
+	}
+	if (lsF != 0) {
+		STRNCAT(lsflags, "F");
+	}
+	if (lsall != 0) {
+		STRNCAT(lsflags, "a");
+	}
+	lsflagstouse = lsflags;
+	if (userflags != NULL)
+		lsflagstouse = userflags;
+
 	InitOurDirectory();
 
 	startfi = fi;
@@ -304,6 +511,7 @@ main(int argc, char **argv)
 	for (i=opt.ind; i<argc; i++) {
 		fi = startfi;
 		(void) STRNCPY(url, argv[i]);
+		patterntouse = pattern;
 		rc = FTPDecodeURL(&fi, url, &cdlist, urlfile, sizeof(urlfile), (int *) 0, NULL);
 		(void) STRNCPY(url, argv[i]);
 		if (rc == kMalformedURL) {
@@ -315,10 +523,7 @@ main(int argc, char **argv)
 			DisposeWinsock();
 			exit(kExitMalformedURL);
 		} else if (urlfile[0] != '\0') {
-			/* It not obviously a directory, and they didn't say -R. */
-			(void) fprintf(stderr, "Not a directory URL: %s\n", url);
-			DisposeWinsock();
-			exit(kExitMalformedURL);
+			patterntouse = urlfile;
 		}
 		
 		if ((strcmp(fi.host, savedfi.host) == 0) && (strcmp(fi.user, savedfi.user) == 0)) {
@@ -340,7 +545,7 @@ main(int argc, char **argv)
 			memset(&savedfi, 0, sizeof(savedfi));
 			
 			if (strcmp(fi.user, "anonymous") && strcmp(fi.user, "ftp")) {
-				if (fi.pass[0] == '\0') {
+				if ((fi.pass[0] == '\0') && (fi.passIsEmpty == 0)) {
 					(void) gl_getpass("Password: ", fi.pass, sizeof(fi.pass));
 				}
 			}
@@ -411,13 +616,80 @@ main(int argc, char **argv)
 
 		es = kExitXferTimedOut;
 		(void) signal(SIGINT, Abort);
-		if (FTPList(&fi, STDOUT_FILENO, longMode, lsflag) < 0) {
-			(void) fprintf(stderr, "ncftpls: directory listing error: %s.\n", FTPStrError(fi.errNo));
-			es = kExitXferFailed;
-		} else {
+
+		PrintF(&fi, "ncftpls DIRLIST: directory, file, or wildcard = \"%s\";  lsflags = \"%s\";  tryMLS = %d.\n", patterntouse, lsflagstouse, tryMLSD);
+		if (
+			(lsrecursive && tryMLSD && FTPRemoteRecursiveMList(&fi, patterntouse, &dirlisting) >= 0) ||
+			(FTPListToMemory2(&fi, patterntouse, &dirlisting, lsflagstouse, /* allow blank lines from server? yes */ 1, &tryMLSD) >= 0)
+		) {
 			es = kExitSuccess;
 			(void) AdditionalCmd(&fi, perfilecmd, curcwd);
 			savedfi = fi;
+
+			if (lslikefind > 0) {
+				curdir = NULL;
+				for (lp = dirlisting.first; lp != NULL; ) {
+					lp2 = lp;
+					lp = lp->next;
+					tailcp = "";
+					if (tryMLSD != 0) {
+						if (UnMlsT(&fi, lp2->line, &mli) < 0)
+							continue;
+						if (mli.ftype == 'd') {
+							tailcp = "/";
+						} else {
+							tailcp = "";
+						}
+						lslinecp = strchr(lp2->line, ' ');
+						if ((lslinecp != NULL) && (lslinecp != lp2->line) && (lslinecp[-1] == ';')) {
+							/* Valid MLSD format; skip ahead one byte to the pathname. */
+							lslinecp++;
+						} else {
+							lslinecp = lp2->line;
+						}
+					} else {
+						lslinecp = lp2->line;
+					}
+					if (lslinecp != NULL) {
+						if ((lslinecp[0] == '.') && ((lslinecp[1] == '/') || (lslinecp[1] == '\\')))
+							lslinecp += 2;
+						coloncp = strrchr(lslinecp, ':');
+						if ((coloncp != NULL) && (coloncp[1] == '\0')) {
+							*coloncp = '\0';
+							curdir = lslinecp;
+							if (strcmp(curdir, ".") == 0)
+								curdir = NULL;
+						} else if ((tryMLSD == 0) && (coloncp != NULL) && (strlen(coloncp) > 4) && (strncmp(coloncp + 3, "ermission denied", strlen("ermission denied")) == 0)) {
+							continue;
+						} else if ((lslinecp[0] != '\0') && (lslinecp[0] != '\n') && (lslinecp[0] != '\r')) {
+							slashcp = strchr(lslinecp, '/');
+							if (slashcp == NULL)
+								slashcp = strchr(lslinecp, '\\');
+							if ((slashcp == NULL) || (slashcp[1] == '\0') || (slashcp[1] == '\n') || (slashcp[1] == '\r')) {
+								if (curdir == NULL) {
+									/* Could print "./" then file */
+									(void) fprintf(stdout, "%s%s\n", lslinecp, tailcp);
+								} else {
+									(void) fprintf(stdout, "%s/%s%s\n", curdir, lslinecp, tailcp);
+								}
+							} else {
+								(void) fprintf(stdout, "%s%s\n", lslinecp, tailcp);
+							}
+						}
+					}
+				}
+			} else {
+				/* Print the completed listing. */
+				for (lp = dirlisting.first; lp != NULL; ) {
+					lp2 = lp;
+					lp = lp->next;
+					if (lp2->line != NULL) {
+						(void) fprintf(stdout, "%s\n", lp2->line);
+					}
+				}
+			}
+		} else {
+			es = kExitXferFailed;
 		}
 		(void) signal(SIGINT, SIG_DFL);
 	}

@@ -1,4 +1,10 @@
-/* wutil.c */
+/* wutil.c
+ *
+ * Copyright (c) 1993-2005 Mike Gleason, NcFTP Software.
+ * All rights reserved.
+ *
+ */
+
 
 #include "syshdrs.h"
 #ifdef PRAGMA_HDRSTOP

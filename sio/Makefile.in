@@ -17,8 +17,9 @@ PREFIX=@prefix@
 LIB=libsio.a
 LIBSO=libsio.so.5
 LIBSOS=libsio.so
-STRIP=strip
+STRIP=@STRIP@
 MAKE=@MAKE@
+CCDV=@CCDV@
 
 OBJS_U=\
 	UAccept.o  UBind.o	UConnectByName.o  UConnect.o \
@@ -50,7 +51,7 @@ all: $(LIB)
 
 $(LIB): $(OBJS)
 	-@/bin/rm -f $(LIB)
-	@CCDV@ar r $(LIB) $(OBJS)
+	@CCDV@@AR@ r $(LIB) $(OBJS)
 	-@RANLIB@ $(LIB)
 	-@echo $(VER) > sio.version
 	-@chmod a+r $(LIB) sio.h usio.h
@@ -104,15 +105,15 @@ SHELL=/bin/sh
 .SUFFIXES: .c .o .so
 
 .c.o:
-	@CCDV@$(CC) $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -c
+	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) $< -c
 
 .c.so:
-	@CCDV@$(CC) -fpic $(CFLAGS) $(CPPFLAGS) $(DEFS) $*.c -c -o $*.so
+	@CCDV@$(CC) -fpic $(CFLAGS) $(DEFS) $(CPPFLAGS) $*.c -c -o $*.so
 
 ### Cleaning supplies ########################################################
 
 clean:
-	-/bin/rm -f *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch *.gch
+	-/bin/rm -rf *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch *.gch SunWS_cache
 
 distclean: clean
 	-/bin/rm -f config.h Makefile config.status config.cache config.log sio.version

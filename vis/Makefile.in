@@ -57,7 +57,7 @@ wgets.@OBJEXT@: wgets.c wgets.h syshdrs.h
 	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) wgets.c -c
 
 clean:
-	/bin/rm -f $(DPROGS) *.@OBJEXT@ core *.pch
+	/bin/rm -rf $(DPROGS) *.@OBJEXT@ core *.pch SunWS_cache
 
 PACKAGE=Makefile.in bmed.c bmed.h syshdrs.h wgets.c wgets.h wutil.c wutil.h
 

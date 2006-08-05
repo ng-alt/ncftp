@@ -57,6 +57,8 @@ find . -depth -follow -type f | sed '
 /\.idb$/d
 /\.pch$/d
 /\.gch$/d
+/\.cpch$/d
+/SunWS_cache/d
 /\.ilk$/d
 /\.res$/d
 /\.aps$/d
@@ -83,10 +85,14 @@ find . -depth -follow -type f | sed '
 /\/sio\/.*\//d
 /shit/d
 /\/upload/d
+/\/Strn\.version/d
+/\/sio\.version/d
 /\/config\.h\.in$/p
 /\/config\.guess$/p
 /\/config\.sub$/p
 /\/config\./d
+/\/configure\.in/p
+/\/configure\./d
 /\/Makefile$/d
 /\/OLD/d
 /\/old/d' | cut -c3- > "$wd/doc/manifest"
@@ -99,23 +105,22 @@ fi
 cpio -Lpdm $TMPDIR/TAR/$TARDIR < "$wd/doc/manifest"
 chmod -R a+rX "$TMPDIR/TAR/$TARDIR"
 
-find $TMPDIR/TAR/$TARDIR -type f -name '*.[ch]' -exec $wd/sh/dos2unix.sh {} \;
-find $TMPDIR/TAR/$TARDIR -type f -name '*.in' -exec $wd/sh/dos2unix.sh {} \;
+find $TMPDIR/TAR/$TARDIR -type f '(' -name '*.[ch]' -or -name '*.[ch]pp' -or -name '*.in' ')' -exec $wd/sh/dos2unix.sh {} \;
 
 if [ "$TAR" = "" ] || [ "$TARFLAGS" = "" ] ; then
 	x=`tar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
 	case "$x" in
 		*owner=NAME*)
-			TARFLAGS="-c --owner=bin --group=bin --verbose -f"
+			TARFLAGS="-c --owner=bin --group=bin -f"
 			TAR=tar
 			;;
 		*)
-			TARFLAGS="cvf"
+			TARFLAGS="cf"
 			TAR=tar
 			x2=`gtar --help 2>&1 | sed -n 's/.*owner=NAME.*/owner=NAME/g;/owner=NAME/p'`
 			case "$x2" in
 				*owner=NAME*)
-					TARFLAGS="-c --owner=bin --group=bin --verbose -f"
+					TARFLAGS="-c --owner=bin --group=bin -f"
 					TAR=gtar
 					;;
 			esac
@@ -131,10 +136,11 @@ if [ "$BZIP" != ":" ] ; then
 	cp $TMPDIR/TAR/$SBGZFILE .
 fi
 
-( cd $TMPDIR/TAR ; zip -r -9 -v $ZIPFILE $TARDIR )
+( cd $TMPDIR/TAR ; zip -q -r -9 $ZIPFILE $TARDIR )
 cp $TMPDIR/TAR/$ZIPFILE .
 
 chmod 644 $STGZFILE $SBGZFILE $ZIPFILE 2>/dev/null
 rm -rf $TMPDIR/TAR
+touch -r ncftp/version.c $STGZFILE $SBGZFILE $ZIPFILE
 ls -l $STGZFILE $SBGZFILE $ZIPFILE 2>/dev/null
 exit 0

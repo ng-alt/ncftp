@@ -1,6 +1,6 @@
 /* ncftp_errno.h
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -114,4 +114,9 @@
 #define kErrRemoteSameAsLocal			(-197)
 #define kErrProxyDataConnectionsDisabled	(-198)
 #define kErrDataConnOriginatedFromBadPort	(-199)
-#define kErrLast				(199)
+#define kErrBugInLibrary			(-200)
+#define kErrRESTNotAvailable			(-201)
+#define kErrOpenHostMiscErr			(-202)
+#define kErrLoginHostMiscErr			(-203)
+#define kErrAsciiSeekErr			(-204)
+#define kErrLast				(204)

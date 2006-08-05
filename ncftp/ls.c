@@ -1,6 +1,6 @@
 /* ls.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -53,13 +53,13 @@ void InitLsMonths(void)
 	struct tm lt;
 	int i;
 
+	memset(gLsMon, 0, sizeof(gLsMon));
 	(void) Localtime(0, &lt);
 	lt.tm_mday = 15;
 	lt.tm_hour = 12;
 	for (i=0; i<12; i++) {
 		lt.tm_mon = i;
-		(void) strftime(gLsMon[i], sizeof(gLsMon[i]), "%b", &lt);
-		gLsMon[i][sizeof(gLsMon[i]) - 1] = '\0';
+		(void) strftime(gLsMon[i], sizeof(gLsMon[i]) - 1, "%b", &lt);
 	}
 	(void) strcpy(gLsMon[i], "BUG");
 }	/* InitLsMonths */
@@ -251,26 +251,36 @@ LsC(FTPFileInfoListPtr dirp, int endChars, FILE *stream)
  * old (or future) date string (i.e. "Oct 27  1996").
  */
 void
-LsDate(char *dstr, time_t ts)
+LsDate(char *dstr, size_t dsiz, time_t ts)
 {
 	struct tm t;
 
 	if (ts == kModTimeUnknown) {
-		(void) strcpy(dstr, "            ");
+		(void) Strncpy(dstr, "            ", dsiz);
 		return;
 	}
 	if (Localtime(ts, &t) == NULL) {
-		(void) strcpy(dstr, "Jan  0  1900");
+		(void) Strncpy(dstr, "Jan  0  1900", dsiz);
 		return;
 	}
 	if ((ts > gNowPlus1Hr) || (ts < gNowMinus6Mon)) {
-		(void) sprintf(dstr, "%s %2d  %4d",
+#ifdef HAVE_SNPRINTF
+		(void) snprintf(dstr, dsiz,
+#else
+		(void) sprintf(dstr,
+#endif
+			"%s %2d  %4d",
 			gLsMon[t.tm_mon],
 			t.tm_mday,
 			t.tm_year + 1900
 		);
 	} else {
-		(void) sprintf(dstr, "%s %2d %02d:%02d",
+#ifdef HAVE_SNPRINTF
+		(void) snprintf(dstr, dsiz,
+#else
+		(void) sprintf(dstr,
+#endif
+			"%s %2d %02d:%02d",
 			gLsMon[t.tm_mon],
 			t.tm_mday,
 			t.tm_hour,
@@ -292,7 +302,7 @@ LsL(FTPFileInfoListPtr dirp, int endChars, int linkedTo, FILE *stream)
 	char fTail[2];
 	int fType;
 	const char *l1, *l2;
-	char datestr[16];
+	char datestr[32];
 	char sizestr[32];
 	char plugspec[16];
 	char plugstr[64];
@@ -353,7 +363,7 @@ LsL(FTPFileInfoListPtr dirp, int endChars, int linkedTo, FILE *stream)
 			l2 = "";
 		}
 
-		LsDate(datestr, diritemp->mdtm);
+		LsDate(datestr, sizeof(datestr), diritemp->mdtm);
 
 		if (diritemp->size == kSizeUnknown) {
 			*sizestr = '\0';

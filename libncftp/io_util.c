@@ -1,6 +1,6 @@
 /* io_util.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -24,7 +24,7 @@
 #endif
 
 double
-Duration(struct timeval *t0)
+FTPDuration(struct timeval *t0)
 {
 	struct timeval t1;
 	double sec;
@@ -38,7 +38,7 @@ Duration(struct timeval *t0)
 		+ (t1.tv_sec - t0->tv_sec);
 
 	return (sec);
-}	/* Duration */
+}	/* FTPDuration */
 
 
 

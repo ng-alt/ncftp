@@ -1,6 +1,6 @@
 /* io_putmem.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -10,25 +10,8 @@
 #	pragma hdrstop
 #endif
 
-#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-#	define ASCII_TRANSLATION 0
-#endif
-
-#ifndef ASCII_TRANSLATION
-#	define ASCII_TRANSLATION 1
-#endif
-
 #ifndef NO_SIGNALS
 #	define NO_SIGNALS 1
-#endif
-
-#ifndef O_BINARY
-	/* Needed for platforms using different EOLN sequence (i.e. DOS) */
-#	ifdef _O_BINARY
-#		define O_BINARY _O_BINARY
-#	else
-#		define O_BINARY 0
-#	endif
 #endif
 
 int
@@ -172,7 +155,6 @@ FTPPutFileFromMemory(
 						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
-					cip->dataSocket = -1;
 					goto brk;
 				}
 #else	/* NO_SIGNALS */
@@ -189,7 +171,6 @@ FTPPutFileFromMemory(
 						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
 					}
 					(void) shutdown(cip->dataSocket, 2);
-					cip->dataSocket = -1;
 					goto brk;
 				}
 #endif	/* NO_SIGNALS */

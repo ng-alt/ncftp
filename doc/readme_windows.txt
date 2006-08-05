@@ -17,13 +17,21 @@ Also included is a batch processing daemon,
 from "ncftp" and also the "-b" flag of "ncftpput" and
 "ncftpget".
 
-Lastly, the "ncftpbookmarks" program is a utility
-program to manipulate user's FTP bookmarks.
+Lastly, the "ncftpbookmarks" program is a utility program
+to manipulate user's FTP bookmarks.
 
 As always, your feedback and input is welcome; Visit
-http://www.ncftp.com/support/ .  Unfortunately I can't guarantee
-a response due to the volume of mail, so I thank you
-in advance.
+http://www.ncftp.com/support/ .  Unfortunately I can't
+guarantee a response due to the volume of mail, so I
+thank you in advance.
+
+If you are one of the many people since 1992 to find
+NcFTP Client useful, we would appreciate a donation,
+which you can start by clicking the link below.
+Your support allows us to keep maintaining the project!
+
+    http://www.ncftp.com/ncftp/donate.html
 
 Mike Gleason
+NcFTP Software
 http://www.ncftp.com

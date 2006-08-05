@@ -1,6 +1,6 @@
 /* cmds.c
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2006 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -19,7 +19,7 @@
 #include "log.h"
 #include "pref.h"
 #include "spool.h"
-#include "getline.h"
+#include "gl_getline.h"
 #include "readln.h"
 
 /* This was the directory path when the user logged in.  For anonymous users,
@@ -96,6 +96,7 @@ extern int gLoadedBm, gConfirmClose, gSavePasswords, gScreenColumns;
 extern char gLocalCWD[512], gPrevLocalCWD[512];
 extern int gMayCancelJmp;
 extern char gOurHostName[64];
+extern time_t gCmdStart;
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 extern char gOurInstallationPath[];
 #elif defined(HAVE_SIGSETJMP)
@@ -217,6 +218,49 @@ CurrentURL(char *dst, size_t dsize, int showpass)
 
 
 
+/*VARARGS*/
+int
+AskYesNoQuestion(int defaultAnswer, const char *const fmt, ...)
+{
+	va_list ap;
+	char ans[128], buf[512];
+
+	va_start(ap, fmt);
+#ifdef HAVE_VSNPRINTF
+	(void) vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
+	buf[sizeof(buf) - 1] = '\0';
+#else
+	(void) vsprintf(buf, fmt, ap);
+#endif
+	va_end(ap);
+
+	for (;;) {
+		(void) fprintf(stdout, "%s", buf);
+		(void) fflush(stdout);
+		(void) fflush(stdin);
+		(void) memset(ans, 0, sizeof(ans));
+		(void) fgets(ans, sizeof(ans) - 1, stdin);
+		Trace(0, "%s%s", buf, ans);
+		switch ((int) ans[0]) {
+			case 'y':
+			case 'Y':
+				return (1);
+				/*NOTREACHED*/
+			case 'n':
+			case 'N':
+				return (0);
+				/*NOTREACHED*/
+			default:
+				if (defaultAnswer >= 0)
+					return (defaultAnswer);
+		
+		}
+	}
+}	/* AskYesNoQuestion */
+
+
+
+
 /* Fills in the fields of the Bookmark structure, based on the FTP current
  * session.
  */
@@ -261,7 +305,6 @@ void
 SaveCurrentAsBookmark(void)
 {
 	int saveBmPassword;
-	char ans[64];
 
 	/* gBm.bookmarkName must already be set. */
 	FillBookmarkInfo(&gBm);
@@ -274,13 +317,8 @@ SaveCurrentAsBookmark(void)
 			saveBmPassword = 0;
 		} else {
 			(void) printf("\n\nYou logged into this site using a password.\nWould you like to save the password with this bookmark?\n\n");
-			(void) printf("Save? [no] ");
-			(void) memset(ans, 0, sizeof(ans));
-			fflush(stdin);
-			(void) fgets(ans, sizeof(ans) - 1, stdin);
-			if ((saveBmPassword = StrToBool(ans)) == 0) {
+			if ((saveBmPassword = AskYesNoQuestion(0, "Save? [no] ")) == 0)
 				(void) printf("\nNot saving the password.\n");
-			}
 		}
 	}
 	if (PutBookmark(&gBm, saveBmPassword) < 0) {
@@ -304,8 +342,6 @@ void
 SaveUnsavedBookmark(void)
 {
 	char url[256];
-	char ans[64];
-	int c;
 
 	if (gIsTTYr == 0) {
 		return;
@@ -315,28 +351,8 @@ SaveUnsavedBookmark(void)
 		(void) printf("\n\nYou have not saved a bookmark for this site.\n");
 		(void) sleep(1);
 		(void) printf("\nWould you like to save a bookmark to:\n\t%s\n\n", url);
-		for (;;) {
-			(void) printf("Save? (yes/no) ");
-			(void) memset(ans, 0, sizeof(ans));
-			fflush(stdin);
-			if (fgets(ans, sizeof(ans) - 1, stdin) == NULL) {
-				c = 'n';
-				break;
-			}
-			c = ans[0];
-			if ((c == 'n') || (c == 'y'))
-				break;
-			if (c == 'N') {
-				c = 'n';
-				break;
-			} else if (c == 'Y') {
-				c = 'y';
-				break;
-			}
-		}
-		if (c == 'n') {
+		if (AskYesNoQuestion(0, "Save? (yes/no) ") == 0) {
 			(void) printf("Not saved.  (If you don't want to be asked this, \"set confirm-close no\")\n\n\n");
-
 		} else if (PromptForBookmarkName(&gBm) < 0) {
 			(void) printf("Nevermind.\n");
 		} else {
@@ -771,6 +787,257 @@ EchoCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	}
 	(void) printf("\n");
 }	/* EchoCmd */
+
+
+
+
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
+
+static int
+AddToListOfFilesToEdit(FTPLineListPtr rfiles, FTPLineListPtr lfiles, char* remoteFile, int createIt)
+{
+	char tname[260];
+	int fd;
+
+	GetTmpDir(tname, sizeof(tname));
+	if (tname[0] == '\0')
+		return (-1);
+
+	(void) STRNCAT(tname, LOCAL_PATH_DELIM_STR);
+	(void) STRNCAT(tname, "ncftp_editcmd.XXXXXX");
+	if ((fd = mkstemp(tname)) < 0)
+		return (-1);
+	(void) close(fd);	/* Want the value in tname for later */
+
+	if ((tname[0] == '\0') || (AddLine(lfiles, tname) == NULL))
+		return (-1);
+
+	if ((remoteFile == NULL) || (remoteFile[0] == '\0'))
+		return (-1);
+
+	if (createIt != 0) {
+		/* Use a special prefix on the remote path to denote that we want to
+		 * create it.  The prefix should be a path that is preferably an
+		 * illegal pathname, or at least something that would probably
+		 * not come up in everyday use.
+		 */
+		STRNCPY(tname, "//|||//");
+		STRNCAT(tname, remoteFile);
+		if (AddLine(rfiles, tname) == NULL)
+			return (-1);
+		return (0);
+	}
+
+	if (AddLine(rfiles, remoteFile) == NULL)
+		return (-1);
+
+	return (0);
+}	/* AddToListOfFilesToEdit */
+
+
+
+
+void
+EditCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfoPtr aip)
+{
+	int i, n, n2, result;
+	char cmdbuf[2048];
+	char modstr[80];
+	char *rpath;
+	const char *envEDITOR;
+	FTPLineList globlist;
+	FTPLineList rfiles, lfiles, modstrs;
+	FTPLinePtr lp, rlp, llp, mlp;
+	FILE *fp;
+	struct Stat st;
+
+	ARGSUSED(gUnusedArg);
+	envEDITOR = getenv("EDITOR");
+	if ((envEDITOR == NULL) || (envEDITOR[0] == '\0')) {
+		/* Make them set it in the environment, since EDITOR
+		 * is a well-established environment variable, unlike
+		 * PAGER.
+		 */
+		Trace(-1, "Set your EDITOR environment variable prior to running ncftp.\nExample for /bin/sh:\n\n\tEDITOR=\"/usr/bin/vi\" ; export EDITOR\n\n");
+		return;
+	}
+		
+	InitLineList(&rfiles);
+	InitLineList(&lfiles);
+
+	for (i = 1, n = 0; i < argc; i++) {
+		InitLineList(&globlist);
+		result = FTPRemoteGlob(&gConn, &globlist, argv[i], kGlobYes);
+		if (result < 0) {
+			FTPPerror(&gConn, result, kErrGlobFailed, "remote glob", argv[i]);
+			continue;
+		}
+		for (lp = globlist.first; lp != NULL; lp = lp->next) {
+			result = FTPIsRegularFile(&gConn, lp->line);
+			switch (result) {
+				case 1:
+					if (AddToListOfFilesToEdit(&rfiles, &lfiles, lp->line, 0) < 0) {
+						Trace(-1, "failed to AddToListOfFilesToEdit %s\n", lp->line);
+						DisposeLineListContents(&globlist);
+						DisposeLineListContents(&rfiles);
+						DisposeLineListContents(&lfiles);
+						time(&gCmdStart);	/* Don't beep when this finishes. */
+						return;
+					}
+					++n;
+					break;
+				case 0:
+					Trace(-1, "Cannot edit directory - ignoring \"%s\"\n", lp->line);
+					break;
+				default:
+					if (AskYesNoQuestion(1, "The file \"%s\" does not exist!  Do you want to create it? (Yes/no) ", lp->line) > 0) {
+						if (AddToListOfFilesToEdit(&rfiles, &lfiles, lp->line, 1) < 0) {
+							Trace(-1, "failed to AddToListOfFilesToEdit %s\n", lp->line);
+							DisposeLineListContents(&globlist);
+							DisposeLineListContents(&rfiles);
+							DisposeLineListContents(&lfiles);
+							time(&gCmdStart);	/* Don't beep when this finishes. */
+							return;
+						}
+						++n;
+					}
+			}
+		}
+		DisposeLineListContents(&globlist);
+	}
+
+	/* Download the remote files into temporary local files for local editing. */
+	InitLineList(&modstrs);
+	for (rlp = rfiles.first, llp = lfiles.first, n2 = n; ((rlp != NULL) && (llp != NULL)); rlp = rlp->next, llp = llp->next) {
+		/* get the files */
+		rpath = rlp->line;
+		if (strncmp(rpath, "//|||//", strlen("//|||//")) == 0) {
+			rpath += strlen("//|||//");
+			if ((fp = fopen(llp->line, "w")) == NULL) {
+				Trace(0, "Could not create temporary file \"%s\" : %s\n", llp->line, strerror(errno));
+				DisposeLineListContents(&modstrs);
+				DisposeLineListContents(&rfiles);
+				DisposeLineListContents(&lfiles);
+				time(&gCmdStart);	/* Don't beep when this finishes. */
+				return;
+			}
+			(void) fprintf(fp, "This will be the remote file \"%s\" after you finish editing this file.\n", rpath);
+			(void) fclose(fp);	/* Just want a new zero-byte file for now. */
+			result = kNoErr;
+			/* Don't download it, we're creating from scratch. */
+		} else {
+			if (n2 > 0)
+				(void) fprintf(stdout, "\n");
+			Trace(-1, "Please wait while %s is downloaded for editing.\n", rpath);
+			result = FTPGetOneFile3(&gConn, rpath, llp->line, kTypeBinary, -1, kResumeNo, kAppendNo, kDeleteNo, kNoFTPConfirmResumeDownloadProc, 0);
+		}
+		if (result < 0) {
+			FTPPerror(&gConn, result, kErrCouldNotStartDataTransfer, "get for editing", rpath);
+			rlp->line[0] = '\0';	/* Mark it as an error */
+			--n;
+			memset(&st, 0, sizeof(st));
+		} else if (Stat(llp->line, &st) < 0) {
+			/* Huh? It was deleted already. */
+			Trace(-1, "Cannot edit \"%s\", as the local file \"%s\" was deleted after it was downloaded.\n", rpath, llp->line);
+			rlp->line[0] = '\0';	/* Mark it as an error */
+			llp->line[0] = '\0';	/* Mark it so we do not delete it. */
+			--n;
+			memset(&st, 0, sizeof(st));
+		}
+		(void) sprintf(modstr, "%u " PRINTF_LONG_LONG, (unsigned int) st.st_mtime, (longest_int) st.st_size);
+		if (AddLine(&modstrs, modstr) == NULL) {
+			DisposeLineListContents(&modstrs);
+			DisposeLineListContents(&rfiles);
+			DisposeLineListContents(&lfiles);
+			time(&gCmdStart);	/* Don't beep when this finishes. */
+			return;
+		}
+	}
+
+	if (n <= 0) {
+		Trace(-1, "Nothing to edit!\n");
+		DisposeLineListContents(&modstrs);
+		DisposeLineListContents(&rfiles);
+		DisposeLineListContents(&lfiles);
+		time(&gCmdStart);	/* Don't beep when this finishes. */
+		return;
+	}
+
+	/* Edit the files in $EDITOR. */
+	(void) STRNCPY(cmdbuf, "exec ");	/* use exec to avoid having a shell hanging around */
+	(void) STRNCAT(cmdbuf, envEDITOR);
+	for (rlp = rfiles.first, llp = lfiles.first; ((rlp != NULL) && (llp != NULL)); rlp = rlp->next, llp = llp->next) {
+		if ((rlp->line[0] == '\0') || (llp->line[0] == '\0'))
+			continue;
+		(void) STRNCAT(cmdbuf, " \'");
+		(void) STRNCAT(cmdbuf, llp->line);
+		(void) STRNCAT(cmdbuf, "\'");
+	}
+
+	if (n2 > 1) {
+		(void) fprintf(stdout, "\n");
+		(void) AskYesNoQuestion(1, "All files downloaded.  Press ENTER to start editing. ");
+	}
+
+	result = system(cmdbuf);
+	(void) fprintf(stdout, "\n");
+#if ((defined(WIFEXITED)) && (defined(WEXITSTATUS)))
+	if ((result == 0) || WIFEXITED(result)) {
+		Trace(0, "%.480s (es=%d)\n", cmdbuf, WEXITSTATUS(result));
+	} else {
+		Trace(0, "%.480s (es=0x%08x)\n", cmdbuf, result);
+	}
+#else
+	Trace(0, "%.480s (es=0x%08x)\n", cmdbuf, result);
+#endif
+	/* Upload changed files. */
+	for (rlp = rfiles.first, llp = lfiles.first, mlp = modstrs.first; ((rlp != NULL) && (llp != NULL) && (mlp != NULL)); rlp = rlp->next, llp = llp->next, mlp = mlp->next) {
+		if ((rlp->line[0] == '\0') || (llp->line[0] == '\0'))
+			continue;
+		rpath = rlp->line;
+		if (strncmp(rpath, "//|||//", strlen("//|||//")) == 0)
+			rpath += strlen("//|||//");	/* Skip over the Create-from-scratch magic cookie. */
+		if (Stat(llp->line, &st) < 0) {
+			Trace(-1, "Cannot upload edited file \"%s\", as the local file \"%s\" was deleted after it was downloaded.\n", rpath, llp->line);
+			rlp->line[0] = '\0';	/* Mark it as an error */
+			llp->line[0] = '\0';	/* Mark it so we do not delete it. */
+			--n;
+			(void) fprintf(stdout, "\n");
+			continue;
+		}
+		(void) sprintf(modstr, "%u " PRINTF_LONG_LONG, (unsigned int) st.st_mtime, (longest_int) st.st_size);
+		if (strcmp(modstr, mlp->line) == 0) {
+			Trace(-1, "No changes made to \"%s\".\n", rpath);
+			continue;
+		}
+		if (AskYesNoQuestion(-1, "Put edited file \"%s\" ? (yes/no) ", rpath) > 0) {
+			result = FTPPutOneFile3(&gConn, llp->line, rpath, kTypeBinary, -1, kAppendNo, NULL, NULL, kResumeNo, kDeleteNo, kNoFTPConfirmResumeUploadProc, 0);
+			if (result < 0) {
+				FTPPerror(&gConn, result, kErrCouldNotStartDataTransfer, "put", rpath);
+				Trace(-1, "Local changes to \"%s\" can be recovered from \"%s\".\n", rpath, llp->line);
+				llp->line[0] = '\0';	/* Mark it so we do not delete it. */
+				(void) fprintf(stdout, "\n");
+			}
+		}
+	}
+
+	for (llp = lfiles.first; llp != NULL; llp = llp->next) {
+		if (llp->line[0] != '\0') {
+			if (remove(llp->line) < 0)
+				Trace(0, "Could not remove temporary file \"%s\" : %s\n", llp->line, strerror(errno));
+		}
+	}
+
+	DisposeLineListContents(&modstrs);
+	DisposeLineListContents(&rfiles);
+	DisposeLineListContents(&lfiles);
+	FlushLsCache();
+	time(&gCmdStart);	/* Don't beep when this finishes. */
+}	/* EditCmd */
+
+#endif	/* ! WINDOWS */
+
 
 
 
@@ -1301,8 +1568,7 @@ RunBookmarkEditor(char *selectedBmName, size_t dsize)
 	}
 	return (0);
 
-#else
-#ifdef BINDIR
+#else	/* ! Windows */
 	char ncftpbookmarks[256];
 	char *av[8];
 	int pid;
@@ -1313,10 +1579,22 @@ RunBookmarkEditor(char *selectedBmName, size_t dsize)
 
 	if (selectedBmName != NULL)
 		memset(selectedBmName, 0, dsize);
+#ifdef BINDIR
 	STRNCPY(ncftpbookmarks, BINDIR);
 	STRNCAT(ncftpbookmarks, "/");
 	STRNCAT(ncftpbookmarks, "ncftpbookmarks");
-
+#else
+	/* Full pathname to ncftpbookmarks is not available.
+	 * We'll have to run it without a fully-qualified
+	 * pathname and hope the program is installed somewhere
+	 * in the user's $PATH.
+	 */
+	if (geteuid() == 0) {
+		/* Don't assume root's $PATH is safe. */
+		return (-1);
+	}
+	STRNCPY(ncftpbookmarks, "ncftpbookmarks");
+#endif
 	STRNCPY(bmSelectionFile, "view");
 	if ((selectedBmName != NULL) && (gOurDirectoryPath[0] != '\0')) {
 		sprintf(pidStr, ".%u", (unsigned int) getpid());
@@ -1324,50 +1602,49 @@ RunBookmarkEditor(char *selectedBmName, size_t dsize)
 		STRNCAT(bmSelectionFile, pidStr);
 	}
 
-	if (access(ncftpbookmarks, X_OK) == 0) {
-		pid = (int) fork();
-		if (pid < 0) {
-			return (-1);
-		} else if (pid == 0) {
-			/* child */
-
-			av[0] = strdup("ncftpbookmarks");
-			av[1] = strdup(bmSelectionFile);
-			av[2] = NULL;
-			execv(ncftpbookmarks, av);
-			exit(1);
-		} else {
-			/* parent NcFTP */
-			for (;;) {
-#ifdef HAVE_WAITPID
-				if ((waitpid(pid, &status, 0) < 0) && (errno != EINTR))
-					break;
-#else
-				if ((wait(&status) < 0) && (errno != EINTR))
-					break;
+#ifdef BINDIR
+	if (access(ncftpbookmarks, X_OK) < 0) {
+		return (-1);
+	}
 #endif
-				if (WIFEXITED(status) || WIFSIGNALED(status))
-					break;		/* done */
-			}
+	pid = (int) fork();
+	if (pid < 0) {
+		return (-1);
+	} else if (pid == 0) {
+		/* child */
 
-			if (strcmp(bmSelectionFile, "view") != 0) {
-				fp = fopen(bmSelectionFile, FOPEN_READ_TEXT);
-				if (fp != NULL) {
-					(void) FGets(selectedBmName, dsize, fp);
-					(void) fclose(fp);
-					(void) unlink(bmSelectionFile);
-					Trace(0, "Selected bookmark from editor: [%s]\n", selectedBmName);
-				}
-			}
-			return (0);
+		av[0] = strdup("ncftpbookmarks");
+		av[1] = strdup(bmSelectionFile);
+		av[2] = NULL;
+		execv(ncftpbookmarks, av);
+		exit(1);
+	} else {
+		/* parent NcFTP */
+		for (;;) {
+#ifdef HAVE_WAITPID
+			if ((waitpid(pid, &status, 0) < 0) && (errno != EINTR))
+				break;
+#else
+			if ((wait(&status) < 0) && (errno != EINTR))
+				break;
+#endif
+			if (WIFEXITED(status) || WIFSIGNALED(status))
+				break;		/* done */
 		}
+
+		if (strcmp(bmSelectionFile, "view") != 0) {
+			fp = fopen(bmSelectionFile, FOPEN_READ_TEXT);
+			if (fp != NULL) {
+				(void) FGets(selectedBmName, dsize, fp);
+				(void) fclose(fp);
+				(void) unlink(bmSelectionFile);
+				Trace(0, "Selected bookmark from editor: [%s]\n", selectedBmName);
+			}
+		}
+		return (0);
 	}
 	return (-1);
-#else	/* BINDIR */
-	/* Not installed. */
-	return (-1);
-#endif	/* BINDIR */
-#endif	/* Windows */
+#endif	/* ! Windows */
 }	/* RunBookmarkEditor */
 
 
@@ -2448,9 +2725,15 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 		(void) STRNCPY(gConn.user, gBm.user);
 		(void) STRNCPY(gConn.pass, gBm.pass);
 		(void) STRNCPY(gConn.acct, gBm.acct);
+		/*
+		 * We used to save these, but if the server software
+		 * has been upgraded then our has* data could be stale.
+		 *
 		gConn.hasSIZE = gBm.hasSIZE;
 		gConn.hasMDTM = gBm.hasMDTM;
 		gConn.hasSITE_UTIME = gBm.hasUTIME;
+		 *
+		 */
 		gConn.port = gBm.port;
 
 		/* Note:  Version 3 only goes off of the
@@ -2504,6 +2787,7 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 		case 'a':
 			(void) STRNCPY(gConn.user, "anonymous");
 			(void) STRNCPY(gConn.pass, "");
+			gConn.passIsEmpty = 0;
 			(void) STRNCPY(gConn.acct, "");
 			break;
 		case 'P':
@@ -2515,6 +2799,8 @@ OpenCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 			break;
 		case 'p':
 			(void) STRNCPY(gConn.pass, opt.arg);	/* Don't recommend doing this! */
+			if (gConn.pass[0] == '\0')
+				gConn.passIsEmpty = 1;
 			memset(opt.arg, '*', strlen(opt.arg));
 			/* Since they passed sensitive information
 			 * on the command line (their fault!),
@@ -4218,3 +4504,5 @@ VersionCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvI
 	if (gOS[0] != '\0')
 		(void) printf("Platform:         %s\n", gOS);
 }	/* VersionCmd */
+
+/* vim: set noet sw=8: */

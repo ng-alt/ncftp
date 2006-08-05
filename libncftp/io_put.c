@@ -1,6 +1,6 @@
 /* io_put.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2006 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -8,18 +8,6 @@
 #include "syshdrs.h"
 #ifdef PRAGMA_HDRSTOP
 #	pragma hdrstop
-#endif
-
-#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-#	define ASCII_TRANSLATION 0
-#endif
-
-#ifndef ASCII_TRANSLATION
-#	define ASCII_TRANSLATION 1
-#endif
-
-#ifndef NO_SIGNALS
-#	define NO_SIGNALS 1
 #endif
 
 #ifndef O_BINARY
@@ -30,6 +18,116 @@
 #		define O_BINARY 0
 #	endif
 #endif
+
+static int
+FTPASCIILocalFileSeek(const int fd, const longest_int howMuchToSkip, char *const inbuf, const size_t bufsize)
+{
+	int c;
+	longest_int count = howMuchToSkip;
+	longest_int startpos, endpos, backskip;
+	const char *src = NULL, *srclim = NULL;
+	read_return_t nread;
+
+	if (count == 0)
+		return (0);
+	if (count < 0)
+		return (-1);
+	startpos = (longest_int) Lseek(fd, 0, SEEK_CUR);
+	if (startpos == (longest_int) -1)
+		return (-1);
+
+	while (count > 0) {
+		nread = read(fd, inbuf, (read_size_t) bufsize);
+		if (nread <= 0) {
+			count = -1;
+			break;
+		}
+		for (src = inbuf, srclim = inbuf + nread; src < srclim; ) {
+			c = (int) *src++;
+			if (c == '\r') {
+				/* Oh dear... what's this doing in here? */
+				count = -1;
+			} else if (c == '\n') {
+				count -= 2;
+				/* If count is now < 0, then the file
+				 * was corrupt and cannot be resumed.
+				 */
+			} else {
+				--count;
+			}
+			if (count <= 0)
+				break;
+		}
+	}
+	if (count < 0) {
+		endpos = (longest_int) Lseek(fd, startpos, SEEK_SET);
+		if (endpos != startpos)
+			return (-2);
+		return (-1);
+	}
+
+	if (src != NULL) {
+		backskip = (longest_int) -(srclim - src);
+		if (backskip != 0) {
+			endpos = (longest_int) Lseek(fd, backskip,  SEEK_CUR);
+			if (endpos == (longest_int) -1)
+				return (-2);
+		}
+	}
+
+	return (0);
+}	/* FTPASCIILocalFileSeek */
+
+
+
+static int
+FTPPutBlock(
+	const FTPCIPtr cip,
+	const char *cp,
+	write_size_t ntowrite
+)
+{
+	write_return_t nwrote;
+	int result = kNoErr;
+	
+	do {
+		if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
+			cip->errNo = result = kErrDataTimedOut;
+			FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
+			return (result);
+		}
+		if (cip->cancelXfer > 0) {
+			FTPAbortDataTransfer(cip);
+			result = cip->errNo = kErrDataTransferAborted;
+			return (result);
+		}
+
+		nwrote = (write_return_t) SWrite(cip->dataSocket, cp, (size_t) ntowrite, (int) cip->xferTimeout, kNoFirstSelect);
+		if (nwrote < 0) {
+			if (nwrote == kTimeoutErr) {
+				cip->errNo = result = kErrDataTimedOut;
+				FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
+			} else if (errno == EPIPE) {
+				cip->errNo = result = kErrSocketWriteFailed;
+				errno = EPIPE;
+				FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+			} else if (errno == EINTR) {
+				continue;
+			} else {
+				cip->errNo = result = kErrSocketWriteFailed;
+				FTPLogError(cip, kDoPerror, "Remote write failed.\n");
+			}
+			(void) shutdown(cip->dataSocket, 2);
+			return (result);
+		}
+		cp += nwrote;
+		ntowrite -= (write_size_t) nwrote;
+	} while (ntowrite != 0);
+	FTPUpdateIOTimer(cip);
+
+	return (result);
+}	/* FTPPutBlock */
+
 
 
 
@@ -53,30 +151,24 @@ FTPPutOneF(
 	const char *tdstfile;
 	size_t bufSize;
 	size_t l;
-	int tmpResult, result;
+	int tmpResult, result, pbrc;
 	read_return_t nread;
-	write_return_t nwrote;
 	volatile int fd;
 	char dstfile2[512];
-#if ASCII_TRANSLATION
 	char *src, *srclim, *dst;
 	write_size_t ntowrite;
 	char inbuf[256], crlf[4];
 	int lastch_of_prev_block, lastch_of_cur_block;
-#endif
 	int fstatrc, statrc;
 	longest_int startPoint = 0;
+	longest_int localsize;
 	struct Stat st;
 	time_t mdtm;
-#if !defined(NO_SIGNALS)
-	int sj;
-	volatile FTPSigProc osigpipe;
-	volatile FTPCIPtr vcip;
-	volatile int vfd, vfdtouse;
-#endif	/* NO_SIGNALS */
 	volatile int vzaction;
 	int zaction = kConfirmResumeProcSaidBestGuess;
 	int sameAsRemote;
+	int skiprc;
+	size_t skipbufsize;
 	
 	if (cip->buf == NULL) {
 		FTPLogError(cip, kDoPerror, "Transfer buffer not allocated.\n");
@@ -106,11 +198,37 @@ FTPPutOneF(
 		return (cip->errNo);
 	}
 
+	localsize = (longest_int) st.st_size;
+	if ((xtype == kTypeAscii) && (file != NULL) && (file[0] != '\0')) {
+		localsize = FTPLocalASCIIFileSize(file, cip->buf, cip->bufSize);
+	}
+
 	/* For Put, we can't recover very well if it turns out restart
 	 * didn't work, so check beforehand.
 	 */
 	if ((resumeflag == kResumeYes) || (resumeProc != kNoFTPConfirmResumeUploadProc)) {
 		FTPCheckForRestartModeAvailability(cip); 
+	}
+
+	odstfile = dstfile;
+	if (((tmppfx != NULL) && (tmppfx[0] != '\0')) || ((tmpsfx != NULL) && (tmpsfx[0] != '\0'))) {
+		cp = strrchr(dstfile, '/');
+		if (cp == NULL)
+			cp = strrchr(dstfile, '\\');
+		if (cp == NULL) {
+			(void) STRNCPY(dstfile2, ((tmppfx == NULL) ? "" : tmppfx));
+			(void) STRNCAT(dstfile2, dstfile);
+			(void) STRNCAT(dstfile2, ((tmpsfx == NULL) ? "" : tmpsfx));
+		} else {
+			cp++;
+			l = (size_t) (cp - dstfile);
+			(void) STRNCPY(dstfile2, dstfile);
+			dstfile2[l] = '\0';	/* Nuke stuff after / */
+			(void) STRNCAT(dstfile2, ((tmppfx == NULL) ? "" : tmppfx));
+			(void) STRNCAT(dstfile2, cp);
+			(void) STRNCAT(dstfile2, ((tmpsfx == NULL) ? "" : tmpsfx));
+		}
+		dstfile = dstfile2;
 	}
 
 	if (fdtouse < 0) {
@@ -124,7 +242,7 @@ FTPPutOneF(
 			zaction = kConfirmResumeProcSaidAppend;
 		} else if (
 				(cip->hasREST == kCommandNotAvailable) ||
-				(xtype != kTypeBinary) ||
+		/*		(xtype != kTypeBinary) ||		*/
 				(fstatrc < 0)
 		) {
 			zaction = kConfirmResumeProcSaidOverwrite;
@@ -179,11 +297,11 @@ FTPPutOneF(
 				 * imprecise to one second.
 				 */
 				zaction = kConfirmResumeProcSaidOverwrite; 
-			} else if ((longest_int) st.st_size == startPoint) {
+			} else if (localsize == startPoint) {
 				/* Already sent file, done. */
 				zaction = kConfirmResumeProcSaidSkip; 
 				sameAsRemote = 1;
-			} else if ((startPoint != kSizeUnknown) && ((longest_int) st.st_size > startPoint)) {
+			} else if ((startPoint != kSizeUnknown) && (localsize > startPoint)) {
 				zaction = kConfirmResumeProcSaidResume; 
 			} else {
 				zaction = kConfirmResumeProcSaidOverwrite; 
@@ -208,7 +326,7 @@ FTPPutOneF(
 			return (kNoErr);
 		} else if (zaction == kConfirmResumeProcSaidResume) {
 			/* Resume; proc set the startPoint. */
-			if ((longest_int) st.st_size == startPoint) {
+			if (localsize == startPoint) {
 				/* Already sent file, done. */
 				if (fdtouse < 0) {
 					(void) close(fd);
@@ -221,7 +339,28 @@ FTPPutOneF(
 					}
 				}
 				return (kNoErr);
-			} else if (Lseek(fd, (off_t) startPoint, SEEK_SET) != (off_t) -1) {
+			} else if (xtype == kTypeAscii) {
+				skipbufsize = cip->bufSize;
+				if ((fdtouse >= 0) && (skipbufsize > 4096))
+					skipbufsize = 4096;
+
+				skiprc = FTPASCIILocalFileSeek(fd, startPoint, cip->buf, skipbufsize);
+				if (skiprc == -2) {
+					cip->errNo = kErrAsciiSeekErr;
+					return (cip->errNo);
+				} else if (skiprc == -1) {
+					/* Overwrite */
+					cip->startPoint = startPoint = 0;
+				} else {
+					/* It worked */
+					/* We could do: cip->startPoint = startPoint;
+					 * and let it do a REST with STOR,
+					 * but it is safer to use APPE only.
+					 */
+					zaction = kConfirmResumeProcSaidAppend;
+					cip->startPoint = startPoint = 0;
+				}
+			} else if (Lseek(fd, startPoint, SEEK_SET) != -1) {
 				cip->startPoint = startPoint;
 			}
 		} else if (zaction == kConfirmResumeProcSaidAppend) {
@@ -237,36 +376,7 @@ FTPPutOneF(
 
 	FTPSetUploadSocketBufferSize(cip);
 
-#ifdef NO_SIGNALS
 	vzaction = zaction;
-#else	/* NO_SIGNALS */
-	vcip = cip;
-	vfdtouse = fdtouse;
-	vfd = fd;
-	vzaction = zaction;
-	osigpipe = (volatile FTPSigProc) signal(SIGPIPE, BrokenData);
-
-	gGotBrokenData = 0;
-	gCanBrokenDataJmp = 0;
-
-#ifdef HAVE_SIGSETJMP
-	sj = sigsetjmp(gBrokenDataJmp, 1);
-#else
-	sj = setjmp(gBrokenDataJmp);
-#endif	/* HAVE_SIGSETJMP */
-
-	if (sj != 0) {
-		(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
-		if (vfdtouse < 0) {
-			(void) close(vfd);
-		}
-		FTPShutdownHost(vcip);
-		vcip->errNo = kErrRemoteHostClosedConnection;
-		return(vcip->errNo);
-	}
-	gCanBrokenDataJmp = 1;
-#endif	/* NO_SIGNALS */
-
 	if (vzaction == kConfirmResumeProcSaidAppend) {
 		cmd = "APPE";
 		tmppfx = "";	/* Can't use that here. */
@@ -277,27 +387,6 @@ FTPPutOneF(
 			tmppfx = "";
 		if (tmpsfx == NULL)
 			tmpsfx = "";
-	}
-
-	odstfile = dstfile;
-	if ((tmppfx[0] != '\0') || (tmpsfx[0] != '\0')) {
-		cp = strrchr(dstfile, '/');
-		if (cp == NULL)
-			cp = strrchr(dstfile, '\\');
-		if (cp == NULL) {
-			(void) STRNCPY(dstfile2, tmppfx);
-			(void) STRNCAT(dstfile2, dstfile);
-			(void) STRNCAT(dstfile2, tmpsfx);
-		} else {
-			cp++;
-			l = (size_t) (cp - dstfile);
-			(void) STRNCPY(dstfile2, dstfile);
-			dstfile2[l] = '\0';	/* Nuke stuff after / */
-			(void) STRNCAT(dstfile2, tmppfx);
-			(void) STRNCAT(dstfile2, cp);
-			(void) STRNCAT(dstfile2, tmpsfx);
-		}
-		dstfile = dstfile2;
 	}
 
 	tmpResult = FTPStartDataCmd(
@@ -315,9 +404,6 @@ FTPPutOneF(
 		if (fdtouse < 0) {
 			(void) close(fd);
 		}
-#if !defined(NO_SIGNALS)
-		(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
-#endif	/* NO_SIGNALS */
 		return (cip->errNo);
 	}
 
@@ -327,14 +413,11 @@ FTPPutOneF(
 		 *
 		 * So now we have to undo our seek.
 		 */
-		if (Lseek(fd, (off_t) 0, SEEK_SET) != (off_t) 0) {
+		if (Lseek(fd, 0, SEEK_SET) != 0) {
 			cip->errNo = kErrLseekFailed;
 			if (fdtouse < 0) {
 				(void) close(fd);
 			}
-#if !defined(NO_SIGNALS)
-			(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
-#endif	/* NO_SIGNALS */
 			return (cip->errNo);
 		}
 		startPoint = 0;
@@ -346,7 +429,7 @@ FTPPutOneF(
 
 	FTPInitIOTimer(cip);
 	if ((fstatrc == 0) && (S_ISREG(st.st_mode) != 0)) {
-		cip->expectedSize = (longest_int) st.st_size;
+		cip->expectedSize = st.st_size;
 		cip->mdtm = st.st_mtime;
 	}
 	cip->lname = file;	/* could be NULL */
@@ -360,215 +443,135 @@ FTPPutOneF(
 	 * corresponds to the same thing used for DOS/Windows.
 	 */
 
-#if ASCII_TRANSLATION
 	if (xtype == kTypeAscii) {
 		/* ascii */
-		lastch_of_prev_block = 0;
-		for (;;) {
-#if !defined(NO_SIGNALS)
-			gCanBrokenDataJmp = 0;
-#endif	/* NO_SIGNALS */
-			nread = read(fd, inbuf, (read_size_t) sizeof(inbuf));
-			if (nread < 0) {
-				if (errno == EINTR) {
-					continue;
-				} else {
-					result = kErrReadFailed;
-					cip->errNo = kErrReadFailed;
-					FTPLogError(cip, kDoPerror, "Local read failed.\n");
-				}
-				break;
-			} else if (nread == 0) {
-				break;
-			}
-			cip->bytesTransferred += (longest_int) nread;
 
-#if !defined(NO_SIGNALS)
-			gCanBrokenDataJmp = 1;
-#endif	/* NO_SIGNALS */
-			src = inbuf;
-			srclim = src + nread;
-			lastch_of_cur_block = srclim[-1];
-			if (lastch_of_cur_block == '\r') {
-				srclim[-1] = '\0';
-				srclim--;
-				nread--;
-				if (nread == 0) {
-					lastch_of_prev_block = lastch_of_cur_block;
+		if (cip->asciiTranslationMode == kAsciiTranslationModeNone) {
+			/* Warning: this is really just for testing FTP server software.
+			 * Do not use this mode for your FTP client program!
+			 */
+			for (;;) {
+				nread = read(fd, inbuf, (read_size_t) sizeof(inbuf));
+				if (nread < 0) {
+					if (errno == EINTR) {
+						continue;
+					} else {
+						result = kErrReadFailed;
+						cip->errNo = kErrReadFailed;
+						FTPLogError(cip, kDoPerror, "Local read failed.\n");
+					}
+					break;
+				} else if (nread == 0) {
 					break;
 				}
+				cip->bytesTransferred += (longest_int) nread;
+	
+				ntowrite = (write_size_t) nread;
+				cp = inbuf;
+	
+				if ((pbrc = FTPPutBlock(cip, cp, ntowrite)) < 0) {
+					result = pbrc;
+					goto brk;
+				}
 			}
-			dst = cip->buf;		/* must be 2x sizeof inbuf or more. */
-
-			if (*src == '\n') {
-				src++;
-				*dst++ = '\r';
-				*dst++ = '\n';
-			} else if (lastch_of_prev_block == '\r') {
-				/* Raw CR at end of last block,
-				 * no LF at the start of this block.
-				 */
-				*dst++ = '\r';
-				*dst++ = '\n';
-			}
-
-			/* Prepare the buffer, converting end-of-lines
-			 * to CR+LF format as required by protocol.
-			 */
-			while (src < srclim) {
-				if (*src == '\r') {
-					if (src[1] == '\n') {
-						/* CR+LF pair */
-						*dst++ = *src++;
-						*dst++ = *src++;
+		} else if ((cip->asciiTranslationMode == kAsciiTranslationModeStripCRs) || (cip->asciiTranslationMode == kAsciiTranslationModeFixEOLNs)) {
+			/* TO-DO: Really add the fix mode, kAsciiTranslationModeFixEOLNs. */
+			lastch_of_prev_block = 0;
+			for (;;) {
+				nread = read(fd, inbuf, (read_size_t) sizeof(inbuf));
+				if (nread < 0) {
+					if (errno == EINTR) {
+						continue;
 					} else {
-						/* raw CR */
-						*dst++ = *src++;
-						*dst++ = '\n';
+						result = kErrReadFailed;
+						cip->errNo = kErrReadFailed;
+						FTPLogError(cip, kDoPerror, "Local read failed.\n");
 					}
-				} else if (*src == '\n') {
-					/* LF only; expected for UNIX text. */
+					break;
+				} else if (nread == 0) {
+					break;
+				}
+				cip->bytesTransferred += (longest_int) nread;
+				
+				src = inbuf;
+				srclim = src + nread;
+				lastch_of_cur_block = srclim[-1];
+				if (lastch_of_cur_block == '\r') {
+					srclim[-1] = '\0';
+					srclim--;
+					nread--;
+					if (nread == 0) {
+						lastch_of_prev_block = lastch_of_cur_block;
+						break;
+					}
+				}
+				dst = cip->buf;		/* must be 2x sizeof inbuf or more. */
+	
+				if (*src == '\n') {
+					src++;
 					*dst++ = '\r';
-					*dst++ = *src++;
-				} else {
-					*dst++ = *src++;
+					*dst++ = '\n';
+				} else if (lastch_of_prev_block == '\r') {
+					/* Raw CR at end of last block,
+					 * no LF at the start of this block.
+					 */
+					*dst++ = '\r';
+					*dst++ = '\n';
+				}
+	
+				/* Prepare the buffer, converting end-of-lines
+				 * to CR+LF format as required by protocol.
+				 */
+				while (src < srclim) {
+					if (*src == '\r') {
+						if (src[1] == '\n') {
+							/* CR+LF pair */
+							*dst++ = *src++;
+							*dst++ = *src++;
+						} else {
+							/* raw CR */
+							*dst++ = *src++;
+							*dst++ = '\n';
+						}
+					} else if (*src == '\n') {
+						/* LF only; expected for UNIX text. */
+						*dst++ = '\r';
+						*dst++ = *src++;
+					} else {
+						*dst++ = *src++;
+					}
+				}
+				lastch_of_prev_block = lastch_of_cur_block;
+	
+				ntowrite = (write_size_t) (dst - cip->buf);
+				cp = cip->buf;
+	
+				if ((pbrc = FTPPutBlock(cip, cp, ntowrite)) < 0) {
+					result = pbrc;
+					goto brk;
 				}
 			}
-			lastch_of_prev_block = lastch_of_cur_block;
-
-			ntowrite = (write_size_t) (dst - cip->buf);
-			cp = cip->buf;
-
-#if !defined(NO_SIGNALS)
-			if (cip->xferTimeout > 0)
-				(void) alarm(cip->xferTimeout);
-#endif	/* NO_SIGNALS */
-			do {
-				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
-					cip->errNo = result = kErrDataTimedOut;
-					FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
+	
+			if (lastch_of_prev_block == '\r') {
+				/* Very rare, but if the file's last byte is a raw CR
+				 * we need to write out one more line since we
+				 * skipped it earlier.
+				 */
+				crlf[0] = '\r';
+				crlf[1] = '\n';
+				crlf[2] = '\0';
+				cp = crlf;
+				ntowrite = 2;
+	
+				if ((pbrc = FTPPutBlock(cip, cp, ntowrite)) < 0) {
+					result = pbrc;
 					goto brk;
 				}
-				if (cip->cancelXfer > 0) {
-					FTPAbortDataTransfer(cip);
-					result = cip->errNo = kErrDataTransferAborted;
-					goto brk;
-				}
-
-#ifdef NO_SIGNALS
-				nwrote = (write_return_t) SWrite(cip->dataSocket, cp, (size_t) ntowrite, (int) cip->xferTimeout, kNoFirstSelect);
-				if (nwrote < 0) {
-					if (nwrote == kTimeoutErr) {
-						cip->errNo = result = kErrDataTimedOut;
-						FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
-					} else if (errno == EPIPE) {
-						cip->errNo = result = kErrSocketWriteFailed;
-						errno = EPIPE;
-						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
-					} else if (errno == EINTR) {
-						continue;
-					} else {
-						cip->errNo = result = kErrSocketWriteFailed;
-						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
-					}
-					(void) shutdown(cip->dataSocket, 2);
-					goto brk;
-				}
-#else	/* NO_SIGNALS */
-				nwrote = write(cip->dataSocket, cp, ntowrite);
-				if (nwrote < 0) {
-					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
-						cip->errNo = result = kErrSocketWriteFailed;
-						errno = EPIPE;
-						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
-					} else if (errno == EINTR) {
-						continue;
-					} else {
-						cip->errNo = result = kErrSocketWriteFailed;
-						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
-					}
-					(void) shutdown(cip->dataSocket, 2);
-					goto brk;
-				}
-#endif	/* NO_SIGNALS */
-				cp += nwrote;
-				ntowrite -= (write_size_t) nwrote;
-			} while (ntowrite != 0);
-			FTPUpdateIOTimer(cip);
+			}
 		}
-
-		if (lastch_of_prev_block == '\r') {
-			/* Very rare, but if the file's last byte is a raw CR
-			 * we need to write out one more line since we
-			 * skipped it earlier.
-			 */
-			crlf[0] = '\r';
-			crlf[1] = '\n';
-			crlf[2] = '\0';
-			cp = crlf;
-			ntowrite = 2;
-
-			do {
-				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
-					cip->errNo = result = kErrDataTimedOut;
-					FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
-					goto brk;
-				}
-				if (cip->cancelXfer > 0) {
-					FTPAbortDataTransfer(cip);
-					result = cip->errNo = kErrDataTransferAborted;
-					goto brk;
-				}
-
-#ifdef NO_SIGNALS
-				nwrote = (write_return_t) SWrite(cip->dataSocket, cp, (size_t) ntowrite, (int) cip->xferTimeout, kNoFirstSelect);
-				if (nwrote < 0) {
-					if (nwrote == kTimeoutErr) {
-						cip->errNo = result = kErrDataTimedOut;
-						FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
-					} else if (errno == EPIPE) {
-						cip->errNo = result = kErrSocketWriteFailed;
-						errno = EPIPE;
-						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
-					} else if (errno == EINTR) {
-						continue;
-					} else {
-						cip->errNo = result = kErrSocketWriteFailed;
-						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
-					}
-					(void) shutdown(cip->dataSocket, 2);
-					goto brk;
-				}
-#else	/* NO_SIGNALS */
-				nwrote = write(cip->dataSocket, cp, ntowrite);
-				if (nwrote < 0) {
-					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
-						cip->errNo = result = kErrSocketWriteFailed;
-						errno = EPIPE;
-						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
-					} else if (errno == EINTR) {
-						continue;
-					} else {
-						cip->errNo = result = kErrSocketWriteFailed;
-						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
-					}
-					(void) shutdown(cip->dataSocket, 2);
-					goto brk;
-				}
-#endif	/* NO_SIGNALS */
-				cp += nwrote;
-				ntowrite -= (write_size_t) nwrote;
-			} while (ntowrite != 0);
-			FTPUpdateIOTimer(cip);
-		}
-	} else
-#endif	/* ASCII_TRANSLATION */
-	{
+	} else {
 		/* binary */
 		for (;;) {
-#if !defined(NO_SIGNALS)
-			gCanBrokenDataJmp = 0;
-#endif	/* NO_SIGNALS */
 			cp = buf;
 			nread = read(fd, cp, (read_size_t) bufSize);
 			if (nread < 0) {
@@ -584,66 +587,12 @@ FTPPutOneF(
 				break;
 			}
 			cip->bytesTransferred += (longest_int) nread;
-
-#if !defined(NO_SIGNALS)
-			gCanBrokenDataJmp = 1;
-			if (cip->xferTimeout > 0)
-				(void) alarm(cip->xferTimeout);
-#endif	/* NO_SIGNALS */
-			do {
-				if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
-					cip->errNo = result = kErrDataTimedOut;
-					FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
-					goto brk;
-				}
-				if (cip->cancelXfer > 0) {
-					FTPAbortDataTransfer(cip);
-					result = cip->errNo = kErrDataTransferAborted;
-					goto brk;
-				}
-
-#ifdef NO_SIGNALS
-				nwrote = (write_return_t) SWrite(cip->dataSocket, cp, (size_t) nread, (int) cip->xferTimeout, kNoFirstSelect);
-				if (nwrote < 0) {
-					if (nwrote == kTimeoutErr) {
-						cip->errNo = result = kErrDataTimedOut;
-						FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
-					} else if (errno == EPIPE) {
-						cip->errNo = result = kErrSocketWriteFailed;
-						errno = EPIPE;
-						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
-					} else if (errno == EINTR) {
-						continue;
-					} else {
-						cip->errNo = result = kErrSocketWriteFailed;
-						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
-					}
-					(void) shutdown(cip->dataSocket, 2);
-					cip->dataSocket = -1;
-					goto brk;
-				}
-#else	/* NO_SIGNALS */
-				nwrote = write(cip->dataSocket, cp, (write_size_t) nread);
-				if (nwrote < 0) {
-					if ((gGotBrokenData != 0) || (errno == EPIPE)) {
-						cip->errNo = result = kErrSocketWriteFailed;
-						errno = EPIPE;
-						FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
-					} else if (errno == EINTR) {
-						continue;
-					} else {
-						cip->errNo = result = kErrSocketWriteFailed;
-						FTPLogError(cip, kDoPerror, "Remote write failed.\n");
-					}
-					(void) shutdown(cip->dataSocket, 2);
-					cip->dataSocket = -1;
-					goto brk;
-				}
-#endif	/* NO_SIGNALS */
-				cp += nwrote;
-				nread -= nwrote;
-			} while (nread > 0);
-			FTPUpdateIOTimer(cip);
+	
+			ntowrite = (write_size_t) nread;
+			if ((pbrc = FTPPutBlock(cip, cp, ntowrite)) < 0) {
+				result = pbrc;
+				goto brk;
+			}
 		}
 	}
 brk:
@@ -667,11 +616,6 @@ brk:
 	(void) shutdown(cip->dataSocket, 1);
 	(void) WaitForRemoteInput(cip);
 
-#if !defined(NO_SIGNALS)
-	gCanBrokenDataJmp = 0;
-	if (cip->xferTimeout > 0)
-		(void) alarm(0);
-#endif	/* NO_SIGNALS */
 	tmpResult = FTPEndDataCmd(cip, 1);
 	if ((tmpResult < 0) && (result == kNoErr)) {
 		cip->errNo = result = kErrSTORFailed;
@@ -724,8 +668,5 @@ brk:
 		}
 	}
 
-#if !defined(NO_SIGNALS)
-	(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
-#endif	/* NO_SIGNALS */
 	return (result);
 }	/* FTPPutOneF */

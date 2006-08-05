@@ -22,7 +22,7 @@ void InitLsMonths(void);
 void InitLs(void);
 void FlushLsCache(void);
 int LsCacheLookup(const char *const);
-void LsDate(char *, time_t);
+void LsDate(char *, size_t, time_t);
 void LsL(FTPFileInfoListPtr, int, int, FILE *);
 void Ls1(FTPFileInfoListPtr, int, FILE *);
 void Ls(const char *const, int, const char *const, FILE *);

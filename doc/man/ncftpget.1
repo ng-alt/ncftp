@@ -23,6 +23,11 @@ ncftpget - Internet file transfer program for scripts
 > stdout
 .PP
 .B ncftpget
+\-C
+.RI [ "options" ]
+.I "remote-host" "remote-file" "local-path-name"
+.PP
+.B ncftpget
 \-c
 .RI [ "options" ]
 .I "ftp://url.style.host/path/name"
@@ -76,7 +81,10 @@ Read the file
 for host, user, and password information.
 .TP 8
 .B -c
-Send output to standard out, rather than writing to a local file.
+Read from remote host and write locally to standard out.
+.TP 8
+.B -C
+Read from remote host and write locally to specified pathname.
 .TP 8
 .B -A
 Append to local files, instead of overwriting them.

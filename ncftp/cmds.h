@@ -1,6 +1,6 @@
 /* cmds.h
  *
- * Copyright (c) 1992-2004 by Mike Gleason.
+ * Copyright (c) 1992-2006 by Mike Gleason.
  * All rights reserved.
  * 
  */
@@ -23,6 +23,7 @@ void CloseCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void DebugCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void DeleteCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void EchoCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
+void EditCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void InitTransferType(void);
 void GetCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void HelpCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
@@ -62,3 +63,11 @@ void SymlinkCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void TypeCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void UmaskCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
 void VersionCmd(const int, char **const, const CommandPtr, const ArgvInfoPtr);
+
+int AskYesNoQuestion(const int, const char *const, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 2, 3)))
+#endif
+;
+
+/* vim: set noet sw=8: */

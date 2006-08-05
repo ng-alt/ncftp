@@ -72,7 +72,7 @@ CommandPtr GetCommandByIndex(const int);
 CommandPtr GetCommandByName(const char *const, int);
 void PrintCmdHelp(CommandPtr);
 void PrintCmdUsage(CommandPtr);
-int MakeArgv(char *, int *, char **, int, char *, size_t, int *, int);
+int MakeArgv(char *, int *, char **, int, char *, size_t, int *, int, int);
 void XferCanceller(int);
 void BackToTop(int);
 void Cancel(int);

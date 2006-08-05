@@ -1,6 +1,6 @@
 /* ncftpget.c
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  * A non-interactive utility to grab files from a remote FTP server.
@@ -16,12 +16,12 @@
 #	include "..\ncftp\util.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
-#	include "..\ncftp\getline.h"
+#	include "..\ncftp\gl_getline.h"
 #else
 #	include "../ncftp/util.h"
 #	include "../ncftp/spool.h"
 #	include "../ncftp/pref.h"
-#	include "../ncftp/getline.h"
+#	include "../ncftp/gl_getline.h"
 #endif
 
 #include "gpshare.h"
@@ -47,11 +47,12 @@ Usage(void)
 	fp = OpenPager();
 	(void) fprintf(fp, "NcFTPGet %.5s\n\n", gVersion + 11);
 	(void) fprintf(fp, "Usages:\n");
-	(void) fprintf(fp, "  ncftpget [flags] remote-host local-dir remote-path-names...   (mode 1)\n");
-	(void) fprintf(fp, "  ncftpget -f login.cfg [flags] local-dir remote-path-names...  (mode 2)\n");
-	(void) fprintf(fp, "  ncftpget [flags] ftp://url.style.host/path/name               (mode 3)\n");
-	(void) fprintf(fp, "  ncftpget -c [flags] remote-host remote-path-name > stdout (mode 4)\n");
-	(void) fprintf(fp, "  ncftpget -c [flags] ftp://url.style.host/path/name > stdout (mode 5)\n");
+	(void) fprintf(fp, "  ncftpget [flags] remote-host local-dir remote-path-names...      (mode 1)\n");
+	(void) fprintf(fp, "  ncftpget -f login.cfg [flags] local-dir remote-path-names...     (mode 2)\n");
+	(void) fprintf(fp, "  ncftpget [flags] ftp://url.style.host/path/name                  (mode 3)\n");
+	(void) fprintf(fp, "  ncftpget -c [flags] remote-host remote-path-name > stdout        (mode 4)\n");
+	(void) fprintf(fp, "  ncftpget -C [flags] remote-host remote-path-name local-path-name (mode 5)\n");
+	(void) fprintf(fp, "  ncftpget -c [flags] ftp://url.style.host/path/name > stdout      (mode 6)\n");
 	(void) fprintf(fp, "\nFlags:\n\
   -u XX  Use username XX instead of anonymous.\n\
   -p XX  Use password XX with the username.\n\
@@ -62,6 +63,9 @@ Usage(void)
   -t XX  Timeout after XX seconds.\n\
   -v/-V  Do (do not) use progress meters.\n\
   -f XX  Read the file XX for host, user, and password information.\n\
+  -h XX  Connect to host XX.  Useful for overriding host in -f config.file.\n\
+  -c     Read from remote host and write locally to stdout.\n\
+  -C     Read from remote host and write locally to specified file.\n\
   -A     Append to local files, instead of overwriting them.\n");
 	(void) fprintf(fp, "\
   -z/-Z  Do (do not) try to resume downloads (default: -z).\n\
@@ -166,6 +170,7 @@ main(int argc, char **argv)
 	int tarflag = kTarYes;
 	int progmeters;
 	char *dstdir = NULL;
+	char *dstlfile = NULL;
 	const char **flist;
 	ExitStatus es;
 	char url[512];
@@ -223,7 +228,7 @@ main(int argc, char **argv)
 	perfilecmd[0] = '\0';
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:t:aRTr:vVf:ADzZEFbcB:W:X:Y:")) > 0) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:t:aRTr:vVf:ADzZEFbcCB:W:X:Y:")) > 0) {
 		if (c == 'b') {
 			batchmode++;
 		}
@@ -231,10 +236,10 @@ main(int argc, char **argv)
 
 	if (batchmode > 0) {
 		GetoptReset(&opt);
-		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:U:t:mar:RvVf:o:AT:S:EFcyZzDbB:W:X:Y:")) > 0) switch(c) {
+		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:U:t:mar:RvVf:o:AT:S:EFcCyZzDbB:W:X:Y:")) > 0) switch(c) {
 			case 'v': case 'V': case 'A': case 'B': case 'T':
 			case 'd': case 'e': case 't': case 'r': case 'c':
-			case 'z': case 'Z':
+			case 'z': case 'Z': case 'C':
 				(void) fprintf(stderr, "The \"-%c\" option is not valid when used with conjunction with \"-%c\".\n", c, 'b');
 				exit(kExitUsage);
 				break;
@@ -242,7 +247,7 @@ main(int argc, char **argv)
 	}
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:e:d:t:aRTr:vVf:o:ADzZEFbcB:W:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:t:aRTr:vVf:o:ADzZEFbcCB:W:X:Y:")) > 0) switch(c) {
 		case 'P':
 			fi.port = atoi(opt.arg);	
 			break;
@@ -258,7 +263,14 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			if (fi.pass[0] == '\0')
+				fi.passIsEmpty = 1;
 			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
+			break;
+		case 'h':
+			(void) STRNCPY(fi.host, opt.arg);
+			memset(opt.arg, 0, strlen(fi.user));
 			opt.arg[0] = '?';
 			break;
 		case 'e':
@@ -348,6 +360,9 @@ main(int argc, char **argv)
 		case 'c':
 			ftpcat = 1;
 			break;
+		case 'C':
+			ftpcat = 2;
+			break;
 		default:
 			Usage();
 	}
@@ -356,6 +371,9 @@ main(int argc, char **argv)
 
 	if (progmeters != 0)
 		fi.progress = PrStatBar;
+
+	if ((perfilecmd[0] != '\0') && (rflag != 0))
+		(void) fprintf(stderr, "Warning: your -X command is only applied once per command-line parameter, and not for each file in the directory.\n");
 
 	if (fi.host[0] == '\0') {
 		(void) STRNCPY(url, argv[opt.ind]);
@@ -376,6 +394,13 @@ main(int argc, char **argv)
 				}
 				StrRemoveTrailingLocalPathDelim(dstdir);
 				flist = (const char **) argv + opt.ind + 2;
+			} else if (ftpcat == 2) {
+				if (opt.ind > argc - 3)
+					Usage();
+				(void) STRNCPY(fi.host, argv[opt.ind]);
+				dstdir = NULL;
+				flist = (const char **) argv + opt.ind + 1;
+				dstlfile = argv[opt.ind + 2];
 			} else {
 				if (opt.ind > argc - 2)
 					Usage();
@@ -391,6 +416,12 @@ main(int argc, char **argv)
 				(void) fprintf(stderr, "ncftpget: Use -R if you want the whole directory tree.\n");
 				es = kExitUsage;
 				exit((int) es);
+			}
+
+			if (ftpcat == 2) {
+				if (opt.ind > argc - 2)
+					Usage();
+				dstlfile = argv[opt.ind + 1];
 			}
 
 			/* Allow "-a" flag to use ASCII mode
@@ -413,6 +444,17 @@ main(int argc, char **argv)
 			}
 			StrRemoveTrailingLocalPathDelim(dstdir);
 			flist = (const char **) argv + opt.ind + 1;
+		} else if (ftpcat == 2) {
+			if (opt.ind > argc - 3)
+				Usage();
+			dstdir = StrDup(argv[opt.ind + 0]);
+			if (dstdir == NULL) {
+				(void) fprintf(stderr, "Out of memory?\n");
+				exit(kExitNoMemory);
+			}
+			StrRemoveTrailingLocalPathDelim(dstdir);
+			flist = (const char **) argv + opt.ind + 1;
+			dstlfile = argv[opt.ind + 2];
 		} else {
 			if (opt.ind > argc - 1)
 				Usage();
@@ -422,7 +464,7 @@ main(int argc, char **argv)
 	}
 
 	if (strcmp(fi.user, "anonymous") && strcmp(fi.user, "ftp")) {
-		if (fi.pass[0] == '\0') {
+		if ((fi.pass[0] == '\0') && (fi.passIsEmpty == 0)) {
 			(void) gl_getpass("Password: ", fi.pass, sizeof(fi.pass));
 		}
 	}
@@ -567,7 +609,14 @@ main(int argc, char **argv)
 		
 		es = kExitXferTimedOut;
 		(void) signal(SIGINT, Abort);
-		if (ftpcat != 0) {
+		if (ftpcat == 2) {
+			if (FTPGetOneFile3(&fi, urlfile, dstlfile, xtype, (-1), resumeflag, appendflag, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr) {
+				es = kExitSuccess;
+			} else {
+				FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
+				es = kExitXferFailed;
+			}
+		} else if (ftpcat != 0) {
 			if (FTPGetOneFile3(&fi, urlfile, NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr) {
 				es = kExitSuccess;
 			} else {
@@ -593,7 +642,12 @@ main(int argc, char **argv)
 	} else {
 		es = kExitXferTimedOut;
 		(void) signal(SIGINT, Abort);
-		if (ftpcat != 0) {
+		if (ftpcat == 2) {
+			if (FTPGetOneFile3(&fi, flist[0], dstlfile, xtype, (-1), resumeflag, appendflag, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr)
+				es = kExitSuccess;
+			else
+				es = kExitXferFailed;
+		} else if (ftpcat != 0) {
 			if (FTPGetOneFile3(&fi, flist[0], NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr)
 				es = kExitSuccess;
 			else

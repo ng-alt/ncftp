@@ -23,7 +23,7 @@ LDFLAGS=-L../libncftp -L../Strn -L../sio @LDFLAGS@
 BETA=# -DBETA=20
 DEFS=-Dncftp $(BETA) -DO_S=\"@OS@\" -DBINDIR=\"$(BINDIR)\" -DSYSCONFDIR=\"$(SYSCONFDIR)\" @DEFS@@NDEFS@
 
-OBJS=cmds.@OBJEXT@ cmdlist.@OBJEXT@ ls.@OBJEXT@ main.@OBJEXT@ version.@OBJEXT@ shell.@OBJEXT@ util.@OBJEXT@ readln.@OBJEXT@ progress.@OBJEXT@ bookmark.@OBJEXT@ pref.@OBJEXT@ preffw.@OBJEXT@ trace.@OBJEXT@ spool.@OBJEXT@ spoolutil.@OBJEXT@ log.@OBJEXT@ getline.@OBJEXT@
+OBJS=cmds.@OBJEXT@ cmdlist.@OBJEXT@ ls.@OBJEXT@ main.@OBJEXT@ version.@OBJEXT@ shell.@OBJEXT@ util.@OBJEXT@ readln.@OBJEXT@ progress.@OBJEXT@ bookmark.@OBJEXT@ pref.@OBJEXT@ preffw.@OBJEXT@ trace.@OBJEXT@ spool.@OBJEXT@ spoolutil.@OBJEXT@ log.@OBJEXT@ gl_getline.@OBJEXT@
 
 DPROGS=../bin/ncftp@EXEEXT@
 
@@ -36,7 +36,7 @@ all: $(DPROGS)
 	-@$(STRIP) ../bin/ncftp@EXEEXT@
 
 clean:
-	/bin/rm -f $(DPROGS) *.@OBJEXT@ core *.pch
+	/bin/rm -rf $(DPROGS) *.@OBJEXT@ core *.pch SunWS_cache
 
 SHELL=/bin/sh
 .SUFFIXES: .c .@OBJEXT@
@@ -51,8 +51,8 @@ PACKAGE=Makefile.in  bookmark.c   bookmark.h   cmdlist.c \
 	readln.c     readln.h	  shell.c      shell.h \
 	spool.c      spool.h	  syshdrs.h    trace.c \
 	trace.h      util.c	  util.h       version.c \
-	preffw.c     log.c        log.h        getline.c \
-	getline.h    spoolutil.c
+	preffw.c     log.c        log.h        gl_getline.c \
+	gl_getline.h    spoolutil.c
 
 TMPDIR=/tmp
 TARDIR=ncftp
@@ -79,7 +79,7 @@ pref.@OBJEXT@: pref.c syshdrs.h pref.h util.h ../libncftp/ncftp.h ../libncftp/nc
 preffw.@OBJEXT@: preffw.c syshdrs.h pref.h util.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 progress.@OBJEXT@: progress.c syshdrs.h util.h progress.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 readln.@OBJEXT@: readln.c syshdrs.h shell.h util.h bookmark.h cmds.h ls.h \
- readln.h getline.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
+ readln.h gl_getline.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 shell.@OBJEXT@: shell.c syshdrs.h shell.h util.h bookmark.h cmds.h readln.h \
  trace.h main.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 spool.@OBJEXT@: spool.c spool.h syshdrs.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
@@ -87,4 +87,4 @@ spoolutil.@OBJEXT@: spoolutil.c spool.h syshdrs.h ../libncftp/ncftp.h ../libncft
 trace.@OBJEXT@: trace.c syshdrs.h trace.h util.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 util.@OBJEXT@: util.c syshdrs.h shell.h trace.h util.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
 log.@OBJEXT@: log.c syshdrs.h log.h util.h ../libncftp/ncftp.h ../libncftp/ncftp_errno.h
-getline.@OBJEXT@: getline.c syshdrs.h getline.h
+gl_getline.@OBJEXT@: gl_getline.c syshdrs.h gl_getline.h

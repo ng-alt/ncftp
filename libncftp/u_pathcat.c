@@ -1,6 +1,6 @@
 /* u_pathcat.c
  *
- * Copyright (c) 2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -272,7 +272,7 @@ PathCat(char *const dst, const size_t dsize, const char *const cwd, const char *
 			return;
 		}
 	}
-	if (src[0] == '/') {
+	if ((src[0] == '/') || (src[0] == '~')) {
 		/* A new fully-qualified UNIX path was requested. */
 		CompressPath(dst, src, dsize, dosCompat);
 		return;

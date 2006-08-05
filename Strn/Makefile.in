@@ -42,7 +42,7 @@ all: static
 static: $(LIB)
 
 $(LIB): $(OBJS)
-	@CCDV@ar r $(LIB) $(OBJS)
+	@CCDV@@AR@ r $(LIB) $(OBJS)
 	-@chmod 644 "$(LIB)"
 	-@RANLIB@ "$(LIB)"
 	-@echo "$(VER)" > Strn.version
@@ -76,7 +76,7 @@ tester: $(LIB) tester.c
 	$(CC) $(CFLAGS) tester.c -o tester -I. -L. -lStrn
 
 clean:
-	/bin/rm -f "$(LIB)" "$(LIBSO)" *.@OBJEXT@ *.so tester core *.pch
+	/bin/rm -rf "$(LIB)" "$(LIBSO)" *.@OBJEXT@ *.so tester core *.pch SunWS_cache
 
 distclean: clean
 	-/bin/rm -f config.h Makefile config.status config.cache config.log Strn.version
@@ -104,7 +104,7 @@ install:
 uninstall:
 	/bin/rm -f "$(prefix)/lib/$(LIB)" "$(prefix)/include/Strn.h" "$(prefix)/lib/Strn.version"
 
-PACKAGE=configure Makefile.in configure.in config.h.in Strn.dsp Strn.dsw Strn.version tester.c $(CFILES) $(HFILES)
+PACKAGE=configure Makefile.in configure.in config.h.in Strn.dsp Strn.dsw tester.c $(CFILES) $(HFILES)
 
 TMPDIR=/tmp
 TARDIR=Strn
@@ -123,7 +123,7 @@ tar: $(PACKAGE)
 	-@chmod ga+r $(PACKAGE)
 	-@chmod 755 $(TMPDIR)/TAR/$(TARDIR)
 	cp -pr $(PACKAGE) $(TMPDIR)/TAR/$(TARDIR)
-	( cd $(TMPDIR)/TAR ; tar cf $(TARFILE) ./$(TARDIR) )
+	( cd $(TMPDIR)/TAR ; @TAR@ @TARFLAGS@ $(TARFILE) ./$(TARDIR) )
 	cp $(TMPDIR)/TAR/$(TARFILE) .
 	-@chmod 644 $(TARFILE)
 	-@rm -rf $(TMPDIR)/TAR

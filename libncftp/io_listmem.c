@@ -1,6 +1,6 @@
 /* io_listmem.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -72,24 +72,34 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 			*tryMLSD = 0;
 		if (lsflags[0] == '-') {
 			/* See if we should use LIST instead. */
-			scp = lsflags + 1;
-			dcp = lsflags1;
-			lim = dcp + sizeof(lsflags1) - 2;
-			for (; *scp != '\0'; scp++) {
-				if (isspace((int) *scp))
-					continue;
-				if (*scp == '-')
-					continue;
-				if (*scp == 'l') {
-					/* do not add the 'l' */
-					command = "LIST";
-				} else if (dcp < lim) {
-					if (dcp == lsflags1)
-						*dcp++ = '-';
-					*dcp++ = *scp;
+			if (strstr(lsflags, "--") != NULL) {
+				/* You are trying to use one of those
+				 * --extended-options type of flags;
+				 * assume you want LIST and that you
+				 * know what you're doing...
+				 */
+				command = "LIST";
+				(void) STRNCPY(lsflags1, lsflags);
+			} else {
+				scp = lsflags + 1;
+				dcp = lsflags1;
+				lim = dcp + sizeof(lsflags1) - 2;
+				for (; *scp != '\0'; scp++) {
+					if (isspace((int) *scp))
+						continue;
+					if (*scp == '-')
+						continue;
+					if (*scp == 'l') {
+						/* do not add the 'l' */
+						command = "LIST";
+					} else if (dcp < lim) {
+						if (dcp == lsflags1)
+							*dcp++ = '-';
+						*dcp++ = *scp;
+					}
 				}
+				*dcp = '\0';
 			}
-			*dcp = '\0';
 		} else {
 			(void) STRNCPY(lsflags1, lsflags);
 		}

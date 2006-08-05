@@ -1,6 +1,6 @@
 /* unls.c
  *
- * Copyright (c) 1996-2002 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -608,7 +608,7 @@ UnLslR(const FTPCIPtr cip, FTPFileInfoListPtr filp, FTPLineListPtr llp, int serv
 			} else {
 				fi.plug = (char *) malloc(32 + 1);
 				if (fi.plug != NULL) {
-					strcpy(fi.plug, "----------   1 ftpuser  ftpusers");
+					(void) strcpy(fi.plug, "----------   1 ftpuser  ftpusers");
 					fi.plug[0] = (char) ftype;
 					if (32 > maxPlugLen)
 						maxPlugLen = (size_t) 32;

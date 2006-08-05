@@ -18,6 +18,10 @@ ncftpput - Internet file transfer program for scripts
 .I "remote-host" "remote-path-name"
 <
 .I "stdin"
+.PP
+.B ncftpput
+-C
+.I "remote-host" "local-path-name" "remote-path-name"
 .\"-------
 .SH "OPTIONS"
 .\"-------
@@ -74,6 +78,14 @@ The default is to use progress meters if the output stream is a TTY.
 Read the file
 .I XX
 for host, user, and password information.
+.TP 8
+.B -c
+Read locally from standard input and write remotely to specified pathname.
+.TP 8
+.B -C
+Similar to
+.BR "-c" ","
+except a local pathname is specified.
 .TP 8
 .B -A
 Append to remote files, instead of overwriting them.

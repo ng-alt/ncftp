@@ -1,6 +1,6 @@
 /* Util.h
  *
- * Copyright (c) 1996-2004 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2005 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -84,12 +84,6 @@ int GetPwUid(struct passwd *pwp, const uid_t uid, char *const pwbuf, size_t pwbu
 int GetPwNam(struct passwd *pwp, const char *const nam, char *const pwbuf, size_t pwbufsize);
 #endif
 void CloseFile(FILE **);
-#if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
-char *StrFindLocalPathDelim(const char *src);
-char *StrRFindLocalPathDelim(const char *src);
-void TVFSPathToLocalPath(char *dst);
-void LocalPathToTVFSPath(char *dst);
-#endif
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 int gettimeofday(struct timeval *const tp, void *junk);
 #endif

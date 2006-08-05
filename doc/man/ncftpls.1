@@ -12,20 +12,32 @@ ncftpls - Internet file transfer program for scripts
 .SS
 Command line flags:
 .TP 8
+.B \-m
+Use a machine readable list format, if the server supports it.  This requires that the server software support the MLSD extensions, and many implementations do not have these features.
+.TP 8
 .B \-1
 Most basic format, one item per line.
 .TP 8
 .B \-l
 Long list format.
 .TP 8
+.B \-C
+Columnized list format. This is the default list format.
+.TP 8
 .B \-R
-Long list format, recurse subdirectories.
-Equivalent to "-x -lR".
+Recurse all subdirectories while listing.
+.TP 8
+.B \-a
+Show all files, if server allows it (as in "/bin/ls -a").
+.TP 8
+.BI "-i " "XX"
+Filter the listing (if server supports it) with the wildcard
+.IR "XX" "."
 .TP 8
 .BI "-x -" "XX"
-Additional
+Set the
 .I ls
-flags to pass on to the server.
+flags to use on the server.
 .TP 8
 .BI "-u " "XX"
 Use username
@@ -164,6 +176,19 @@ and password information like you can with
 .I ncftpget
 or
 .IR ncftpput "."
+.PP
+Note that the standard specifies that URL pathnames are are relative pathnames.
+For FTP, this means that URLs specify relative pathnames from the start
+directory, which for user logins, are typically the user's home directory.
+If you want to use absolute pathnames, you need to include a literal slash,
+using the "%2F" code for a "/" character.  Examples:
+.RS 4
+.br
+.sp
+$ ncftpls -u linus ftp://ftp.kernel.org/%2Fusr/src/
+.br
+$ ncftpls ftp://steve@ftp.apple.com/%2Fetc/
+.RE
 .\"-------
 .SH "DIAGNOSTICS"
 .\"-------
