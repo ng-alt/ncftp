@@ -1,7 +1,7 @@
 Document Type: WSE
 item: Global
   Version=8.14
-  Title=NcFTP 3.2.0 Installation
+  Title=NcFTP 3.2.1 Installation
   Flags=00010100
   Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
   Copy Default=1
@@ -21,7 +21,7 @@ item: Global
   Patch Flags=0000000000000001
   Patch Threshold=85
   Patch Memory=4000
-  EXE Filename=ncftp-3.2.0-win32.exe
+  EXE Filename=ncftp-3.2.1-win32.exe
   FTP Cluster Size=20
   Per-User Version ID=1
   Dialogs Version=7
@@ -115,7 +115,7 @@ item: Remark
 end
 item: Set Variable
   Variable=APPTITLE
-  Value=NcFTP 3.2.0
+  Value=NcFTP 3.2.1
   Flags=10000000
 end
 item: Remark

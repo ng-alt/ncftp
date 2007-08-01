@@ -146,9 +146,15 @@ wi_SUBST_STAT_HEADER([libncftp/ncftp.h])
 wi_REMOVE_UNKNOWN_PREPROCESSING_DIRECTIVES_FROM_FILE([libncftp/ncftp.h])
 LIBSET='$(LIB)'
 Z30='#'
-if test -x /usr/local/bin/incrementor ; then
-	Z30='	-@/usr/local/bin/incrementor -b -f version.c -f version.o'
-fi
+case "$HOME" in
+	*lcompile*)
+		;;
+	*)
+		if test -x /usr/local/bin/incrementor ; then
+			Z30='	-@/usr/local/bin/incrementor -b -f version.c -f version.o'
+		fi
+		;;
+esac
 wi_RESOLVE_PATH([$srcdir], MAINDIR)
 wi_RESOLVE_PATH([$MAINDIR/libncftp/ncftp.h], [libncftp_h])
 wi_DIRNAME(libncftp_h)
@@ -222,8 +228,8 @@ elif [ -x /usr/bin/md5sum ] ; then
 fi
 
 case "$Z00" in
-	'e85dfd19937dece65225d717f4cd5f22'|'816c501837158512dc4f606d58f4993b')
-		Z31='	scp -p "$(STGZFILE)" build@Src:src/ncftp/current/ ; mv ncftp-*-src.* /tmp'
+	'e85dfd19937dece65225d717f4cd5f22'|'816c501837158512dc4f606d58f4993b'|'9aa70fa2084f59bab13fe52bdfff65f4')
+		Z31='	scp -p "$(STGZFILE)" build@Src:src/ncftp/current/ ; rm ncftp-*-src.*'
 		;;
 	
 esac

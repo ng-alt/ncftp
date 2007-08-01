@@ -945,7 +945,11 @@ EditCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 			--n;
 			memset(&st, 0, sizeof(st));
 		}
-		(void) sprintf(modstr, "%u " PRINTF_LONG_LONG, (unsigned int) st.st_mtime, (longest_int) st.st_size);
+#ifdef PRINTF_ULONG_LONG
+		(void) sprintf(modstr, "%u " PRINTF_ULONG_LONG, (unsigned int) st.st_mtime, (longest_uint) st.st_size);
+#else
+		(void) sprintf(modstr, "%u %lu" , (unsigned int) st.st_mtime,  (unsigned long) st.st_size);
+#endif
 		if (AddLine(&modstrs, modstr) == NULL) {
 			DisposeLineListContents(&modstrs);
 			DisposeLineListContents(&rfiles);
@@ -1006,7 +1010,11 @@ EditCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 			(void) fprintf(stdout, "\n");
 			continue;
 		}
-		(void) sprintf(modstr, "%u " PRINTF_LONG_LONG, (unsigned int) st.st_mtime, (longest_int) st.st_size);
+#ifdef PRINTF_ULONG_LONG
+		(void) sprintf(modstr, "%u " PRINTF_ULONG_LONG, (unsigned int) st.st_mtime, (longest_uint) st.st_size);
+#else
+		(void) sprintf(modstr, "%u %lu", (unsigned int) st.st_mtime, (unsigned long) st.st_size);
+#endif
 		if (strcmp(modstr, mlp->line) == 0) {
 			Trace(-1, "No changes made to \"%s\".\n", rpath);
 			continue;
@@ -1059,8 +1067,22 @@ NcFTPConfirmResumeDownloadProc(
 	struct tm t;
 
 	gUnusedArg = (cipUNUSED != NULL);
-	if (gResumeAnswerAll != kConfirmResumeProcNotUsed)
+	if (gResumeAnswerAll != kConfirmResumeProcNotUsed) {
+		if (gResumeAnswerAll == kConfirmResumeProcSaidResume) {
+			if ((gConn.hasREST != kCommandAvailable) || (remotesize == kSizeUnknown)) {
+				/* Resume is not available on this server. */
+				return (zaction);
+			} else if (remotesize < localsize) {
+				/* Cannot resume when local file is already larger than the remote file. */
+				return (zaction);
+			} else if (remotesize <= localsize) {
+				/* Local file is already the same size as the remote file. */
+				return (zaction);
+			}
+			*startPoint = localsize;
+		}
 		return (gResumeAnswerAll);
+	}
 
 	if ((gAutoResume != 0) || (gIsTTYr == 0))
 		return (kConfirmResumeProcSaidBestGuess);
@@ -2965,8 +2987,22 @@ NcFTPConfirmResumeUploadProc(
 	struct tm t;
 
 	gUnusedArg = (cipUNUSED != NULL);
-	if (gResumeAnswerAll != kConfirmResumeProcNotUsed)
+	if (gResumeAnswerAll != kConfirmResumeProcNotUsed) {
+		if (gResumeAnswerAll == kConfirmResumeProcSaidResume) {
+			if (gConn.hasREST != kCommandAvailable) {
+				/* Resume is not available on this server. */
+				return (zaction);
+			} else if (remotesize > localsize) {
+				/* Cannot resume when remote file is already larger than the local file. */
+				return (zaction);
+			} else if (remotesize == localsize) {
+				/* Remote file is already the same size as the local file. */
+				return (zaction);
+			}
+			*startPoint = remotesize;
+		}
 		return (gResumeAnswerAll);
+	}
 
 	if ((gAutoResume != 0) || (gIsTTYr == 0))
 		return (kConfirmResumeProcSaidBestGuess);
@@ -3055,11 +3091,13 @@ NcFTPConfirmResumeUploadProc(
 	(void) memset(ans, 0, sizeof(ans));
 	for (;;) {
 		(void) printf("\t[O]verwrite?");
-		if ((gConn.hasREST == kCommandAvailable) && (remotesize < localsize))
+		/* if ((gConn.hasREST == kCommandAvailable) && (remotesize < localsize)) */
+		if (remotesize < localsize)
 			printf("  [R]esume?");
 		printf("  [A]ppend to?  [S]kip?  [N]ew Name?\n");
 		(void) printf("\t[O!]verwrite all?");
-		if ((gConn.hasREST == kCommandAvailable) && (remotesize < localsize))
+		/* if ((gConn.hasREST == kCommandAvailable) && (remotesize < localsize)) */
+		if (remotesize < localsize)
 			printf("  [R!]esume all?");
 		printf("  [S!]kip all?  [C]ancel  > ");
 		(void) fgets(ans, sizeof(ans) - 1, stdin);
@@ -3077,11 +3115,11 @@ NcFTPConfirmResumeUploadProc(
 				break;
 			case 'r':
 			case 'R':
-				if (gConn.hasREST != kCommandAvailable) {
+				/* (We will try APPE if needed) if (gConn.hasREST != kCommandAvailable) {
 					printf("\tResume is not available on this server.\n\n");
 					ans[0] = '\0';
 					break;
-				} else if (remotesize > localsize) {
+				} else */ if (remotesize > localsize) {
 					printf("\tCannot resume when remote file is already larger than the local file.\n\n");
 					ans[0] = '\0';
 					break;

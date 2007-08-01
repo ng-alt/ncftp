@@ -404,16 +404,18 @@ GetBookmark(const char *const bmabbr, Bookmark *bmp)
 	int exactMatch = 0;
 	size_t bmabbrLen;
 	char *cp;
+	char bmabbrtrunc[sizeof(bmp->bookmarkName)];
 
 	fp = OpenBookmarkFile(NULL);
 	if (fp == NULL)
 		return (-1);
 
+	STRNCPY(bmabbrtrunc, bmabbr);
 	bmabbrLen = strlen(bmabbr);
 	while (FGets(line, sizeof(line), fp) != NULL) {
 		if (ParseHostLine(line, bmp) < 0)
 			continue;
-		if (ISTREQ(bmp->bookmarkName, bmabbr)) {
+		if (ISTREQ(bmp->bookmarkName, bmabbrtrunc)) {
 			/* Exact match, done. */
 			byBmNameFlag = bmabbrLen;
 			exactMatch = 1;

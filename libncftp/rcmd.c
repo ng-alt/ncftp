@@ -14,27 +14,6 @@
 #	define NO_SIGNALS 1
 #endif
 
-#ifndef NO_SIGNALS
-
-#ifdef HAVE_SIGSETJMP
-static sigjmp_buf gBrokenCtrlJmp;
-#else
-static jmp_buf gBrokenCtrlJmp;
-#endif	/* HAVE_SIGSETJMP */
-
-static void
-BrokenCtrl(int UNUSED(signumIgnored))
-{
-	LIBNCFTP_USE_VAR(signumIgnored); 		/* Shut up gcc */
-#ifdef HAVE_SIGSETJMP
-	siglongjmp(gBrokenCtrlJmp, 1);
-#else
-	longjmp(gBrokenCtrlJmp, 1);
-#endif	/* HAVE_SIGSETJMP */
-}	/* BrokenCtrl */
-
-#endif	/* NO_SIGNALS */
-
 
 
 /* A 'Response' parameter block is simply zeroed to be considered init'ed. */
@@ -161,128 +140,6 @@ ReInitResponse(const FTPCIPtr cip, ResponsePtr rp)
 
 
 
-
-#ifndef NO_SIGNALS
-
-/* Since the control stream is defined by the Telnet protocol (RFC 854),
- * we follow Telnet rules when reading the control stream.  We use this
- * routine when we want to read a response from the host.
- */
-int
-GetTelnetString(const FTPCIPtr cip, char *str, size_t siz, FILE *cin, FILE *cout)
-{
-	int c;
-	size_t n;
-	int eofError;
-	char *cp;
-
-	cp = str;
-	--siz;		/* We'll need room for the \0. */
-
-	if ((cin == NULL) || (cout == NULL)) {
-		eofError = -1;
-		goto done;
-	}
-
-	for (n = (size_t)0, eofError = 0; ; ) {
-		c = fgetc(cin);
-checkChar:
-		if (c == EOF) {
-eof:
-			eofError = -1;
-			break;
-		} else if (c == '\r') {
-			/* A telnet string can have a CR by itself.  But to denote that,
-			 * the protocol uses \r\0;  an end of line is denoted \r\n.
-			 */
-			c = fgetc(cin);
-			if (c == '\n') {
-				/* Had \r\n, so done. */
-				goto done;
-			} else if (c == EOF) {
-				goto eof;
-			} else if (c == '\0') {
-				c = '\r';
-				goto addChar;
-			} else {
-				/* Telnet protocol violation! */
-				goto checkChar;
-			}
-		} else if (c == '\n') {
-			/* Really shouldn't get here.  If we do, the other side
-			 * violated the TELNET protocol, since eoln's are CR/LF,
-			 * and not just LF.
-			 */
-			PrintF(cip, "TELNET protocol violation:  raw LF.\n");
-			goto done;
-		} else if (c == IAC) {
-			/* Since the control connection uses the TELNET protocol,
-			 * we have to handle some of its commands ourselves.
-			 * IAC is the protocol's escape character, meaning that
-			 * the next character after the IAC (Interpret as Command)
-			 * character is a telnet command.  But, if there just
-			 * happened to be a character in the text stream with the
-			 * same numerical value of IAC, 255, the sender denotes
-			 * that by having an IAC followed by another IAC.
-			 */
-			
-			/* Get the telnet command. */
-			c = fgetc(cin);
-			
-			switch (c) {
-				case WILL:
-				case WONT:
-					/* Get the option code. */
-					c = fgetc(cin);
-					
-					/* Tell the other side that we don't want
-					 * to do what they're offering to do.
-					 */
-					(void) fprintf(cout, "%c%c%c",IAC,DONT,c);
-					(void) fflush(cout);
-					break;
-				case DO:
-				case DONT:
-					/* Get the option code. */
-					c = fgetc(cin);
-					
-					/* The other side said they are DOing (or not)
-					 * something, which would happen if our side
-					 * asked them to.  Since we didn't do that,
-					 * ask them to not do this option.
-					 */
-					(void) fprintf(cout, "%c%c%c",IAC,WONT,c);
-					(void) fflush(cout);
-					break;
-
-				case EOF:
-					goto eof;
-
-				default:
-					/* Just add this character, since it was most likely
-					 * just an escaped IAC character.
-					 */
-					goto addChar;
-			}
-		} else {
-addChar:
-			/* If the buffer supplied has room, add this character to it. */
-			if (n < siz) {
-				*cp++ = c;				
-				++n;
-			}
-		}
-	}
-
-done:
-	*cp = '\0';
-	return (eofError);
-}	/* GetTelnetString */
-
-#endif	/* NO_SIGNALS */
-
-
-
 /* Returns 0 if a response was read, or (-1) if an error occurs.
  * This reads the entire response text into a FTPLineList, which is kept
  * in the 'Response' structure.
@@ -296,12 +153,7 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 	char *cp;
 	int continuation;
 	volatile FTPCIPtr vcip;
-#ifdef NO_SIGNALS
 	int result;
-#else	/* NO_SIGNALS */
-	volatile FTPSigProc osigpipe;
-	int sj;
-#endif	/* NO_SIGNALS */
 
 	/* RFC 959 states that a reply may span multiple lines.  A single
 	 * line message would have the 3-digit code <space> then the msg.
@@ -316,27 +168,8 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 	 *	123 The last line
 	 */
 
-#ifdef NO_SIGNALS
-	vcip = cip;
-#else	/* NO_SIGNALS */
-	osigpipe = (volatile FTPSigProc) signal(SIGPIPE, BrokenCtrl);
 	vcip = cip;
 
-#ifdef HAVE_SIGSETJMP
-	sj = sigsetjmp(gBrokenCtrlJmp, 1);
-#else
-	sj = setjmp(gBrokenCtrlJmp);
-#endif	/* HAVE_SIGSETJMP */
-
-	if (sj != 0) {
-		(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
-		FTPShutdownHost(vcip);
-		vcip->errNo = kErrRemoteHostClosedConnection;
-		return(vcip->errNo);
-	}
-#endif	/* NO_SIGNALS */
-
-#ifdef NO_SIGNALS
 	cp = str;
 	eofError = 0;
 	for (;;) {
@@ -391,31 +224,9 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 		break;
 	}
 
-#else	/* NO_SIGNALS */
-	/* Get the first line of the response. */
-	eofError = GetTelnetString(cip, str, sizeof(str), cip->cin, cip->cout);
-
-	cp = str;
-	if (*cp == '\0') {
-		if (eofError < 0) {
-			/* No bytes read for reply, and EOF detected. */
-			rp->hadEof = 1;
-			if (rp->eofOkay == 0)
-				FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
-			FTPShutdownHost(vcip);
-			cip->errNo = kErrRemoteHostClosedConnection;
-			(void) signal(SIGPIPE, osigpipe);
-			return(cip->errNo);
-		}
-	}
-#endif	/* NO_SIGNALS */
-
 	if (!isdigit((int) *cp)) {
 		FTPLogError(cip, kDontPerror, "Invalid reply: \"%s\"\n", cp);
 		cip->errNo = kErrInvalidReplyFromServer;
-#ifndef NO_SIGNALS
-		(void) signal(SIGPIPE, osigpipe);
-#endif
 		return (cip->errNo);
 	}
 
@@ -432,8 +243,6 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 	}
 	
 	while (continuation) {
-
-#ifdef NO_SIGNALS
 		result = SReadline(&cip->ctrlSrl, str, sizeof(str) - 1);
 		if (result == kTimeoutErr) {
 			/* timeout */
@@ -460,14 +269,6 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 
 		if (str[result - 1] == '\n')
 			str[result - 1] = '\0';
-#else	/* NO_SIGNALS */
-		eofError = GetTelnetString(cip, str, sizeof(str), cip->cin, cip->cout);
-		if (eofError < 0) {
-			/* Read reply, but EOF was there also. */
-			rp->hadEof = 1;
-			continuation = 0;
-		}
-#endif	/* NO_SIGNALS */
 		cp = str;
 		if (strncmp(code, cp, SZ(3)) == 0) {
 			cp += 3;
@@ -488,15 +289,9 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
 			FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
 		FTPShutdownHost(vcip);
 		cip->errNo = kErrRemoteHostClosedConnection;
-#ifndef NO_SIGNALS
-		(void) signal(SIGPIPE, osigpipe);
-#endif
 		return(cip->errNo);
 	}
 
-#ifndef NO_SIGNALS
-	(void) signal(SIGPIPE, osigpipe);
-#endif
 	(void) gettimeofday(&cip->lastCmdFinish, NULL);
 	return (kNoErr);
 }	/* GetResponse */
@@ -508,111 +303,83 @@ GetResponse(const FTPCIPtr cip, ResponsePtr rp)
  * on the stream.
  */
 
-#ifdef NO_SIGNALS
+int
+FTPSendCommandStr(const FTPCIPtr cip, char *const command, const size_t siz)
+{
+	int result;
+	size_t clen;
+	char *cp;
+
+	if (cip->ctrlSocketW == kClosedFileDescriptor) {
+		cip->errNo = kErrNotConnected;
+		return (kErrNotConnected);
+	}
+
+	clen = strlen(command);
+	if (clen == 0)
+		return (kErrBadParameter);
+
+	cp = command + clen - 1;
+	if (*cp == '\n') {
+		*cp = '\0';
+		if (clen <= 2)
+			return (kErrBadParameter);
+		if (*--cp == '\r') {
+			*cp = '\0';
+		} else {
+			/* Don't send "Command\n", send
+			 * FTP-compliant "Command\r\n" instead.
+			 */
+			++cp;
+		}
+	} else {
+		cp++;
+	}
+
+	if ((strncmp(command, "PASS", SZ(4)) != 0) || ((strcmp(cip->user, "anonymous") == 0) && (cip->firewallType == kFirewallNotInUse)))
+		PrintF(cip, "Cmd: %s\n", command);
+	else
+		PrintF(cip, "Cmd: %s\n", "PASS xxxxxxxx");
+
+	if ((cp + 2) >= (command + siz - 1)) {
+		/* Not enough room to add \r\n */
+		return (kErrBadParameter);
+	}
+	/* Use TELNET end-of-line as mandated by FTP protocol. */
+	*cp++ = '\r';
+	*cp++ = '\n';
+	*cp = '\0';
+
+	cip->lastFTPCmdResultStr[0] = '\0';
+	cip->lastFTPCmdResultNum = -1;
+
+	result = SWrite(cip->ctrlSocketW, command, strlen(command), (int) cip->ctrlTimeout, 0);
+
+	if (result < 0) {
+		cip->errNo = kErrSocketWriteFailed;
+		FTPLogError(cip, kDoPerror, "Could not write to control stream.\n");
+		return (cip->errNo);
+	}
+	return (kNoErr);
+}	/* FTPSendCommandStr */
+
+
+
 
 int
 FTPSendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 {
 	longstring command;
-	int result;
 
-	if (cip->ctrlSocketW != kClosedFileDescriptor) {
 #ifdef HAVE_VSNPRINTF
-		(void) vsnprintf(command, sizeof(command) - 1, cmdspec, ap);
-		command[sizeof(command) - 1] = '\0';
+	(void) vsnprintf(command, sizeof(command) - 1, cmdspec, ap);
+	command[sizeof(command) - 1] = '\0';
 #else
-		(void) vsprintf(command, cmdspec, ap);
+	(void) vsprintf(command, cmdspec, ap);
 #endif
-		if ((strncmp(command, "PASS", SZ(4)) != 0) || ((strcmp(cip->user, "anonymous") == 0) && (cip->firewallType == kFirewallNotInUse)))
-			PrintF(cip, "Cmd: %s\n", command);
-		else
-			PrintF(cip, "Cmd: %s\n", "PASS xxxxxxxx");
-		(void) STRNCAT(command, "\r\n");	/* Use TELNET end-of-line. */
-		cip->lastFTPCmdResultStr[0] = '\0';
-		cip->lastFTPCmdResultNum = -1;
-
-		result = SWrite(cip->ctrlSocketW, command, strlen(command), (int) cip->ctrlTimeout, 0);
-
-		if (result < 0) {
-			cip->errNo = kErrSocketWriteFailed;
-			FTPLogError(cip, kDoPerror, "Could not write to control stream.\n");
-			return (cip->errNo);
-		}
-		return (kNoErr);
-	}
-	cip->errNo = kErrNotConnected;
-	return (kErrNotConnected);
+	return (FTPSendCommandStr(cip, command, sizeof(command)));
 }	/* FTPSendCommand */
 
-#else	/* NO_SIGNALS */
-
-int
-FTPSendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
-{
-	longstring command;
-	int result;
-	volatile FTPCIPtr vcip;
-	volatile FTPSigProc osigpipe;
-	int sj;
-
-	if (cip->cout != NULL) {
-#ifdef HAVE_VSNPRINTF
-		(void) vsnprintf(command, sizeof(command) - 1, cmdspec, ap);
-		command[sizeof(command) - 1] = '\0';
-#else
-		(void) vsprintf(command, cmdspec, ap);
-#endif
-		if ((strncmp(command, "PASS", SZ(4)) != 0) || ((strcmp(cip->user, "anonymous") == 0) && (cip->firewallType == kFirewallNotInUse)))
-			PrintF(cip, "Cmd: %s\n", command);
-		else
-			PrintF(cip, "Cmd: %s\n", "PASS xxxxxxxx");
-		(void) STRNCAT(command, "\r\n");	/* Use TELNET end-of-line. */
-		cip->lastFTPCmdResultStr[0] = '\0';
-		cip->lastFTPCmdResultNum = -1;
-
-		osigpipe = (volatile FTPSigProc) signal(SIGPIPE, BrokenCtrl);
-		vcip = cip;
-
-#ifdef HAVE_SIGSETJMP
-		sj = sigsetjmp(gBrokenCtrlJmp, 1);
-#else
-		sj = setjmp(gBrokenCtrlJmp);
-#endif	/* HAVE_SIGSETJMP */
-
-		if (sj != 0) {
-			(void) signal(SIGPIPE, (FTPSigProc) osigpipe);
-			FTPShutdownHost(vcip);
-			if (vcip->eofOkay == 0) {
-				FTPLogError(cip, kDontPerror, "Remote host has closed the connection.\n");
-				vcip->errNo = kErrRemoteHostClosedConnection;
-				return(vcip->errNo);
-			}
-			return (kNoErr);
-		}
-
-		result = fputs(command, cip->cout);
-		if (result < 0) {
-			(void) signal(SIGPIPE, osigpipe);
-			cip->errNo = kErrSocketWriteFailed;
-			FTPLogError(cip, kDoPerror, "Could not write to control stream.\n");
-			return (cip->errNo);
-		}
-		result = fflush(cip->cout);
-		if (result < 0) {
-			(void) signal(SIGPIPE, osigpipe);
-			cip->errNo = kErrSocketWriteFailed;
-			FTPLogError(cip, kDoPerror, "Could not write to control stream.\n");
-			return (cip->errNo);
-		}
-		(void) signal(SIGPIPE, osigpipe);
-		(void) gettimeofday(&cip->lastCmdStart, NULL);
-		memset(&cip->lastCmdFinish, 0, sizeof(cip->lastCmdFinish));
-		return (kNoErr);
-	}
-	cip->errNo = kErrNotConnected;
-	return (kErrNotConnected);
-}	/* FTPSendCommand */
-#endif	/* NO_SIGNALS */
 
 
 
@@ -642,26 +409,14 @@ FTPCmd(const FTPCIPtr cip, const char *const cmdspec, ...)
 	}
 
 	va_start(ap, cmdspec);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(cip->ctrlTimeout);
-#endif	/* NO_SIGNALS */
 	result = FTPSendCommand(cip, cmdspec, ap);
 	va_end(ap);
 	if (result < 0) {
-#ifndef NO_SIGNALS
-		if (cip->ctrlTimeout > 0)
-			(void) alarm(0);
-#endif	/* NO_SIGNALS */
 		return (result);
 	}
 
 	/* Get the response to the command we sent. */
 	result = GetResponse(cip, rp);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(0);
-#endif	/* NO_SIGNALS */
 
 	if (result == kNoErr) {
 		result = rp->codeType;
@@ -686,15 +441,7 @@ FTPCmdNoResponse(const FTPCIPtr cip, const char *const cmdspec, ...)
 		return (kErrBadMagic);
 
 	va_start(ap, cmdspec);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(cip->ctrlTimeout);
-#endif	/* NO_SIGNALS */
 	(void) FTPSendCommand(cip, cmdspec, ap);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(0);
-#endif	/* NO_SIGNALS */
 	va_end(ap);
 
 	return (kNoErr);
@@ -711,13 +458,7 @@ WaitResponse(const FTPCIPtr cip, unsigned int sec)
 	struct timeval tv;
 	int fd;
 
-#ifdef NO_SIGNALS
 	fd = cip->ctrlSocketR;
-#else	/* NO_SIGNALS */
-	if (cip->cin == NULL)
-		return (-1);
-	fd = fileno(cip->cin);
-#endif	/* NO_SIGNALS */
 	if (fd < 0)
 		return (-1);
 	MY_FD_ZERO(&ss);
@@ -759,26 +500,14 @@ RCmd(const FTPCIPtr cip, ResponsePtr rp, const char *cmdspec, ...)
 		return (kErrBadMagic);
 
 	va_start(ap, cmdspec);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(cip->ctrlTimeout);
-#endif	/* NO_SIGNALS */
 	result = FTPSendCommand(cip, cmdspec, ap);
 	va_end(ap);
 	if (result < 0) {
-#ifndef NO_SIGNALS
-		if (cip->ctrlTimeout > 0)
-			(void) alarm(0);
-#endif	/* NO_SIGNALS */
 		return (result);
 	}
 
 	/* Get the response to the command we sent. */
 	result = GetResponse(cip, rp);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(0);
-#endif	/* NO_SIGNALS */
 
 	if (result == kNoErr) {
 		result = rp->codeType;
@@ -792,14 +521,16 @@ RCmd(const FTPCIPtr cip, ResponsePtr rp, const char *cmdspec, ...)
  * This differs from RCmd, which returns the code class of a response.
  */
 
-/*VARARGS*/
+
+
+
 int
-FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoint, const char *cmdspec, ...)
+FTPStartDataCmd3(const FTPCIPtr cip, const int netMode, const int type, const longest_int startPoint0, char *const cmdstr, const size_t cmdstrSize, const char *const variableCommandSpec, va_list ap)
 {
-	va_list ap;
 	int result;
 	int respCode;
 	ResponsePtr rp;
+	longest_int startPoint = startPoint0;
 
 	if (cip == NULL)
 		return (kErrBadParameter);
@@ -831,8 +562,16 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 
 	/* If asked, attempt to start at a later position in the remote file. */
 	if (startPoint != (longest_int) 0) {
-		if ((startPoint == kSizeUnknown) || ((result = FTPSetStartOffset(cip, startPoint)) != 0))
+		if (startPoint == kSizeUnknown) {
 			startPoint = (longest_int) 0;
+		} else if (FTPSetStartOffset(cip, startPoint) != 0) {
+			/* REST failed */
+			if ((cmdstr != NULL) && (ISTRNEQ(cmdstr, "STOR ", 5))) {
+				memcpy(cmdstr, "APPE ", 5);
+			} else {
+				startPoint = (longest_int) 0;
+			}
+		}
 	}
 	cip->startPoint = startPoint;
 
@@ -840,18 +579,14 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 	 * the type of transfer we want (RETR, STOR, LIST, etc) and the
 	 * parameters for that (files to send, directories to list, etc).
 	 */
-	va_start(ap, cmdspec);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(cip->ctrlTimeout);
-#endif	/* NO_SIGNALS */
-	result = FTPSendCommand(cip, cmdspec, ap);
-	va_end(ap);
+	if ((cmdstr != NULL) && (cmdstr[0] != '\0')) {
+		result = FTPSendCommandStr(cip, cmdstr, cmdstrSize);
+	} else if ((variableCommandSpec != NULL) && (variableCommandSpec[0] != '\0')) {
+		result = FTPSendCommand(cip, variableCommandSpec, ap);
+	} else {
+		result = kErrBadParameter;
+	}
 	if (result < 0) { 
-#ifndef NO_SIGNALS
-		if (cip->ctrlTimeout > 0)
-			(void) alarm(0);
-#endif	/* NO_SIGNALS */
 		goto done;
 	}
 
@@ -869,16 +604,35 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 		result = cip->errNo;
 		goto done;
 	}
-	result = GetResponse(cip, rp);
-#ifndef NO_SIGNALS
-	if (cip->ctrlTimeout > 0)
-		(void) alarm(0);
-#endif	/* NO_SIGNALS */
 
+	result = GetResponse(cip, rp);
 	if (result < 0)
 		goto done;
+
 	respCode = rp->codeType;
 	DoneWithResponse(cip, rp);
+
+	if ((respCode > 2) && (cmdstr != NULL) && (ISTRNEQ(cmdstr, "STOR ", 5))  && (startPoint != (longest_int) 0)) {
+		/* Special case: REST + STOR is the same as APPE */
+		(void) FTPCmd(cip, "REST 0");
+		memcpy(cmdstr, "APPE ", 4 + 1);
+		result = FTPSendCommandStr(cip, cmdstr, cmdstrSize);
+
+		rp = InitResponse();
+		if (rp == NULL) {
+			FTPLogError(cip, kDontPerror, "Malloc failed.\n");
+			cip->errNo = kErrMallocFailed;
+			result = cip->errNo;
+			goto done;
+		}
+
+		result = GetResponse(cip, rp);
+		if (result < 0)
+			goto done;
+
+		respCode = rp->codeType;
+		DoneWithResponse(cip, rp);
+	}
 
 	if (respCode > 2) {
 		cip->errNo = kErrCouldNotStartDataTransfer;
@@ -904,6 +658,45 @@ FTPStartDataCmd(const FTPCIPtr cip, int netMode, int type, longest_int startPoin
 done:
 	(void) FTPEndDataCmd(cip, 0);
 	return (result);
+}	/* FTPStartDataCmd3 */
+
+
+
+
+int
+FTPStartDataCmd2(const FTPCIPtr cip, const int netMode, const int type, const longest_int startPoint, char *const cmdstr, const size_t cmdstrSize, const char *variableCommandSpec, ...)
+{
+	int result;
+	va_list ap;
+
+	if ((cmdstr != NULL) && (cmdstr[0] != '\0')) {
+		memset(&ap, 0, sizeof(ap));
+		result = FTPStartDataCmd3(cip, netMode, type, startPoint, cmdstr, cmdstrSize, "(not used)", ap);
+	} else if ((variableCommandSpec != NULL) && (variableCommandSpec[0] != '\0')) {
+		va_start(ap, variableCommandSpec);
+		result = FTPStartDataCmd3(cip, netMode, type, startPoint, NULL, 0, variableCommandSpec, ap);
+		va_end(ap);
+	} else {
+		result = kErrBadParameter;
+	}
+
+	return (result);
+}	/* FTPStartDataCmd2 */
+
+
+
+
+/*VARARGS*/
+int
+FTPStartDataCmd(const FTPCIPtr cip, const int netMode, const int type, const longest_int startPoint, const char *const cmdspec, ...)
+{
+	va_list ap;
+	int rc;
+
+	va_start(ap, cmdspec);
+	rc = FTPStartDataCmd3(cip, netMode, type, startPoint, NULL, 0, cmdspec, ap);
+	va_end(ap);
+	return (rc);
 }	/* FTPStartDataCmd */
 
 

@@ -263,6 +263,7 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			fi.leavePass = 1;
 			if (fi.pass[0] == '\0')
 				fi.passIsEmpty = 1;
 			memset(opt.arg, 0, strlen(fi.pass));
@@ -371,6 +372,11 @@ main(int argc, char **argv)
 
 	if (progmeters != 0)
 		fi.progress = PrStatBar;
+
+	if ((rflag != 0) && (ftpcat != 0)) {
+		fprintf(stderr, "The -R flag is not supported with -c/-C.\n\n");
+		Usage();
+	}
 
 	if ((perfilecmd[0] != '\0') && (rflag != 0))
 		(void) fprintf(stderr, "Warning: your -X command is only applied once per command-line parameter, and not for each file in the directory.\n");

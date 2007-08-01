@@ -57,23 +57,23 @@ GetPass(const char *const prompt, char *const pwbuf, const size_t pwbufsize)
 	return (pwbuf);
 #elif ((defined(HAVE_TCGETATTR)) && (defined(HAVE_TERMIOS_H)))
 	/* Should also work for Cygwin. */
-	struct termios old, new;
+	struct termios old_ti, new_ti;
 
 	(void) memset(pwbuf, 0, pwbufsize);
 	if (! isatty(fileno(stdout)))
 		return (pwbuf);
 	(void) fputs(prompt, stdout);
 	(void) fflush(stdout);
-	if (tcgetattr(fileno(stdout), &old) != 0)
+	if (tcgetattr(fileno(stdout), &old_ti) != 0)
 		return (pwbuf);
-	new = old;
-	new.c_lflag &= ~ECHO;
-	if (tcsetattr(fileno(stdout), TCSAFLUSH, &new) != 0)
+	new_ti = old_ti;
+	new_ti.c_lflag &= ~ECHO;
+	if (tcsetattr(fileno(stdout), TCSAFLUSH, &new_ti) != 0)
 		return (pwbuf);
 	(void) FGets(pwbuf, pwbufsize, stdin);
 	(void) fflush(stdout);
 	(void) fflush(stdin);
-	(void) tcsetattr(fileno(stdout), TCSAFLUSH, &old);
+	(void) tcsetattr(fileno(stdout), TCSAFLUSH, &old_ti);
 	return (pwbuf);
 #else
 	(void) memset(pwbuf, 0, pwbufsize);

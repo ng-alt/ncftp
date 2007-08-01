@@ -29,12 +29,14 @@ i=0
 for arg in "$@"
 do
 	i=`expr "$i" + 1`
-	echo "$SCRIPT_NAME arg $i: $arg"
+	echo "    $SCRIPT_NAME arg $i: $arg"
 done
+echo
 
 echo "$SCRIPT_NAME environment:"
 set | sed 's/^/    /;'
 
+echo
 echo "$SCRIPT_NAME execution starting at `date`."
 
 v=`/usr/bin/ncftp -H 2>&1 | sed -n '/^Version:\ *2\./{s/^Version:\ *\(2\..\..\).*$/\1/;p;q;}'`

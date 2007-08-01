@@ -212,6 +212,11 @@ FTPMkParentDir(const FTPCIPtr cip, const char *const path, const int recurse, co
 	if (cp == newDir) {
 		/* File is in the root directory, which is already made. */
 		return (kNoErr);
+	} else if (cp == NULL) {
+		/* File is in the current directory; the parent directory
+		 * is already made.
+		 */
+		return (kNoErr);
 	}
 	*cp = '\0';
 

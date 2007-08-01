@@ -845,6 +845,7 @@ FTPOpenHost(const FTPCIPtr cip)
 			PrintF(cip, "Cannot recover from miscellaneous open error %d.\n", result);
 			if (result > 0)
 				result = kErrOpenHostMiscErr;
+			FTPDeallocateHost(cip);
 			return result;
 		}
 
@@ -865,6 +866,8 @@ FTPOpenHost(const FTPCIPtr cip)
 	}
 	if (result > 0)
 		result = kErrOpenHostMiscErr;
+	if (result != kNoErr)
+		FTPDeallocateHost(cip);
 	return (result);
 }	/* FTPOpenHost */
 

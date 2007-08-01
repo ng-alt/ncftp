@@ -105,6 +105,15 @@ FTPGetFiles3(
 			goto return_err;
 		}
 		doGlob = kGlobNo;
+	} else if ((strcmp(pattern, "/") == 0) && ((strcmp(dstdir, ".") == 0) || (dstdir[0] == '\0'))) {
+		/* Ick... but works around a problem we need to fix */
+		free(pattern2);
+		pattern2 = StrDup("/.");
+		pattern = pattern2;
+		/*
+		errRc = kErrKnownBug;
+		goto return_err;
+		*/
 	}
 	if (recurse == kRecursiveYes)
 		appendflag = kAppendNo;
@@ -141,11 +150,11 @@ FTPGetFiles3(
 
 #if 0
 		for (filePtr = files.first; filePtr != NULL; filePtr = filePtr->next) {
-			PrintF(cip, "  R=%s, L=%s, 2=%s, size=%d, mdtm=%u, type=%c\n",
+			PrintF(cip, "  R=%s, L=%s, 2=%s, size=%lld, mdtm=%u, type=%c\n",
 				filePtr->rname,
 				filePtr->lname,
 				filePtr->rlinkto ? filePtr->rlinkto : "",
-				filePtr->size,
+				(longest_int) filePtr->size,
 				(unsigned int) filePtr->mdtm,
 				filePtr->type
 			);

@@ -24,7 +24,7 @@
 	extern int wsaInit;
 #endif
 
-static int gIsAtty1, gIsAtty2;
+static int gIsAtty1 = 1, gIsAtty2 = 1;
 
 double
 FileSize(double size, const char **uStr0, double *uMult0)
@@ -560,7 +560,8 @@ static const char *gValidFTPProtocolCommands[] = {
 int
 AdditionalCmd(FTPCIPtr const cip, const char *const spec, const char *const arg)
 {
-	int i, skip, nospace, rc;
+	int i, nospace, rc;
+	size_t skip;
 	char cmd[500], *dst, *dlim;
 	const char *src, *s2, *repl;
 

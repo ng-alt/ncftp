@@ -74,6 +74,7 @@ FTPGetOneF(
 	int zaction = kConfirmResumeProcSaidBestGuess;
 	int statrc;
 	int noMdtmCheck;
+	int is_dev;
 	time_t now;
 
 	if (cip->buf == NULL) {
@@ -131,6 +132,7 @@ FTPGetOneF(
 			zaction = kConfirmResumeProcSaidOverwrite;
 		}
 
+		is_dev = 0;
 		statrc = Stat(dstfile, &st);
 		if (statrc == 0) {
 			if (resumeProc != NULL) {
@@ -147,6 +149,14 @@ FTPGetOneF(
 				);
 				startPoint = tstartPoint;
 			}
+#ifdef S_ISBLK
+			if (S_ISBLK(st.st_mode))
+				is_dev = 1;
+#endif
+#ifdef S_ISCHR
+			if (S_ISCHR(st.st_mode))
+				is_dev = 1;
+#endif
 
 			if (zaction == kConfirmResumeProcSaidBestGuess) {
 				if (expectedSize != kSizeUnknown) {
@@ -266,15 +276,15 @@ FTPGetOneF(
 				cip->errNo = result = kErrSetStartPoint;
 				return (result);
 			}
-			fd = Open(dstfile, O_WRONLY|O_APPEND|O_BINARY, 00666);
+			fd = Open(dstfile, is_dev ? O_WRONLY|O_BINARY : O_WRONLY|O_APPEND|O_BINARY, 00666);
 		} else if (zaction == kConfirmResumeProcSaidAppend) {
 			/* leave startPoint at zero, we will append everything. */
 			startPoint = (longest_int) 0;
-			fd = Open(dstfile, O_WRONLY|O_CREAT|O_APPEND|O_BINARY, 00666);
+			fd = Open(dstfile, is_dev ? O_WRONLY|O_BINARY|O_APPEND : O_WRONLY|O_CREAT|O_APPEND|O_BINARY, 00666);
 		} else /* if (zaction == kConfirmResumeProcSaidOverwrite) */ {
 			created = 1;
 			startPoint = (longest_int) 0;
-			fd = Open(dstfile, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 00666);
+			fd = Open(dstfile, is_dev ? O_WRONLY|O_BINARY : O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 00666);
 		}
 
 		if (fd < 0) {

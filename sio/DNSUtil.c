@@ -52,6 +52,7 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 				errno = ENOMEM;
 				return (-1);
 			}
+			continue;
 		}
 		if ((rc == 0) && (my_h_errno != 0))
 			errno = ENOENT;
@@ -78,6 +79,7 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 				errno = ENOMEM;
 				return (-1);
 			}
+			continue;
 		}
 		if ((rc == 0) && (my_h_errno != 0))
 			errno = ENOENT;
@@ -138,6 +140,7 @@ GetHostByAddr(struct hostent *const hp, void *addr, int asize, int atype, char *
 				errno = ENOMEM;
 				return (-1);
 			}
+			continue;
 		}
 		if ((rc == 0) && (my_h_errno != 0))
 			errno = ENOENT;

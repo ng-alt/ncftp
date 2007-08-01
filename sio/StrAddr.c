@@ -24,7 +24,7 @@ ServiceNameToPortNumber(const char *const s, const int proto)
 	char *cp;
 #if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX) || defined(DIGITAL_UNIX))
 	struct servent *sp;
-#elif defined(HAVE_GETSERVBYNAME_R)
+#elif defined(HAVE_GETSERVBYNAME_R) && (defined(LINUX) || defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
 	struct servent se, *sp;
 	char spbuf[256];
 #else
@@ -105,7 +105,7 @@ ServicePortNumberToName(unsigned short port, char *const dst, const size_t dsize
 {
 #if defined(HAVE_GETSERVBYNAME_R) && (defined(AIX) || defined(TRU64UNIX) || defined(DIGITAL_UNIX))
 	struct servent *sp;
-#elif defined(HAVE_GETSERVBYNAME_R)
+#elif defined(HAVE_GETSERVBYNAME_R) && (defined(LINUX) || defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
 	struct servent se, *sp;
 	char spbuf[256];
 #else
@@ -291,6 +291,10 @@ AddrToAddrStr(char *const dst, size_t dsize, struct sockaddr_in * const saddrp, 
 	char s_name[64];
 	char *dlim, *dp;
 	const char *cp;
+
+	if (dsize == 0)
+		return NULL;
+	memset(dst, 0, dsize);
 
 	addrNamePtr = NULL;
 	if (dns == 0) {

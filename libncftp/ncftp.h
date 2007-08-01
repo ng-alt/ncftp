@@ -13,10 +13,10 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.2.0 (August 5, 2006)"
+#define kLibraryVersion "@(#) LibNcFTP 3.2.1 (August 13, 2007)"
 
 /* This is used to verify validty of the data passed in. */
-#define kLibraryMagic "LibNcFTP 3.2.0"
+#define kLibraryMagic "LibNcFTP 3.2.1"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */
@@ -416,6 +416,15 @@ typedef struct FTPConnectionInfo {
 	char textEOLN[4];			/* Set automatically per platform. */
 	int asciiTranslationMode;		/* You may modify this. */
 	const char *manualOverrideFeatures;	/* You may modify this. */
+
+	/* Only set the following field if all the following are true:
+	 *   Your client FTP program is running on a private network (e.g. 192.168.1.0); and
+	 *   You are accessing a server outside your network (e.g., on the Internet); and
+	 *   Your network's firewall does NOT fix private addresses in PORT for you; and
+	 *   You know what your external IP address is.
+	 */
+	struct sockaddr_in clientKnownExternalAddr;	
+
 #if USE_SIO
 	char srlBuf[768];
 	SReadlineInfo ctrlSrl;			/* Do not use or modify. */
@@ -756,9 +765,9 @@ int WinStat64(const char *const path, struct WinStat64 *const stp);
 
 /* The following block may be changed by configure script */
 #ifndef Stat
-#define Stat stat64
-#define Lstat lstat64
-#define Fstat fstat64
+#define Stat stat
+#define Lstat lstat
+#define Fstat fstat
 #endif
 
 #define kFtwNoAutoGrowButContinue (-1)
@@ -946,6 +955,7 @@ char *GetPass(const char *const prompt, char *const pwbuf, const size_t pwbufsiz
 int FilenameExtensionIndicatesASCII(const char *const pathName, const char *const extnList);
 void StrRemoveTrailingSlashes(char *dst);
 int StrToBoolOrInt(const char *s);
+int FTPFixPrivateAddr(struct sockaddr_in *maybePrivateAddr, struct sockaddr_in *knownNonPrivateAddrToUseIfNeeded);
 #if defined(WIN32) || defined(_WINDOWS) || defined(__CYGWIN__)
 char *StrFindLocalPathDelim(const char *src);
 char *StrRFindLocalPathDelim(const char *src);
@@ -984,6 +994,7 @@ int FTPSendPort(const FTPCIPtr cip, struct sockaddr_in *saddr);
 int FTPSendPassive(const FTPCIPtr cip, struct sockaddr_in *saddr, int *weird);
 int FTPSetStartOffset(const FTPCIPtr cip, longest_int restartPt);
 void FTPCloseControlConnection(const FTPCIPtr cip);
+int FTPSendCommandStr(const FTPCIPtr cip, char *const command, const size_t siz);
 int FTPSendCommand(const FTPCIPtr cip, const char *const cmdspec, va_list ap)
 #if (defined(__GNUC__)) && (__GNUC__ >= 2)
 __attribute__ ((format (printf, 2, 0)))
@@ -995,9 +1006,19 @@ void FTPManualOverrideFeatures(const FTPCIPtr cip);
 int FTPMListOneFile(const FTPCIPtr cip, const char *const file, const MLstItemPtr mlip);
 void FTPInitializeAnonPassword(const FTPLIPtr);
 void FTPInitIOTimer(const FTPCIPtr);
-int FTPStartDataCmd(const FTPCIPtr, int, int, longest_int, const char *,...)
+int FTPStartDataCmd(const FTPCIPtr, const int, const int, const longest_int, const char *const ,...)
 #if (defined(__GNUC__)) && (__GNUC__ >= 2)
 __attribute__ ((format (printf, 5, 6)))
+#endif
+;
+int FTPStartDataCmd2(const FTPCIPtr cip, const int netMode, const int type, const longest_int startPoint, char *const cmdstr, const size_t cmdstrSize, const char *variableCommandSpec, ...)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 7, 8)))
+#endif
+;
+int FTPStartDataCmd3(const FTPCIPtr cip, const int netMode, const int type, const longest_int startPoint, char *const cmdstr, const size_t cmdstrSize, const char *const variableCommandSpec, va_list ap)
+#if (defined(__GNUC__)) && (__GNUC__ >= 2)
+__attribute__ ((format (printf, 7, 0)))
 #endif
 ;
 void FTPStartIOTimer(const FTPCIPtr);

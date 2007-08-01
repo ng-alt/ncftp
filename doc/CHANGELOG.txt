@@ -1,6 +1,27 @@
 NcFTP Change Log:
 ================
 
+3.2.1, 2007-07-29
+
+  + Now a little more tolerant of FTP servers who send their internal network
+    IP addresses in their PASV response.  When this is detected, it will be
+    ignored and the data connection will connect to the same IP that is used
+    for the control connection.
+
+  + Resuming of uploads can now work for servers that do not support
+    REST + STOR.  The APPE command will be used instead.
+
+  + Fixed problem with Resume All [R!] in ncftp, which was just appending
+    to subsequent files rather than resuming them.  (Thanks, Terry Brown)
+
+  + ncftpput for version 3.2.0 did not work correctly when both -f
+    and -c/-C were used.  This has now been fixed.  In addition, the
+    host command line argument is optional when the config file specifies
+    the host.
+
+  + Various small fixes.
+
+
 3.2.0, 2006-08-05
 
   + Fixed problem where ncftpbatch may requeue downloads when the local file

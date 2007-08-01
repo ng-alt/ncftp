@@ -169,6 +169,7 @@ FTPPutOneF(
 	int sameAsRemote;
 	int skiprc;
 	size_t skipbufsize;
+	longstring cmdStr;
 	
 	if (cip->buf == NULL) {
 		FTPLogError(cip, kDoPerror, "Transfer buffer not allocated.\n");
@@ -241,8 +242,8 @@ FTPPutOneF(
 		if (appendflag == kAppendYes) {
 			zaction = kConfirmResumeProcSaidAppend;
 		} else if (
-				(cip->hasREST == kCommandNotAvailable) ||
-		/*		(xtype != kTypeBinary) ||		*/
+		/*		(cip->hasREST == kCommandNotAvailable) || We can now try to use APPE when REST is not availble. */
+		/*		(xtype != kTypeBinary) || We can now resume in ASCII too. */
 				(fstatrc < 0)
 		) {
 			zaction = kConfirmResumeProcSaidOverwrite;
@@ -378,25 +379,28 @@ FTPPutOneF(
 
 	vzaction = zaction;
 	if (vzaction == kConfirmResumeProcSaidAppend) {
-		cmd = "APPE";
+		cmd = "APPE ";
 		tmppfx = "";	/* Can't use that here. */
 		tmpsfx = "";
 	} else {
-		cmd = "STOR";
+		cmd = "STOR ";
 		if (tmppfx == NULL)
 			tmppfx = "";
 		if (tmpsfx == NULL)
 			tmpsfx = "";
 	}
 
-	tmpResult = FTPStartDataCmd(
+	memcpy(cmdStr, cmd, 4 + 1 /* space */ + 1 /* nul byte */);
+	STRNCAT(cmdStr, dstfile);
+
+	tmpResult = FTPStartDataCmd2(
 		cip,
 		kNetWriting,
 		xtype,
 		startPoint,
-		"%s %s",
-		cmd,
-		dstfile
+		cmdStr,
+		sizeof(cmdStr),
+		"(not used)"
 	);
 
 	if (tmpResult < 0) {

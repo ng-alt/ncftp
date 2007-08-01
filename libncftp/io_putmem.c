@@ -97,7 +97,7 @@ FTPPutFileFromMemory(
 	bufSize = cip->bufSize;
 
 	FTPInitIOTimer(cip);
-	cip->expectedSize = srcLen;
+	cip->expectedSize = (longest_int) srcLen;
 	cip->lname = NULL;	/* could be NULL */
 	cip->rname = dstfile;
 	srcp = src;

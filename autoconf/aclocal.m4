@@ -773,6 +773,67 @@ fi
 dnl
 dnl
 dnl
+dnl
+AC_DEFUN(wi_C99, [
+AC_MSG_CHECKING([for C99 standard])
+result=no
+saved_CFLAGS="$CFLAGS"
+for tries in 1 2
+do
+if test "$GCC$tries" = yes2 ; then
+	CFLAGS="-std=gnu99 $CFLAGS"
+fi
+AC_TRY_COMPILE([
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdbool.h>	/* C99 header */
+#include <inttypes.h>	/* C99 header */
+
+_Bool isAfter2007 = false;
+
+inline long long int multfunc(long long int x, long long int a, long long int b);
+long long int testfunc(long long int x, long long int *restrict a, long long int *restrict b);
+
+inline long long int multfunc(long long int x, long long int a, long long int b)
+{
+	return (x * a * b);
+}	/* multfunc */
+
+long long int testfunc(long long int x, long long int *restrict a, long long int *restrict b)
+{
+	return (multfunc(x, *a, *b));
+}	/* testfunc */
+],[
+	// C99 specifies that C++ style comments are supported
+	long long int a = 10LL, b = 100LL;
+	long long int lli = testfunc(9999999999LL, &a, &b);
+
+	for (long long int x = 0; x < 10; x++) {
+		printf("%lld\n", lli + x);
+		x += 2;
+		time_t t;	/* C99 declaration in the middle of the block */
+		time(&t);
+		if (t > 1167711335)
+			isAfter2007 = true;
+	}
+],[
+	# Yes: C99
+	result=yes
+],[
+	# No: C99
+	result=no
+])
+	if test "$result" = yes ; then break ; fi
+done
+if test "$result" = no ; then CFLAGS="$saved_CFLAGS" ; fi
+AC_MSG_RESULT([$result])
+unset result saved_CFLAGS tries
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_REQUEST_NO_Y2K_WARNINGS, [
 	wi_request_no_y2k_warnings=yes
 ])
@@ -4858,6 +4919,7 @@ case "$os" in
 		NDEFS="$NDEFS -DHPUX=$os_int"
 		;;
 	freebsd)
+		if [ "$arch" = "amd64" ] ; then arch="x86_64" ; fi
 		OS="freebsd${os_r}-$arch"
 		os_r1=`echo "$os_r" | cut -d. -f1`
 		os_r2=`echo "$os_r" | cut -d. -f2`
@@ -4869,6 +4931,7 @@ case "$os" in
 		NDEFS="$NDEFS -DFREEBSD=$os_int"
 		;;
 	netbsd)
+		if [ "$arch" = "amd64" ] ; then arch="x86_64" ; fi
 		OS="netbsd${os_r}-$arch"
 		os_r1=`echo "$os_r" | cut -d. -f1`
 		os_r2=`echo "$os_r" | cut -d. -f2`
@@ -4880,6 +4943,7 @@ case "$os" in
 		SYS=netbsd
 		;;
 	openbsd)
+		if [ "$arch" = "amd64" ] ; then arch="x86_64" ; fi
 		OS="openbsd${os_r}-$arch"
 		os_r1=`echo "$os_r" | cut -d. -f1`
 		os_r2=`echo "$os_r" | cut -d. -f2`
@@ -4980,6 +5044,9 @@ EOF
 				glibc_r1=`echo "$glibc_r" | cut -d. -f1`
 				glibc_r2=`echo "$glibc_r" | cut -d. -f2`
 				glibc_r3=`echo "$glibc_r" | cut -d- -f1 | cut -d. -f3`
+				if test "$glibc_r1" = "" ; then glibc_r1=0 ; fi
+				if test "$glibc_r2" = "" ; then glibc_r2=0 ; fi
+				if test "$glibc_r3" = "" ; then glibc_r3=0 ; fi
 				glibc_int=`expr "$glibc_r1" '*' 10000 + "$glibc_r2" '*' 1000 + "$glibc_r3"`
 				NDEFS="$NDEFS -DLINUX_GLIBC=$glibc_int"
 				libc="glibc${glibc_r1}.${glibc_r2}"
@@ -5131,27 +5198,41 @@ EOF
 		if [ "$arch" = "" ] ; then arch="sparc" ; fi
 		if [ "$archp" = "" ] ; then archp="$arch" ; fi
 		case "$os_r" in
-			5.[789]*|5.1[0-9]*)
-				os_r1=`echo "$os_r" | cut -d. -f2`
-				os_r2=`echo "$os_r" | cut -d. -f3`
-				if [ "$os_r2" = "" ] ; then os_r2=0 ; fi
-				os_r3=`echo "$os_r" | cut -d. -f4`
-				if [ "$os_r3" = "" ] ; then os_r3=0 ; fi
-				os_int=`expr "$os_r1" '*' 100 + "$os_r2" '*' 10 + "$os_r3"`
-				os_r=`echo "$os_r" | cut -c3-`
-				OS="solaris${os_r}-$archp"
-				NDEFS="$NDEFS -DSOLARIS=$os_int"
-				SYS=solaris
-				;;
-			5.[023456]*|5.1)
-				os_r=`echo "$os_r" | sed 's/^5/2/;'`
-				os_r1=`echo "$os_r" | cut -d. -f1`
-				os_r2=`echo "$os_r" | cut -d. -f2`
-				if [ "$os_r2" = "" ] ; then os_r2=0 ; fi
-				os_r3=`echo "$os_r" | cut -d. -f3`
-				if [ "$os_r3" = "" ] ; then os_r3=0 ; fi
-				os_int=`expr "$os_r1" '*' 100 + "$os_r2" '*' 10 + "$os_r3"`
-				OS="solaris${os_r}-$archp"
+			5.*)
+				case "$os_r" in
+					5.[023456]*|5.1)
+						os_r=`echo "$os_r" | sed 's/^5/2/;'`
+						os_r1=`echo "$os_r" | cut -d. -f1`
+						os_r2=`echo "$os_r" | cut -d. -f2`
+						if [ "$os_r2" = "" ] ; then os_r2=0 ; fi
+						os_r3=`echo "$os_r" | cut -d. -f3`
+						if [ "$os_r3" = "" ] ; then os_r3=0 ; fi
+						os_int=`expr "$os_r1" '*' 100 + "$os_r2" '*' 10 + "$os_r3"`
+						;;
+					5.[789]*|5.1[0-9]*)
+						os_r1=`echo "$os_r" | cut -d. -f2`
+						os_r2=`echo "$os_r" | cut -d. -f3`
+						if [ "$os_r2" = "" ] ; then os_r2=0 ; fi
+						os_r3=`echo "$os_r" | cut -d. -f4`
+						if [ "$os_r3" = "" ] ; then os_r3=0 ; fi
+						os_int=`expr "$os_r1" '*' 100 + "$os_r2" '*' 10 + "$os_r3"`
+						os_r=`echo "$os_r" | cut -c3-`
+						;;
+				esac
+				case "`/usr/bin/isainfo -n 2>/dev/null`" in
+					amd64)
+						OS="solaris${os_r}-x86_64"
+						;;
+					*86)
+						OS="solaris${os_r}-x86"
+						;;
+					sparcv9*|sparcv1[0-9]*)
+						OS="solaris${os_r}-sparc64"
+						;;
+					*)
+						OS="solaris${os_r}-$archp"
+						;;
+				esac
 				NDEFS="$NDEFS -DSOLARIS=$os_int"
 				SYS=solaris
 				;;
@@ -5196,6 +5277,8 @@ AC_SUBST(OS)
 AC_SUBST(host)
 AC_SUBST(SYS)
 AC_SUBST(HOME_OS)
+AC_MSG_CHECKING([platform])
+AC_MSG_RESULT(["$OS"])
 ])
 dnl
 dnl

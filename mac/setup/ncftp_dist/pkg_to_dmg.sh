@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ $# -eq 0 ] ; then
-	echo "Usage: $0 path-to-pkg-file" 1>&2
+	echo "Usage: $0 path-to-pkg-file [path-to-dmg-output-file]" 1>&2
 	exit 1
 fi
 
@@ -14,7 +14,6 @@ if [ "$shtimer" != "" ] ; then
 	t0=`"$shtimer" on`
 fi
 
-umask 022
 tmpfile="${TMPDIR-/tmp}/pkg_to_dmg.$$"
 rm -f "$tmpfile"
 cat /dev/null > "$tmpfile"
@@ -26,7 +25,11 @@ fi
 pkg="$1"
 pkgname=`echo "$pkg" | sed 's-^.*/--;'`
 volname=`echo "$pkg" | sed 's/\.pkg$//;s-^.*/--;'`
-dmg=`echo "$pkg" | sed 's/\.pkg$/.dmg/;'`
+if [ "$#" -gt 1 ] ; then
+	dmg="$2"
+else
+	dmg=`echo "$pkg" | sed 's/\.pkg$/.dmg/;'`
+fi
 
 rm -f "$dmg"
 if [ -f "$dmg" ] ; then
@@ -96,7 +99,8 @@ fi
 echo ''
 /bin/ls -l "$dmg"
 if [ "$shtimer" != "" ] ; then
-	"$shtimer" off "$t0" 'Done.  Elapsed Time = '
+	"$shtimer" off "$t0" 'Disk image created.  Elapsed Time = '
 else
-	echo "Done."
+	echo "Disk image created."
 fi
+exit 0

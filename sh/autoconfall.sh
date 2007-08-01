@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PROJECT_HOME="/home/gleason/src/ncftp/current"
+PROJECT_HOME="$HOME/src/ncftp/current"
 if [ ! -d "$PROJECT_HOME" ] ; then
 	/bin/ls -ld "$PROJECT_HOME"
 	exit 1

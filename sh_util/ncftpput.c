@@ -266,6 +266,7 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			fi.leavePass = 1;
 			if (fi.pass[0] == '\0')
 				fi.passIsEmpty = 1;
 			memset(opt.arg, 0, strlen(fi.pass));
@@ -384,6 +385,11 @@ main(int argc, char **argv)
 			Usage();
 	}
 
+	if ((rflag != 0) && (ftpcat != 0)) {
+		fprintf(stderr, "The -R flag is not supported with -c/-C.\n\n");
+		Usage();
+	}
+
 	if ((perfilecmd[0] != '\0') && (rflag != 0))
 		(void) fprintf(stderr, "Warning: your -X command is only applied once per command-line parameter, and not for each file in the directory.\n");
 
@@ -394,14 +400,31 @@ main(int argc, char **argv)
 			dstdir = argv[opt.ind + 0];
 			files = argv + opt.ind + 1;
 		} else if (ftpcat == 2) {
-			if (opt.ind > argc - 2)
+			if ((opt.ind + 2) > argc) {
 				Usage();
-			lfile = argv[opt.ind + 0];
-			dstfile = argv[opt.ind + 1];
-		} else {
-			if (opt.ind > argc - 1)
+			} else if ((opt.ind + 2) == argc) {
+				lfile = argv[opt.ind + 0];
+				dstfile = argv[opt.ind + 1];
+			} else	/* if ((opt.ind + 2) < argc) */ {
+				/* host argument at +0 will be overwritten;
+				 * the host needs to be in the config file.
+				 */
+				(void) STRNCPY(fi.host, argv[opt.ind + 0]);
+				lfile = argv[opt.ind + 1];
+				dstfile = argv[opt.ind + 2];
+			}
+		} else /* (ftpcat == 1) */ {
+			if ((opt.ind + 1) > argc) {
 				Usage();
-			dstfile = argv[opt.ind + 0];
+			} else if ((opt.ind + 1) == argc) {
+				dstfile = argv[opt.ind + 0];
+			} else	/* if ((opt.ind + 1) < argc) */ {
+				/* host argument at +0 will be overwritten;
+				 * the host needs to be in the config file.
+				 */
+				(void) STRNCPY(fi.host, argv[opt.ind + 0]);
+				dstfile = argv[opt.ind + 1];
+			}
 		}
 	} else {
 		if (ftpcat == 0) {

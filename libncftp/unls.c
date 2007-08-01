@@ -917,9 +917,8 @@ UnMlsD(const FTPCIPtr cip, FTPFileInfoListPtr filp, FTPLineListPtr llp)
 
 	filp->maxFileLen = maxFileLen;
 	filp->maxPlugLen = maxPlugLen;
-	if (linesread == 0)
+	if ((linesread == 0) || ((linesconverted == 0) && (linesignored > 0)))
 		return (0);
-	linesconverted += linesignored;
 	return ((linesconverted > 0) ? linesconverted : (-1));
 }	/* UnMlsD */
 

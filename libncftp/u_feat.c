@@ -139,7 +139,13 @@ FTPManualOverrideFeatures(const FTPCIPtr cip)
 			opt += 3;
 		if (ISTRNEQ(opt, "use", 3))
 			opt += 3;
-		for (optlist = gConnInfoOptStrings, optnum = 0; *optlist != NULL; optlist++, optnum++) {
+		if (ISTRNEQ(opt, "have", 4))
+			opt += 4;
+		if (ISTRNEQ(opt, "no", 2)) {
+			opt += 2;
+			intval = 0;
+		}
+		for (optlist = gConnInfoOptStrings, optnum = kOptPASV; *optlist != NULL; optlist++, optnum++) {
 			if (ISTREQ(opt, *optlist)) {
 				switch (optnum) {
 					case kOptPASV:

@@ -116,6 +116,7 @@ static const char *gErrList[kErrLast - kErrFirst + 2] = {
 	"miscellaneous error occurred while trying to open the host", 	/* -202 */
 	"miscellaneous error occurred while trying to login to the host", /* -203 */
 	"ascii seek error",						/* -204 */
+	"you have encountered a bug that we have not fixed yet, sorry!",/* -205 */
 	NULL,								
 };
 
@@ -183,14 +184,14 @@ FTPPerror(const FTPCIPtr cip, const int err, const int eerr, const char *const s
 		} else {
 			if ((s2 == NULL) || (s2[0] == '\0')) {
 				if ((s1 == NULL) || (s1[0] == '\0')) { 
-					(void) fprintf(stderr, "%s.\n", FTPStrError(cip->errNo));
+					(void) fprintf(stderr, "%s.\n", FTPStrError(err));
 				} else {
-					(void) fprintf(stderr, "%s: %s.\n", s1, FTPStrError(cip->errNo));
+					(void) fprintf(stderr, "%s: %s.\n", s1, FTPStrError(err));
 				}
 			} else if ((s1 == NULL) || (s1[0] == '\0')) { 
-				(void) fprintf(stderr, "%s: %s.\n", s2, FTPStrError(cip->errNo));
+				(void) fprintf(stderr, "%s: %s.\n", s2, FTPStrError(err));
 			} else {
-				(void) fprintf(stderr, "%s %s: %s.\n", s1, s2, FTPStrError(cip->errNo));
+				(void) fprintf(stderr, "%s %s: %s.\n", s1, s2, FTPStrError(err));
 			}
 		}
 	}

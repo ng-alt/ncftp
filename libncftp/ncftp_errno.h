@@ -119,4 +119,5 @@
 #define kErrOpenHostMiscErr			(-202)
 #define kErrLoginHostMiscErr			(-203)
 #define kErrAsciiSeekErr			(-204)
-#define kErrLast				(204)
+#define kErrKnownBug				(-205)
+#define kErrLast				(205)

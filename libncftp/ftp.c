@@ -48,6 +48,30 @@ static const char gCopyright[] = "@(#) LibNcFTP Copyright 1995-2001, by Mike Gle
 #	define DisposeSocket(a) close(a)
 #endif
 
+static const char *gPrivateNetworks[] = {
+	"192.168.",
+	"10.",
+	"172.16.",
+	"172.17.",
+	"172.18.",
+	"172.19.",
+	"172.20.",
+	"172.21.",
+	"172.22.",
+	"172.23.",
+	"172.24.",
+	"172.25.",
+	"172.26.",
+	"172.27.",
+	"172.28.",
+	"172.29.",
+	"172.30.",
+	"172.31.",
+	NULL
+};
+
+
+
 
 void
 FTPCloseControlConnection(const FTPCIPtr cip)
@@ -793,6 +817,78 @@ done:
 
 
 
+int
+FTPFixPrivateAddr(struct sockaddr_in *maybePrivateAddr, struct sockaddr_in *knownNonPrivateAddrToUseIfNeeded)
+{
+	int i;
+	char maybePrivateAddrStr[64];
+	char knownNonPrivateAddrToUseIfNeededStr[64];
+
+	AddrToAddrStr(maybePrivateAddrStr, sizeof(maybePrivateAddrStr), maybePrivateAddr, 0, "%h");
+	AddrToAddrStr(knownNonPrivateAddrToUseIfNeededStr, sizeof(knownNonPrivateAddrToUseIfNeededStr), knownNonPrivateAddrToUseIfNeeded, 0, "%h");
+
+	if (strcmp(maybePrivateAddrStr, knownNonPrivateAddrToUseIfNeededStr) == 0)
+		return (0);		/* Assume if we could reach the Ctl, we can reach Data. */
+
+	for (i=0; gPrivateNetworks[i] != NULL; i++) {
+		if (strncmp(maybePrivateAddrStr, gPrivateNetworks[i], strlen(gPrivateNetworks[i])) == 0)
+			break;
+	}
+
+	if (gPrivateNetworks[i] == NULL)
+		return (0);		/* It wasn't a private network. */
+
+	if (strncmp(knownNonPrivateAddrToUseIfNeededStr, gPrivateNetworks[i], strlen(gPrivateNetworks[i])) == 0)
+		return (0);		/* Assume we might be able to reach slightly different net */
+
+	memcpy(&maybePrivateAddr->sin_addr, &knownNonPrivateAddrToUseIfNeeded->sin_addr, sizeof(maybePrivateAddr->sin_addr));
+	return (1);
+}	/* FTPFixPrivateAddr */
+
+
+
+
+void
+FTPFixServerDataAddr(const FTPCIPtr cip)
+{
+	struct sockaddr_in oldServDataAddr;
+	char servDataAddrStr[64];
+	char newDataAddrStr[64];
+
+	memcpy(&oldServDataAddr, &cip->servDataAddr, sizeof(oldServDataAddr));
+	if (FTPFixPrivateAddr(&cip->servDataAddr, &cip->servCtlAddr)) {
+		AddrToAddrStr(servDataAddrStr, sizeof(servDataAddrStr), &oldServDataAddr, 0, NULL);
+		AddrToAddrStr(newDataAddrStr, sizeof(newDataAddrStr), &cip->servDataAddr, 0, NULL);
+		PrintF(cip, "Fixing bogus PASV data address from %s to %s.\n", servDataAddrStr, newDataAddrStr);
+	}
+}	/* FTPFixServerDataAddr */
+
+
+
+
+void
+FTPFixClientDataAddr(const FTPCIPtr cip)
+{
+	struct sockaddr_in oldClientDataAddr, newClientDataAddr;
+	char ourDataAddrStr[64];
+	char newDataAddrStr[64];
+
+	if (cip->clientKnownExternalAddr.sin_family == 0)
+		return;
+
+	memcpy(&oldClientDataAddr, &cip->ourDataAddr, sizeof(oldClientDataAddr));
+	if (FTPFixPrivateAddr(&cip->ourDataAddr, &cip->clientKnownExternalAddr)) {
+		memcpy(&newClientDataAddr, &cip->clientKnownExternalAddr, sizeof(newClientDataAddr));
+		newClientDataAddr.sin_port = cip->ourDataAddr.sin_port;
+		AddrToAddrStr(ourDataAddrStr, sizeof(ourDataAddrStr), &oldClientDataAddr, 0, NULL);
+		AddrToAddrStr(newDataAddrStr, sizeof(newDataAddrStr), &newClientDataAddr, 0, NULL);
+		PrintF(cip, "Fixing what would have been a bogus PORT data address from %s to %s.\n", ourDataAddrStr, newDataAddrStr);
+	}
+}	/* FTPFixClientDataAddr */
+
+
+
+
 static int
 BindToEphemeralPortNumber(int sockfd, struct sockaddr_in *addrp, int ephemLo, int ephemHi)
 {
@@ -914,7 +1010,8 @@ tryPort:
 			cip->errNo = kErrListenDataSocket;
 			goto bad;
 		}
-	
+
+		FTPFixClientDataAddr(cip);
 		if ((result = FTPSendPort(cip, &cip->ourDataAddr)) < 0)
 			goto bad;
 	
@@ -944,6 +1041,7 @@ tryPort:
 			cip->errNo = kErrPassiveModeFailed;
 			goto bad;
 		}
+		FTPFixServerDataAddr(cip);
 
 #ifdef HAVE_LIBSOCKS
 		cip->ourDataAddr.sin_port = 0;
