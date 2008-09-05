@@ -10,6 +10,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 int
 FTPChdirList(FTPCIPtr cip, FTPLineListPtr const cdlist, char *const newCwd, const size_t newCwdSize, int flags)
 {

@@ -64,14 +64,18 @@ HaveSpool(void)
 		gHaveSpool = 0;
 		if (gOurInstallationPath[0] != '\0') {
 			OurInstallationPath(ncftpbatch, sizeof(ncftpbatch), "ncftpbatch.exe");
-			gHaveSpool = (access(ncftpbatch, F_OK) == 0) ? 1 : 0;
+			gHaveSpool = (_access(ncftpbatch, F_OK) == 0) ? 1 : 0;
 		}
 	}
-#elif defined(BINDIR)
+#elif (defined(BINDIR) || defined(PREFIX_BINDIR))
 	char ncftpbatch[256];
 
 	if (gHaveSpool < 0) {
+#ifdef PREFIX_BINDIR
+		STRNCPY(ncftpbatch, PREFIX_BINDIR);
+#else
 		STRNCPY(ncftpbatch, BINDIR);
+#endif
 		STRNCAT(ncftpbatch, "/");
 		STRNCAT(ncftpbatch, "ncftpbatch");
 		gHaveSpool = (access(ncftpbatch, X_OK) == 0) ? 1 : 0;
@@ -116,10 +120,14 @@ Jobs(void)
 #else
 	char *argv[8];
 	pid_t pid;
-#ifdef BINDIR
+#if (defined(BINDIR) || defined(PREFIX_BINDIR))
 	char ncftpbatch[256];
 
+#ifdef BINDIR
 	STRNCPY(ncftpbatch, BINDIR);
+#else
+	STRNCPY(ncftpbatch, PREFIX_BINDIR);
+#endif
 	STRNCAT(ncftpbatch, "/");
 	STRNCAT(ncftpbatch, "ncftpbatch");
 #endif	/* BINDIR */
@@ -132,7 +140,7 @@ Jobs(void)
 		argv[1] = strdup("-l");
 		argv[2] = NULL;
 
-#ifdef BINDIR
+#if (defined(BINDIR) || defined(PREFIX_BINDIR))
 		(void) execv(ncftpbatch, argv);
 		(void) fprintf(stderr, "Could not run %s.  Is it in installed as %s?\n", argv[0], ncftpbatch);
 #else	/* BINDIR */
@@ -164,10 +172,14 @@ RunBatchWithCore(const FTPCIPtr cip)
 	char pfdstr[32];
 	char *argv[8];
 	pid_t pid = 0;
-#ifdef BINDIR
+#if (defined(BINDIR) || defined(PREFIX_BINDIR))
 	char ncftpbatch[256];
 
+#ifdef BINDIR
 	STRNCPY(ncftpbatch, BINDIR);
+#else
+	STRNCPY(ncftpbatch, PREFIX_BINDIR);
+#endif
 	STRNCAT(ncftpbatch, "/");
 	STRNCAT(ncftpbatch, "ncftpbatch");
 #endif	/* BINDIR */
@@ -199,7 +211,7 @@ RunBatchWithCore(const FTPCIPtr cip)
 		argv[4] = NULL;
 #endif
 
-#ifdef BINDIR
+#if (defined(BINDIR) || defined(PREFIX_BINDIR))
 		(void) execv(ncftpbatch, argv);
 		(void) fprintf(stderr, "Could not run %s.  Is it in installed as %s?\n", argv[0], ncftpbatch);
 #else	/* BINDIR */

@@ -10,6 +10,7 @@ AC_ARG_WITH(ncurses,[  --without-ncurses       do not try to find and use the nc
 wi_ARG_DISABLE_PRECOMP
 dnl AC_ARG_WITH(readline,[  --without-readline      do not try to find and use the readline library],nc_cv_readline=$withval,nc_cv_readline=yes)
 wi_ARG_WITH_SOCKS5
+wi_ARG_DISABLE_MACOSX_UNIVERSAL
 
 
 
@@ -31,13 +32,19 @@ AC_CONFIG_AUX_DIR([sh])
 AC_PROG_CC
 wi_CC_PRECOMP
 wi_REQUEST_NO_Y2K_WARNINGS
-wi_CFLAGS_LFS64
+wi_CFLAGS_LFS
 wi_CFLAGS_REENTRANT
+wi_MACOSX_UNIVERSAL_CFLAGS
 wi_SFLAG
 AC_OBJEXT
 AC_EXEEXT
 wi_DEFINE_UNAME
 wi_EXTRA_SYSV_SUNOS_DIRS	dnl	For better curses library on SunOS 4
+if test "${prefix-NONE}" = "NONE" ; then
+	AC_DEFINE_UNQUOTED(PREFIX_BINDIR, "/usr/local/bin")
+else
+	AC_DEFINE_UNQUOTED(PREFIX_BINDIR, "$prefix/bin")
+fi
 
 
 
@@ -47,9 +54,8 @@ dnl ---------------------------------------------------------------------------
 dnl
 AC_HEADER_STDC
 dnl Readline headers #ifdefs for string.h, sio needs strings.h for AIX
-AC_CHECK_HEADERS(arpa/nameser.h gnu/libc-version.h locale.h net/errno.h nserve.h resolv.h sgtty.h string.h strings.h sys/ioctl.h syslog.h sys/socket.h sys/time.h sys/types.h sys/utsname.h sys/systeminfo.h termio.h termios.h time.h utime.h unistd.h)
+AC_CHECK_HEADERS(arpa/nameser.h gnu/libc-version.h locale.h net/errno.h nserve.h resolv.h sgtty.h string.h strings.h sys/id.h sys/ioctl.h syslog.h sys/socket.h sys/time.h sys/types.h sys/utsname.h sys/systeminfo.h termio.h termios.h time.h utime.h unistd.h gnu/libc-version.h)
 AC_TIME_WITH_SYS_TIME
-
 dnl	# sio
 wi_UNIX_DOMAIN_SOCKETS
 SIO_OBJS_U=''
@@ -229,7 +235,7 @@ fi
 
 case "$Z00" in
 	'e85dfd19937dece65225d717f4cd5f22'|'816c501837158512dc4f606d58f4993b'|'9aa70fa2084f59bab13fe52bdfff65f4')
-		Z31='	scp -p "$(STGZFILE)" build@Src:src/ncftp/current/ ; rm ncftp-*-src.*'
+		Z31='	scp -p "$(STGZFILE)" build@Src:src/ncftp/current/ ; mv ncftp-*-src.* /ztmp/'
 		;;
 	
 esac
@@ -239,6 +245,7 @@ dnl ---------------------------------------------------------------------------
 dnl Create Makefiles and config.h files.
 dnl ---------------------------------------------------------------------------
 dnl
+wi_SUMMARIZE_COMPILER_FLAGS
 AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CPPFLAGS)

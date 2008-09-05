@@ -20,6 +20,7 @@
 #	include "..\ncftp\spool.h"
 #	include "resource.h"
 #	include "gpshare.h"
+#	define getpid _getpid
 #else
 #	define YieldUI(a)
 #	include "../ncftp/util.h"
@@ -81,6 +82,8 @@ char gPerFileFTPCommand[128];
 char gPostFTPCommand[128];
 char gPreShellCommand[256];
 char gPostShellCommand[256];
+char gProgressLog[512];
+FILE *gProgLog = NULL;
 int gXtype;
 int gRecursive;
 int gDelete;
@@ -526,6 +529,10 @@ PreInit(const char *const prog)
 	if (strncasecmp(cp, "ncftpspool", 10) == 0)
 		gGlobalSpooler = 1;
 
+	cp = getenv("NCFTPBATCH_PROGRESS_LOG");
+	if (cp != NULL)
+		STRNCPY(gProgressLog, cp);
+
 	(void) signal(SIGINT, SigExit);
 	(void) signal(SIGTERM, SigExit);
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
@@ -969,11 +976,114 @@ LogEndItemResult(int uiShow, const char *const fmt, ...)
 
 
 
+static void
+PrLogStatBar(const FTPCIPtr cip, int mode)
+{
+	double rate, done;
+	int secLeft, minLeft;
+	const char *rStr;
+	static const char *uStr;
+	static double uTotal, uMult;
+	const char *stall;
+
+	switch (mode) {
+		case kPrInitMsg:
+			if (gProgLog != NULL)
+				fclose(gProgLog);
+			gProgLog = fopen(gProgressLog, FOPEN_APPEND_TEXT);
+			if (gProgLog == NULL)
+				return;
+			if (cip->expectedSize == kSizeUnknown) {
+				cip->progress = PrSizeAndRateMeter;
+				PrSizeAndRateMeter(cip, mode);
+				return;
+			}
+			uTotal = FileSize((double) cip->expectedSize, &uStr, &uMult);
+			(void) fprintf(gProgLog, "%s:  ", (cip->lname == NULL) ? "" : cip->lname);
+			(void) fflush(gProgLog);
+			break;
+
+		case kPrUpdateMsg:
+			if (gProgLog == NULL)
+				return;
+			secLeft = (int) (cip->secLeft + 0.5);
+			minLeft = secLeft / 60;
+			secLeft = secLeft - (minLeft * 60);
+			if (minLeft > 999) {
+				minLeft = 999;
+				secLeft = 59;
+			}
+
+			rate = FileSize(cip->kBytesPerSec * 1024.0, &rStr, NULL);
+			done = (double) (cip->bytesTransferred + cip->startPoint) / uMult;
+
+			if (cip->stalled < 2)
+				stall = " ";
+			else if (cip->stalled < 15)
+				stall = "-";
+			else
+				stall = "=";
+
+			/* Print the updated information. */
+			(void) fprintf(gProgLog,
+				"\r%s:  ETA: %3d:%02d  %6.2f/%6.2f %-2.2s  %6.2f %.2s/s %.1s",
+				(cip->lname == NULL) ? "" : cip->lname,
+				minLeft,
+				secLeft,
+				done,
+				uTotal,
+				uStr,
+				rate,
+				rStr,
+				stall
+			);
+			(void) fflush(gProgLog);
+			break;
+
+		case kPrEndMsg:
+			if (gProgLog == NULL)
+				return;
+
+			rate = FileSize(cip->kBytesPerSec * 1024.0, &rStr, NULL);
+			done = (double) (cip->bytesTransferred + cip->startPoint) / uMult;
+
+			if (cip->expectedSize >= (cip->bytesTransferred + cip->startPoint)) {
+				(void) fprintf(gProgLog,
+					"\r%s:  %6.2f %-2.2s  %6.2f %.2s/s %22s\n",
+					(cip->lname == NULL) ? "" : cip->lname,
+					uTotal,
+					uStr,
+					rate,
+					rStr,
+					""	/* space padding */
+				);
+			} else {
+				(void) fprintf(gProgLog,
+					"\r%s:  %6.2f/%6.2f %-2.2s  %6.2f %.2s/s %22s\n",
+					(cip->lname == NULL) ? "" : cip->lname,
+					done,
+					uTotal,
+					uStr,
+					rate,
+					rStr,
+					""	/* space padding */
+				);
+			}
+			(void) fflush(gProgLog);	/* redundant */
+			(void) fclose(gProgLog);
+			gProgLog = NULL;
+			break;
+	}
+}	/* PrLogStatBar */
+
+
+
 
 static int
 DoItem(void)
 {
 	char line[256];
+	char resolvedIPstr[64];
 	int needOpen;
 	int result;
 	int cdflags;
@@ -1077,6 +1187,8 @@ DoItem(void)
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		gConn.progress = PrWinStatBar;
 #endif
+		if (gProgressLog[0] != '\0')
+			gConn.progress = PrLogStatBar;
 
 		if (MayUseFirewall(gConn.host, gFirewallType, gFirewallExceptionList) != 0) {
 			gConn.firewallType = gFirewallType; 
@@ -1094,7 +1206,13 @@ DoItem(void)
 			Log(1, "Skipping same failed host as recent attempt (%s).\n", gLastHost);
 			return (-1);	/* Try again next time. */
 		}
-		Log(1, "Opening %s:%u as user %s...\n", gHost, gPort, gRUser);
+		if (AddrStrToIPStr(resolvedIPstr, sizeof(resolvedIPstr), gHost, (int) gPort) == NULL) {
+			LogEndItemResult(1, "Couldn't resolve IP for %s, will try again next time.\n", gHost);
+			(void) FTPCloseHost(&gConn);
+			(void) STRNCPY(gLastHost, gHost);	/* save failed connection to gHost. */
+			return (-1);	/* Try again next time. */
+		}
+		Log(1, "Opening %s:%u (%s) as user %s...\n", gHost, gPort, resolvedIPstr, gRUser);
 		result = FTPOpenHost(&gConn);
 		if (result < 0) {
 			LogEndItemResult(1, "Couldn't open %s, will try again next time.\n", gHost);
@@ -1573,12 +1691,9 @@ EventShell(volatile unsigned int sleepval)
 			(void) closedir(DIRp);
 			DIRp = NULL;
 		}
-		if ((nItems == nFinished) && (nFinished > 0)) {
+		if ((nItems == 0) && (nFinished == 0)) {
 			Log(0, "The spool directory %s is now empty.\n", gSpoolDir);
-		} else if (nItems == 0) {
-			Log(0, "The spool directory %s is empty.\n", gSpoolDir);
-		}
-		if (nItems == nFinished) {
+
 			/* Spool directory is empty, done. */
 			if (gGlobalSpooler == 0)
 				break;
@@ -2159,12 +2274,15 @@ main(int argc, char **const argv)
 	if (gGlobalSpooler != 0) {
 		runAsDaemon = -1;
 		GetoptReset(&opt);
-		while ((c = Getopt(&opt, argc, argv, "Ddls:q:o:")) > 0) switch(c) {
+		while ((c = Getopt(&opt, argc, argv, "DdlL:s:q:o:")) > 0) switch(c) {
 			case 'd':
 				runAsDaemon = 1;
 				break;
 			case 'D':
 				runAsDaemon = 0;
+				break;
+			case 'L':
+				STRNCPY(gProgressLog, opt.arg);
 				break;
 			case 'l':
 				listonly = 1;
@@ -2198,7 +2316,7 @@ main(int argc, char **const argv)
 	} else {
 		/* User Spooler */
 		GetoptReset(&opt);
-		while ((c = Getopt(&opt, argc, (char **) argv, "|:XDdlS:Z:s:w")) > 0) switch(c) {
+		while ((c = Getopt(&opt, argc, (char **) argv, "|:XDdlL:S:Z:s:w")) > 0) switch(c) {
 			case 'd':
 				runAsDaemon = 1;
 				break;
@@ -2207,6 +2325,9 @@ main(int argc, char **const argv)
 				break;
 			case 'l':
 				listonly = 1;
+				break;
+			case 'L':
+				STRNCPY(gProgressLog, opt.arg);
 				break;
 			case 'Z':
 				if (atoi(opt.arg) > 0)

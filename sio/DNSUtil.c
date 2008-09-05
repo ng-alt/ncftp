@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 #ifndef STRNCPY
 #	define STRNCPY(a,b) strncpy(a, b, sizeof(a)); a[sizeof(a) - 1] = '\0'
 #	define Strncpy(a,b,s) strncpy(a, b, s); a[s - 1] = '\0' 

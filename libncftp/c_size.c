@@ -10,6 +10,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 /* If the remote host supports the SIZE command, we can find out the exact
  * size of a remote file, depending on the transfer type in use.  SIZE
  * returns different values for ascii and binary modes!

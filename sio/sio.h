@@ -7,7 +7,7 @@
 #ifndef _sio_h_
 #define _sio_h_ 1
 
-#define kSioVersion "@(#) libsio 6.2.0 (September 1, 2003)"
+#define kSioVersion "@(#) libsio 6.2.1 (May 7, 2008)"
 
 #ifdef __cplusplus
 extern "C"
@@ -90,8 +90,8 @@ typedef struct SReadlineInfo {
 
 #ifdef SIGPIPE
 #	define DECL_SIGPIPE_VARS	sio_sigproc_t sigpipe = (sio_sigproc_t) 0;
-#	define IGNORE_SIGPIPE		sigpipe = signal(SIGPIPE, SIG_IGN);
-#	define RESTORE_SIGPIPE		if (sigpipe != (sio_sigproc_t) 0) {(void) signal(SIGPIPE, sigpipe);}
+#	define IGNORE_SIGPIPE		sigpipe = sio_sigpipe_ignored_already ? (sio_sigproc_t) 0 : signal(SIGPIPE, SIG_IGN);
+#	define RESTORE_SIGPIPE		if ((sigpipe != (sio_sigproc_t) 0) && (sigpipe != SIG_IGN)) {(void) signal(SIGPIPE, sigpipe);}
 #else
 #	define DECL_SIGPIPE_VARS
 #	define IGNORE_SIGPIPE
@@ -282,13 +282,16 @@ int ServicePortNumberToName(unsigned short port, char *const dst, const size_t d
 void InetNtoA(char *dst, struct in_addr *ia, size_t siz);
 int AddrStrToAddr(const char *const, struct sockaddr_in *const, const int);
 char *AddrToAddrStr(char *const dst, size_t dsize, struct sockaddr_in * const saddrp, int dns, const char *fmt);
+char *AddrStrToIPStr(char *const dst, size_t dsize, const char *const src, const int defaultport);
 
 /* SError.c */
 const char *SError(int e);
 
 /* main.c */
+extern int sio_sigpipe_ignored_already;
 void SIOHandler(int);
 void (*SSignal(int signum, void (*handler)(int)))(int);
+void SIOPipeSignalIsBeingIgnoredGloballyByApplication(int value);
 
 #ifdef __cplusplus
 }

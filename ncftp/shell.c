@@ -529,7 +529,8 @@ CommandShell(void)
 	int tUsed, bUsed;
 	ArgvInfo ai;
 	char prompt[64];
-	char *lineRead;
+	char *lineRead, *l2;
+	size_t llen;
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #else
 	int sj;
@@ -592,6 +593,16 @@ CommandShell(void)
 			/* EOF, Control-D */
 			(void) printf("\n");
 			break;
+		}
+		if ((lineRead[0] == '.') || (lineRead[0] == '/')) {
+			llen = strlen(lineRead) + 1;
+			l2 = malloc(llen + /* strlen("cd ") = */ 3 + 1);
+			if (l2 == NULL)
+				break;
+			memcpy(l2, "cd ", 4);
+			memcpy(l2 + 3, lineRead, llen);
+			free(lineRead);
+			lineRead = l2;
 		}
 		Trace(0, "> %s\n", lineRead);
 		oldcount = gUserTypedSensitiveInfoAtShellSoDoNotSaveItToDisk;

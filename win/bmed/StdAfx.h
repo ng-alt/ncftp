@@ -12,6 +12,16 @@
 
 #define VC_EXTRALEAN		// Exclude rarely-used stuff from Windows headers
 
+// You can use 0x0400 here also, if you need to support older systems.
+#ifndef WINVER
+#	define WINVER         0x0500
+#	define _WIN32_WINNT   0x0500
+#	define _WIN32_WINDOWS 0x0500
+#	define _WIN32_IE      0x0500
+#endif
+
+#define _CRT_SECURE_NO_WARNINGS 1
+
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions
 #include <afxdisp.h>        // MFC Automation classes

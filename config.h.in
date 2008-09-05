@@ -107,6 +107,9 @@
 
 #undef PRAGMA_HDRSTOP
 
+/* Define to the full path of $prefix/bin. */
+#undef PREFIX_BINDIR
+
 /* Format string for the printf() family for 64 bit integers. */
 #undef PRINTF_LONG_LONG
 
@@ -462,6 +465,9 @@
 
 /* Define if you have the <strings.h> header file.  */
 #undef HAVE_STRINGS_H
+
+/* Define if you have the <sys/id.h> header file.  */
+#undef HAVE_SYS_ID_H
 
 /* Define if you have the <sys/ioctl.h> header file.  */
 #undef HAVE_SYS_IOCTL_H

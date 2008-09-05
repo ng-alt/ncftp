@@ -10,6 +10,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 const char gLibNcFTPVersion[] = kLibraryVersion;
 
 #ifdef NO_SIGNALS
@@ -683,7 +685,7 @@ FTPSetStartOffset(const FTPCIPtr cip, longest_int restartPt)
 		if (result < 0) {
 			DoneWithResponse(cip, rp);
 			return (result);
-		} else if (result == 3) {
+		} else if (result <= 3) {
 			/* Success */
 			cip->hasREST = kCommandAvailable;
 		} else if (FTP_UNIMPLEMENTED_CMD(rp->code)) {
@@ -916,6 +918,7 @@ BindToEphemeralPortNumber(int sockfd, struct sockaddr_in *addrp, int ephemLo, in
 			result = bind(sockfd, (struct sockaddr *) addrp, sizeof(struct sockaddr_in));
 			if (result == 0)
 				break;
+			sleep(1);
 			if ((errno != 999)
 				/* This next line is just fodder to
 				 * shut the compiler up about variable
@@ -939,6 +942,7 @@ OpenDataConnection(const FTPCIPtr cip, int mode)
 	int result;
 	int setsbufs;
 	size_t rbs, sbs;
+	int passiveAttemptsRemaining = cip->maxNumberOfSuccessivePASVAttempts;
 
 	/* Before we can transfer any data, and before we even ask the
 	 * remote server to start transferring via RETR/NLST/etc, we have
@@ -1018,108 +1022,129 @@ tryPort:
 		cip->dataPortMode = kSendPortMode;
 	} else {
 		/* Passive mode.  Let the other side decide where to send. */
-		
-		cip->servDataAddr = cip->servCtlAddr;
-		cip->servDataAddr.sin_family = AF_INET;
-		cip->ourDataAddr = cip->ourCtlAddr;
-		cip->ourDataAddr.sin_family = AF_INET;
+	
+		while (--passiveAttemptsRemaining >= 0) {
+			cip->servDataAddr = cip->servCtlAddr;
+			cip->servDataAddr.sin_family = AF_INET;
+			cip->ourDataAddr = cip->ourCtlAddr;
+			cip->ourDataAddr.sin_family = AF_INET;
 
-		if (FTPSendPassive(cip, &cip->servDataAddr, &weirdPort) < 0) {
-			FTPLogError(cip, kDontPerror, "Passive mode refused.\n");
-			cip->hasPASV = kCommandNotAvailable;
-			
-			/* We can try using regular PORT commands, which are required
-			 * by all FTP protocol compliant programs, if you said so.
-			 *
-			 * We don't do this automatically, because if your host
-			 * is running a firewall you (probably) do not want SendPort
-			 * FTP for security reasons.
-			 */
-			if (mode == kFallBackToSendPortMode)
-				goto tryPort;
-			result = kErrPassiveModeFailed;
-			cip->errNo = kErrPassiveModeFailed;
-			goto bad;
-		}
-		FTPFixServerDataAddr(cip);
-
-#ifdef HAVE_LIBSOCKS
-		cip->ourDataAddr.sin_port = 0;
-		if (Rbind(dataSocket, (struct sockaddr *) &cip->ourDataAddr,
-			(int) sizeof (cip->ourDataAddr),
-			cip->servCtlAddr.sin_addr.s_addr) < 0) 
-#else
-		if (BindToEphemeralPortNumber(dataSocket, &cip->ourDataAddr, (int) cip->ephemLo, (int) cip->ephemHi) < 0)
-#endif
-		{
-			FTPLogError(cip, kDoPerror, "Could not bind the data socket");
-			result = kErrBindDataSocket;
-			cip->errNo = kErrBindDataSocket;
-			goto bad;
-		}
-
-#ifdef NO_SIGNALS
-		result = SConnect(dataSocket, &cip->servDataAddr, (int) cip->connTimeout);
-#else	/* NO_SIGNALS */
-		if (cip->connTimeout > 0)
-			(void) alarm(cip->connTimeout);
-
-		result = connect(dataSocket, (struct sockaddr *) &cip->servDataAddr, (int) sizeof(cip->servDataAddr));
-		if (cip->connTimeout > 0)
-			(void) alarm(0);
-#endif	/* NO_SIGNALS */
-
-#ifdef NO_SIGNALS
-		if (result == kTimeoutErr) {
-			if (mode == kFallBackToSendPortMode) {
-				FTPLogError(cip, kDontPerror, "Data connection timed out.\n");
-				FTPLogError(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
-				(void) DisposeSocket(dataSocket);
+			if (FTPSendPassive(cip, &cip->servDataAddr, &weirdPort) < 0) {
+				FTPLogError(cip, kDontPerror, "Passive mode refused.\n");
 				cip->hasPASV = kCommandNotAvailable;
-				goto tryPort2;
-			}
-			FTPLogError(cip, kDontPerror, "Data connection timed out.\n");
-			result = kErrConnectDataSocket;
-			cip->errNo = kErrConnectDataSocket;
-		} else
-#endif	/* NO_SIGNALS */
-
-		if (result < 0) {
-#ifdef ECONNREFUSED
-			if ((weirdPort > 0) && (errno == ECONNREFUSED)) {
-#elif defined(WSAECONNREFUSED)
-			if ((weirdPort > 0) && (errno == WSAECONNREFUSED)) {
-#endif
-				FTPLogError(cip, kDontPerror, "Server sent back a bogus port number.\nI will fall back to PORT instead of PASV mode.\n");
-				if (mode == kFallBackToSendPortMode) {
-					(void) DisposeSocket(dataSocket);
-					cip->hasPASV = kCommandNotAvailable;
-					goto tryPort2;
-				}
-				result = kErrServerSentBogusPortNumber;
-				cip->errNo = kErrServerSentBogusPortNumber;
+				
+				/* We can try using regular PORT commands, which are required
+				 * by all FTP protocol compliant programs, if you said so.
+				 *
+				 * We don't do this automatically, because if your host
+				 * is running a firewall you (probably) do not want SendPort
+				 * FTP for security reasons.
+				 */
+				if (mode == kFallBackToSendPortMode)
+					goto tryPort;
+				result = kErrPassiveModeFailed;
+				cip->errNo = kErrPassiveModeFailed;
 				goto bad;
 			}
-			if (mode == kFallBackToSendPortMode) {
-				FTPLogError(cip, kDoPerror, "connect failed.\n");
-				FTPLogError(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
-				(void) DisposeSocket(dataSocket);
-				cip->hasPASV = kCommandNotAvailable;
-				goto tryPort2;
+			FTPFixServerDataAddr(cip);
+
+#ifdef HAVE_LIBSOCKS
+			cip->ourDataAddr.sin_port = 0;
+			if (Rbind(dataSocket, (struct sockaddr *) &cip->ourDataAddr,
+				(int) sizeof (cip->ourDataAddr),
+				cip->servCtlAddr.sin_addr.s_addr) < 0) 
+#else
+			if (BindToEphemeralPortNumber(dataSocket, &cip->ourDataAddr, (int) cip->ephemLo, (int) cip->ephemHi) < 0)
+#endif
+			{
+				FTPLogError(cip, kDoPerror, "Could not bind the data socket");
+				result = kErrBindDataSocket;
+				cip->errNo = kErrBindDataSocket;
+				goto bad;
 			}
-			FTPLogError(cip, kDoPerror, "connect failed.\n");
-			result = kErrConnectDataSocket;
-			cip->errNo = kErrConnectDataSocket;
-			goto bad;
+
+			result = SConnect(dataSocket, &cip->servDataAddr, (int) cip->connTimeout);
+
+			if (result == kTimeoutErr) {
+				if (mode == kFallBackToSendPortMode) {
+					FTPLogError(cip, kDontPerror, "Data connection timed out.\n");
+					if (passiveAttemptsRemaining == 0) {
+						FTPLogError(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
+						(void) DisposeSocket(dataSocket);
+						dataSocket = kClosedFileDescriptor;
+						if (cip->hasPASV == kCommandAvailabilityUnknown)
+							cip->hasPASV = kCommandNotAvailable;
+						goto tryPort2;
+					}
+				} else {
+					FTPLogError(cip, kDontPerror, "Data connection timed out.\n");
+				}
+				result = kErrConnectDataSocket;
+				cip->errNo = kErrConnectDataSocket;
+				if (passiveAttemptsRemaining == 0)
+					goto bad;
+			} else if (result < 0) {
+#ifdef ECONNREFUSED
+				if ((weirdPort > 0) && (errno == ECONNREFUSED))
+#elif defined(WSAECONNREFUSED)
+				if ((weirdPort > 0) && (errno == WSAECONNREFUSED))
+#endif
+				{
+					if (mode == kFallBackToSendPortMode) {
+						if (passiveAttemptsRemaining == 0) {
+							if (cip->hasPASV == kCommandAvailabilityUnknown)
+								cip->hasPASV = kCommandNotAvailable;
+							FTPLogError(cip, kDontPerror, "Server sent back a bogus port number.\nI will fall back to PORT instead of PASV mode.\n");
+							(void) DisposeSocket(dataSocket);
+							dataSocket = kClosedFileDescriptor;
+							goto tryPort2;
+						}
+					}
+					FTPLogError(cip, kDontPerror, "Server sent back a bogus port number.\n");
+					result = kErrServerSentBogusPortNumber;
+					cip->errNo = kErrServerSentBogusPortNumber;
+					if (passiveAttemptsRemaining == 0)
+						goto bad;
+				}
+				if ((mode == kFallBackToSendPortMode) && (passiveAttemptsRemaining == 0)) {
+					FTPLogError(cip, kDoPerror, "connect failed.\n");
+					FTPLogError(cip, kDontPerror, "Falling back to PORT instead of PASV mode.\n");
+					(void) DisposeSocket(dataSocket);
+					dataSocket = kClosedFileDescriptor;
+					if (cip->hasPASV == kCommandAvailabilityUnknown)
+						cip->hasPASV = kCommandNotAvailable;
+					goto tryPort2;
+				}
+				FTPLogError(cip, kDoPerror, "connect failed.\n");
+				result = kErrConnectDataSocket;
+				cip->errNo = kErrConnectDataSocket;
+			} else {
+				/* Success, break loop because we do not need to do PASV again. */
+				break;
+			}
+
+			if (dataSocket != kClosedFileDescriptor)
+				(void) DisposeSocket(dataSocket);
+
+			dataSocket = socket(AF_INET, SOCK_STREAM, 0);
+			if (dataSocket < 0) {
+				FTPLogError(cip, kDoPerror, "Could not get a data socket.\n");
+				result = kErrNewStreamSocket;
+				cip->errNo = kErrNewStreamSocket;
+				return result;
+			}
+			PrintF(cip, "Retrying PASV mode (%d %s left).\n", passiveAttemptsRemaining, (passiveAttemptsRemaining == 1) ? "try" : "tries");
 		}
-	
+
+		if (result != kNoErr)
+			goto bad;
+
 		/* Need to do this so we can figure out which port the system
 		 * gave to us.
 		 */
 		if ((result = GetSocketAddress(cip, dataSocket, &cip->ourDataAddr)) < 0)
 			goto bad;
 
-		cip->dataPortMode = kPassiveMode;
 		cip->hasPASV = kCommandAvailable;
 	}
 

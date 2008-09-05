@@ -5,8 +5,9 @@
  * 
  */
 
-#if defined(WIN32) || defined(_WINDOWS)
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
+#	define _CRT_SECURE_NO_WARNINGS 1
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
 #	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
@@ -55,8 +56,17 @@
 #	include <fcntl.h>
 #	include <signal.h>
 #	include <assert.h>
-#	define strcasecmp stricmp
-#	define strncasecmp strnicmp
+#	ifndef strcasecmp
+#		define strcasecmp _stricmp
+#		define strncasecmp _strnicmp
+#	endif
+#	ifndef strdup
+#		define strdup _strdup
+#	endif
+#	ifndef fdopen
+#		define fdopen _fdopen
+#		define fileno _fileno
+#	endif
 #	define sleep WinSleep
 #	ifndef S_ISREG
 #		define S_ISREG(m)      (((m) & _S_IFMT) == _S_IFREG)
@@ -133,8 +143,17 @@
 #	ifdef CAN_USE_SYS_SELECT_H
 #		include <sys/select.h>
 #	endif
+#	ifdef HAVE_SYS_ID_H
+#		include <sys/id.h>
+#	endif
 #	if defined(HAVE_SYS_UTSNAME_H) && defined(HAVE_UNAME)
 #		include <sys/utsname.h>
+#	endif
+#	ifdef HAVE_SYS_SYSTEMINFO_H
+#		include <sys/systeminfo.h>
+#	endif
+#	ifdef HAVE_GNU_LIBC_VERSION_H
+#		include <gnu/libc-version.h>
 #	endif
 #	include <netinet/in.h>
 #	include <arpa/inet.h>
@@ -224,7 +243,7 @@
 
 #define NDEBUG 1			/* For assertions. */
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_OPEN64)
+#if ((defined(HAVE_LONG_LONG)) && (defined(_LARGEFILE64_SOURCE)) && (defined(HAVE_OPEN64)))
 #	define Open open64
 #else
 #	define Open open
@@ -234,7 +253,7 @@
 #	define Stat WinStat64
 #	define Lstat WinStat64
 #	define Fstat WinFStat64
-#elif defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
+#elif ((defined(HAVE_LONG_LONG)) && (defined(_LARGEFILE64_SOURCE)) && (defined(HAVE_STAT64)) && (defined(HAVE_STRUCT_STAT64)))
 #	define Stat stat64
 #	ifdef HAVE_FSTAT64
 #		define Fstat fstat64
@@ -252,18 +271,10 @@
 #	define Lstat lstat
 #endif
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_LSEEK64)
+#if ((defined(_FILE_OFFSET_BITS)) && (_FILE_OFFSET_BITS > 32))
+#	define Lseek(a,b,c) lseek(a, (off_t) b, c)
+#elif ((defined(HAVE_LONG_LONG)) && (defined(_LARGEFILE64_SOURCE)) && (defined(HAVE_LSEEK64)))
 #	define Lseek(a,b,c) lseek64(a, (longest_int) b, c)
-#elif defined(HAVE_LONG_LONG) && defined(HAVE_LLSEEK)
-#	if 1
-#		if defined(LINUX) && (LINUX <= 23000)
-#			define Lseek(a,b,c) lseek(a, (off_t) b, c)
-#		else
-#			define Lseek(a,b,c) llseek(a, (longest_int) b, c)
-#		endif
-#	else
-#		define Lseek(a,b,c) lseek(a, (off_t) b, c)
-#	endif
 #else
 #	define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #endif

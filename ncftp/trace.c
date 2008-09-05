@@ -114,12 +114,12 @@ UseTrace(void)
 void
 OpenTrace(void)
 {
-	FILE *fp;
+	FILE *tfp;
 	char pathName[256];
 	char tName[32];
 	char timeStr[128];
 	int pid;
-	const char *cp;
+	const char *term_cp;
 
 	if (gOurDirectoryPath[0] == '\0')
 		return;		/* Don't create in root directory. */
@@ -127,30 +127,34 @@ OpenTrace(void)
 	(void) sprintf(tName, "trace.%u", (unsigned int) (pid = getpid()));
 	(void) OurDirectoryPath(pathName, sizeof(pathName), tName);
 
-	fp = fopen(pathName, FOPEN_WRITE_TEXT);
-	if (fp != NULL) {
+	tfp = fopen(pathName, FOPEN_WRITE_TEXT);
+	if (tfp != NULL) {
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
 		(void) chmod(pathName, 00600);
+#endif
 #ifdef HAVE_SETVBUF
-		(void) setvbuf(fp, gTraceLBuf, _IOLBF, sizeof(gTraceLBuf));
+		(void) setvbuf(tfp, gTraceLBuf, _IOLBF, sizeof(gTraceLBuf));
 #endif	/* HAVE_SETVBUF */
 		/* Opened the trace file. */
 		(void) time(&gTraceTime);
 		memset(timeStr, 0, sizeof(timeStr));
 		(void) strftime(timeStr, sizeof(timeStr) - 1, "%Y-%m-%d %H:%M:%S %Z %z", localtime(&gTraceTime));
-		(void) fprintf(fp, "SESSION STARTED at:  %s\n", timeStr);
-		(void) fprintf(fp, "   Program Version:  %s\n", gVersion + 5);
-		(void) fprintf(fp, "   Library Version:  %s\n", gLibNcFTPVersion + 5);
-		(void) fprintf(fp, "        Process ID:  %u\n", pid);
-		if (gOS[0] != '\0')
-			(void) fprintf(fp, "          Platform:  %s\n", gOS);
+		(void) fprintf(tfp, "SESSION STARTED at:  %s\n", timeStr);
+		(void) fprintf(tfp, "Program Version:     %s compiled for %s\n", gVersion + 5, gOS);
+		if (gOS[0] != '\0') {
+			(void) fprintf(tfp, "Compiled for:        %s\n", gOS);
+		}
+		(void) fprintf(tfp, "Process ID:          %u\n", pid);
+
 		if (gGetOurHostNameResult == 100)
 			gGetOurHostNameResult = GetOurHostName(gOurHostName, sizeof(gOurHostName));
-		(void) fprintf(fp, "          Hostname:  %s  (rc=%d)\n", gOurHostName, gGetOurHostNameResult);
-		cp = (const char *) getenv("TERM");
-		if (cp == NULL)
-			cp = "unknown?";
-		(void) fprintf(fp, "          Terminal:  %s\n", cp);
-		gTraceFile = fp;
+		(void) fprintf(tfp, "Hostname:            %s  (rc=%d)\n", gOurHostName, gGetOurHostNameResult);
+		term_cp = (const char *) getenv("TERM");
+		if (term_cp == NULL)
+			term_cp = "unknown?";
+		(void) fprintf(tfp, "Terminal:            %s\n", term_cp);
+		gTraceFile = tfp;
 	}
 }	/* OpenTrace */
 

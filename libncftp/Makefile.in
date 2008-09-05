@@ -17,7 +17,7 @@ VPATH=@srcdir@
 CPPFLAGS=@CPPFLAGS@
 
 LIB=libncftp.a
-LIBSO=libncftp.so.2
+LIBSO=libncftp.so.3
 LIBSOS=libncftp.so
 
 CFILES=c_chdir.c c_chdir3.c c_chdirlist.c c_chmod.c c_delete.c c_exists.c c_filetype.c c_getcwd.c c_mkdir.c c_mlist1.c c_modtime.c c_opennologin.c c_rename.c c_rhelp.c c_rmdir.c c_rmdirr.c c_size.c c_sizemdtm.c c_symlink.c c_type.c c_umask.c c_utime.c errno.c ftp.c ftw.c io_get.c io_getfiles.c io_getmem.c io_getonefile.c io_gettar.c io_list.c io_listmem.c io_put.c io_putfiles.c io_putmem.c io_putonefile.c io_util.c lglob.c lglobr.c linelist.c open.c rcmd.c rftw.c rglob.c rglobr.c u_close.c u_decodeurl.c u_decodehost.c u_error.c u_fileextn.c u_getcwd.c u_gethome.c u_getopt.c u_getpass.c u_getpw.c u_getusr.c u_getutc.c u_gmtime.c u_localtime.c u_misc.c u_miscdebug.c u_mkdirs.c u_pathcat.c u_printf.c u_rebuildci.c u_scram.c u_shutdownci.c u_signal.c u_slash.c u_unmdtm.c unls.c u_feat.c
@@ -71,6 +71,10 @@ soinstall: $(LIBSO)
 	( cd $(PREFIX)/lib ; /bin/rm -f $(LIBSOS) ; /bin/ln -s $(LIBSO) $(LIBSOS) )
 	cp ncftp.h ncftp_errno.h $(PREFIX)/include
 	-chmod a+r $(PREFIX)/lib/$(LIBSO) $(PREFIX)/include/ncftp.h $(PREFIX)/include/ncftp_errno.h
+	-@/bin/ls -ld $(PREFIX)/lib/$(LIBSO)
+	-@echo
+	-@echo "Make sure that your dynamic loader searches for the directory $(PREFIX)/lib."
+	-@echo "For example, edit /etc/ld.so.conf accordingly if your system uses ld.so."
 
 install: $(LIB)
 	[ -d "$(PREFIX)/lib" ] || mkdir -m 755 "$(PREFIX)/lib"

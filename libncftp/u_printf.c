@@ -10,6 +10,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 /*VARARGS*/
 void
 PrintF(const FTPCIPtr cip, const char *const fmt, ...)

@@ -21,8 +21,8 @@ typedef char pathname[512];
 #define STRNEQ(a,b,s) (strncmp(a,b,(size_t)(s)) == 0)
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-#	define ISTRCMP stricmp
-#	define ISTRNCMP strnicmp
+#	define ISTRCMP _stricmp
+#	define ISTRNCMP _strnicmp
 #endif
 
 #ifndef ISTRCMP
@@ -127,6 +127,7 @@ FTPPutOneF(
 int FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir);
 
 /* open.c */
+void FTPResetStatusVariables(const FTPCIPtr cip);
 void FTPDeallocateHost(const FTPCIPtr cip);
 int FTPAllocateHost(const FTPCIPtr cip);
 

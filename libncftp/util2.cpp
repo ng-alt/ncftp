@@ -1,6 +1,7 @@
 /* util2.cpp */
 
 #if defined(WIN32) || defined(_WINDOWS)
+#	define _CRT_SECURE_NO_WARNINGS 1
 #	pragma warning(disable : 4510)	// warning C4510: 'DStr' : default constructor could not be generated
 #	pragma warning(disable : 4512)	// warning C4512: 'DStr' : assignment operator could not be generated
 #	pragma warning(disable : 4610)	// warning C4610: struct 'DStr' can never be instantiated - user defined constructor required

@@ -10,6 +10,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 
 static void
 StripUnneccesaryGlobEntries(const FTPCIPtr cip, FTPLineListPtr fileList)

@@ -10,6 +10,43 @@
 #	pragma hdrstop
 #endif
 
+void
+FTPResetStatusVariables(const FTPCIPtr cip)
+{
+	cip->errNo = 0;
+	memset(&cip->lastFTPCmdResultStr, 0, sizeof(cip->lastFTPCmdResultStr));
+	cip->lastFTPCmdResultNum = 0;
+	cip->sec = 0;
+	cip->secLeft = 0;
+	cip->kBytesPerSec = 0;
+	cip->percentCompleted = 0;
+	cip->expectedSize = 0;
+	cip->mdtm = 0;
+	cip->nextProgressUpdate = 0;
+	cip->stalled = 0;
+	cip->dataTimedOut = 0;
+	cip->cancelXfer = 0;
+	cip->canceling = 0;
+	cip->canceled = 0;
+	cip->connected = 0;
+	cip->loggedIn = 0;
+	cip->bytesTransferred = 0;
+	cip->curTransferType = 0;
+	cip->startPoint = 0;
+	cip->dataSocketConnected = 0;
+	cip->totalDials = 0;
+	memset(&cip->connectTime, 0, sizeof(cip->connectTime));
+	memset(&cip->loginTime, 0, sizeof(cip->loginTime));
+	memset(&cip->disconnectTime, 0, sizeof(cip->disconnectTime));
+	memset(&cip->lastCmdStart, 0, sizeof(cip->lastCmdStart));
+	memset(&cip->lastCmdFinish, 0, sizeof(cip->lastCmdFinish));
+	cip->numDownloads = 0;
+	cip->numUploads = 0;
+	cip->numListings = 0;
+}	/* FTPResetStatusVariables */
+
+
+
 
 void
 FTPDeallocateHost(const FTPCIPtr cip)
@@ -35,6 +72,7 @@ FTPDeallocateHost(const FTPCIPtr cip)
 	DisposeSReadlineInfo(&cip->ctrlSrl);
 #endif
 	DisposeLineListContents(&cip->lastFTPCmdResultLL);
+
 }	/* FTPDeallocateHost */
 
 
@@ -478,7 +516,9 @@ FTPQueryFeatures(const FTPCIPtr cip)
 				 * (c) A protocol violation.
 				 */
 				cp = lp->line;
-				if (*cp++ != ' ')
+				while ((*cp != '\0') && (isspace(*cp)))
+					cp++;
+				if (*cp == '\0')
 					continue;
 				if (ISTRNCMP(cp, "PASV", 4) == 0) {
 					cip->hasPASV = kCommandAvailable;
@@ -685,6 +725,49 @@ FTPInitialLogEntry(const FTPCIPtr cip)
 		}
 #endif
 
+#ifdef LINUX
+	{
+		FILE *etc_fp;
+		const char **etc_fn;
+		char etc_line[256], *etc_cp;
+
+		const char *etc_fnames[] = {
+			"/etc/yellowdog-release",
+			"/etc/gentoo-release",
+			"/etc/turbolinux-release",
+			"/etc/slackware-release",
+			"/etc/slackware-version",
+			"/etc/mandrake-release",
+			"/etc/debian_version",
+			"/etc/conectiva-release",
+			"/etc/SuSE-release",
+			"/etc/fedora-release",
+			"/etc/redhat-release",	/* Works for CentOS, too. */
+			"/etc/issue",
+			NULL,
+		};
+
+		for (etc_fn = etc_fnames; *etc_fn != NULL; etc_fn++) {
+			etc_fp = fopen(*etc_fn, "r");
+			if (etc_fp != NULL) {
+				PrintF(cip, "Contents of %.127s:\n", *etc_fn);
+				memset(etc_line, 0, sizeof(etc_line));
+				while (fgets(etc_line, sizeof(etc_line) - 1, etc_fp) != NULL) {
+					etc_cp = etc_line + strlen(etc_line) - 1;
+					while ((etc_cp >= etc_line) && (isspace((int) *etc_cp)))
+						etc_cp--;
+					++etc_cp;
+					*etc_cp = '\0';
+					if (etc_line[0] != '\0') {
+						PrintF(cip, "  %.127s\n", etc_line);
+					}
+				}
+				(void) fclose(etc_fp);
+			}
+		}
+	}
+#endif	/* LINUX */
+
 #if defined(HAVE_GNU_GET_LIBC_VERSION) && defined(HAVE_GNU_GET_LIBC_RELEASE)
 		PrintF(cip, "Glibc: %s (%s)\n",
 			gnu_get_libc_version(),
@@ -778,6 +861,7 @@ FTPOpenHost(const FTPCIPtr cip)
 		return (kErrNoHostSpecified);
 	}
 
+	FTPResetStatusVariables(cip);
 	FTPManualOverrideFeatures(cip);
 	FTPInitialLogEntry(cip);
 
@@ -909,6 +993,7 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->ctrlSocketR = kClosedFileDescriptor;
 	cip->ctrlSocketW = kClosedFileDescriptor;
 	cip->dataPortMode = kDefaultDataPortMode;
+	cip->maxNumberOfSuccessivePASVAttempts = kDefaultMaxNumberOfSuccessivePASVAttempts;
 	cip->dataSocket = kClosedFileDescriptor;
 	cip->lip = lip;
 	cip->hasPASV = kCommandAvailabilityUnknown;

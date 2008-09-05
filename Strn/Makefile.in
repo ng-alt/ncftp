@@ -104,7 +104,7 @@ install:
 uninstall:
 	/bin/rm -f "$(prefix)/lib/$(LIB)" "$(prefix)/include/Strn.h" "$(prefix)/lib/Strn.version"
 
-PACKAGE=configure Makefile.in configure.in config.h.in Strn.dsp Strn.dsw tester.c $(CFILES) $(HFILES)
+PACKAGE=configure Makefile.in configure.in config.h.in Strn.vcproj Strn.sln tester.c $(CFILES) $(HFILES)
 
 TMPDIR=/tmp
 TARDIR=Strn

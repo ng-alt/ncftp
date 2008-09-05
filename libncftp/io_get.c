@@ -1,6 +1,6 @@
 /* io_get.c
  *
- * Copyright (c) 1996-2006 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2008 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -9,6 +9,8 @@
 #ifdef PRAGMA_HDRSTOP
 #	pragma hdrstop
 #endif
+
+#define _CRT_SECURE_NO_WARNINGS 1
 
 #if 0	/* For now, don't do this, which takes a shortcut. */
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
@@ -245,7 +247,16 @@ FTPGetOneF(
 						zaction = kConfirmResumeProcSaidOverwrite;
 					}
 				} else {
+					if ((cip->hasMDTM == kCommandAvailable) || (cip->hasSIZE != kCommandAvailable)) {
+						/* Remote file does not seem to exist, but local already does.
+						 * Since we know we can determine the existence of remote files,
+						 * assume that doing a retrieve of this file would fail out with
+						 * an error and end up truncating the local file for no reason.
+						 */
+						zaction = kConfirmResumeProcSaidSkip;
+					} else {
 						zaction = kConfirmResumeProcSaidOverwrite;
+					}
 				}
 			}
 		} else {

@@ -14,6 +14,8 @@
 #	define NO_SIGNALS 1
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 
 
 /* A 'Response' parameter block is simply zeroed to be considered init'ed. */

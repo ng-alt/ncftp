@@ -7,6 +7,7 @@
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
+#	define _CRT_SECURE_NO_WARNINGS 1
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
 #	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
@@ -39,8 +40,10 @@
 #	include <sys/stat.h>
 #	include <sys/utime.h>
 #	include <fcntl.h>
-#	define strcasecmp stricmp
-#	define strncasecmp strnicmp
+#	define strcasecmp _stricmp
+#	define strncasecmp _strnicmp
+#	define strdup _strdup
+#	define fdopen _fdopen
 #	define sleep WinSleep
 #	ifndef mode_t
 #		define mode_t int
@@ -231,7 +234,7 @@
 #endif /* ---------------------------- UNIX ---------------------------- */
 
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_OPEN64)
+#if ((defined(HAVE_LONG_LONG)) && (defined(_LARGEFILE64_SOURCE)) && (defined(HAVE_OPEN64)))
 #	define Open open64
 #else
 #	define Open open
@@ -241,7 +244,7 @@
 #	define Stat WinStat64
 #	define Lstat WinStat64
 #	define Fstat WinFStat64
-#elif defined(HAVE_LONG_LONG) && defined(HAVE_STAT64) && defined(HAVE_STRUCT_STAT64)
+#elif ((defined(HAVE_LONG_LONG)) && (defined(_LARGEFILE64_SOURCE)) && (defined(HAVE_STAT64)) && (defined(HAVE_STRUCT_STAT64)))
 #	define Stat stat64
 #	ifdef HAVE_FSTAT64
 #		define Fstat fstat64
@@ -262,14 +265,10 @@
 #ifndef Lseek
 #	if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #		define Lseek(a,b,c) _lseeki64(a, (__int64) b, c)
-#	elif defined(HAVE_LONG_LONG) && defined(HAVE_LSEEK64)
+#	elif ((defined(_FILE_OFFSET_BITS)) && (_FILE_OFFSET_BITS > 32))
+#		define Lseek(a,b,c) lseek(a, (off_t) b, c)
+#	elif ((defined(HAVE_LONG_LONG)) && (defined(_LARGEFILE64_SOURCE)) && (defined(HAVE_LSEEK64)))
 #		define Lseek(a,b,c) lseek64(a, (longest_int) b, c)
-#	elif defined(HAVE_LONG_LONG) && defined(HAVE_LLSEEK)
-#		if defined(LINUX) && (LINUX <= 23000)
-#			define Lseek(a,b,c) lseek(a, (off_t) b, c)
-#		else
-#			define Lseek(a,b,c) llseek(a, (longest_int) b, c)
-#		endif
 #	else
 #		define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #	endif

@@ -10,6 +10,11 @@
 #	pragma hdrstop
 #endif
 
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#	define _CRT_SECURE_NO_WARNINGS 1
+#	pragma warning(disable : 4706)	// warning C4706: assignment within conditional expression
+#endif
+
 static const char *rwx[9] = { "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx", NULL };
 
 #if 0
@@ -280,8 +285,9 @@ UnLslRLine(	char *const line,
 		int *plugend)
 {
 	char *cp;
-	int mon = 0, dd = 0, hr = 0, min = 0, year = 0;
-	char *monstart, *ddstart, *hrstart, *minstart, *yearstart;
+	int mon = 0, day = 0, hr = 0, min = 0, year = 0, sec = 0;
+	int haveIsoHHMMSS = -1;
+	char *monstart, *daystart, *hrstart, *minstart, *yearstart, *secstart = NULL;
 	char *linktostart, *filestart = NULL;
 	char *sizestart;
 	char *pe;
@@ -325,7 +331,7 @@ UnLslRLine(	char *const line,
 			&& (isspace((int) cp[8]))
 		) {
 			monstart = cp + 2;
-			ddstart = cp + 6;
+			daystart = cp + 6;
 			if (	((isspace((int) cp[9])) || (isdigit((int) cp[9])))
 				&& (isdigit((int) cp[10]))
 				&& (isdigit((int) cp[11]))
@@ -341,12 +347,13 @@ UnLslRLine(	char *const line,
 				filestart = cp + 15;
 				cp[1] = '\0';	/* end size */
 				cp[5] = '\0';	/* end mon */
-				cp[8] = '\0';	/* end dd */
+				cp[8] = '\0';	/* end day */
 				cp[14] = '\0';	/* end year */
 				mon = LsMonthNameToNum(monstart);
-				dd = atoi(ddstart);
+				day = atoi(daystart);
 				hr = 23;
 				min = 59;
+				sec = 59;
 				year = atoi(yearstart);
 
 				pe = cp;
@@ -372,13 +379,14 @@ UnLslRLine(	char *const line,
 				filestart = cp + 15;
 				cp[1] = '\0';	/* end size */
 				cp[5] = '\0';	/* end mon */
-				cp[8] = '\0';	/* end dd */
+				cp[8] = '\0';	/* end day */
 				cp[11] = '\0';	/* end hr */
 				cp[14] = '\0';	/* end min */
 				mon = LsMonthNameToNum(monstart);
-				dd = atoi(ddstart);
+				day = atoi(daystart);
 				hr = atoi(hrstart);
 				min = atoi(minstart);
+				sec = 0;
 				year = 0;
 
 				pe = cp;
@@ -389,6 +397,81 @@ UnLslRLine(	char *const line,
 				*plugend = (int) (pe - line) + 1;
 				break;
 			}
+		} else if (	(isdigit((int) *cp))
+			&& (isspace((int) cp[1]))
+
+			&& (isdigit((int) cp[2]))
+			&& (isdigit((int) cp[3]))
+			&& (isdigit((int) cp[4]))
+			&& (isdigit((int) cp[5]))
+			&& (cp[6] == '-')
+			&& (isdigit((int) cp[7]))
+			&& (isdigit((int) cp[8]))
+			&& (cp[9] == '-')
+			&& (isdigit((int) cp[10]))
+			&& (isdigit((int) cp[11]))
+
+			&& (isspace((int) cp[12]))
+
+			&& (isdigit((int) cp[13]))
+			&& (isdigit((int) cp[14]))
+			&& (cp[15] == ':')
+			&& (isdigit((int) cp[16]))
+			&& (isdigit((int) cp[17]))
+
+			&& (
+				((haveIsoHHMMSS = isspace((int) cp[18]))) ||
+				(
+					   (isdigit((int) cp[19]))
+					&& (isdigit((int) cp[20]))
+					&& (isspace((int) cp[21]))
+					&& ((haveIsoHHMMSS = (int) cp[18]) == ':')
+				)
+
+			)
+		) {
+			/* "YYYY-mm-dd HH:MM" or "YYYY-mm-dd HH:MM:SS" form */
+/* drwxr-xr-x   4 ftpuser  ftpusers  136 2008-03-12 23:38 beta
+                                       0123456789012345678901234567890123456789
+*/
+			yearstart = cp + 2;
+			cp[6] = '\0';	/* end year */
+
+			monstart = cp + 7;
+			cp[9] = '\0';	/* end month */
+
+			daystart = cp + 10;
+			cp[12] = '\0';	/* end day */
+
+			hrstart = cp + 13;
+			cp[15] = '\0';	/* end hr */
+
+			minstart = cp + 16;
+			cp[18] = '\0';	/* end min */
+
+			if (haveIsoHHMMSS == ':') {
+				secstart = cp + 19;
+				cp[21] = '\0';	/* end sec */
+				sec = atoi(secstart);
+				filestart = cp + 22;
+			} else {
+				filestart = cp + 19;
+				sec = 0;
+			}
+
+			mon = atoi(monstart) - 1;
+			day = atoi(daystart);
+			hr = atoi(hrstart);
+			min = atoi(minstart);
+			year = atoi(yearstart);
+
+			pe = cp;
+			while (isdigit((int) *pe))
+				pe--;
+			while (isspace((int) *pe))
+				pe--;
+			*plugend = (int) (pe - line) + 1;
+			break;
 		}
 	}
 
@@ -414,9 +497,10 @@ UnLslRLine(	char *const line,
 	if (ftime != NULL) {
 		(void) memset(&ftm, 0, sizeof(struct tm));
 		ftm.tm_mon = mon;
-		ftm.tm_mday = dd;
+		ftm.tm_mday = day;
 		ftm.tm_hour = hr;
 		ftm.tm_min = min;
+		ftm.tm_sec = sec;
 		ftm.tm_isdst = -1;
 		if (year == 0) {
 			/* We guess the year, based on what the

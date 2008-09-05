@@ -302,7 +302,10 @@ OpenBookmarkFile(int *numBookmarks0)
 		return NULL;		/* Okay to not have one yet. */
 	}
 	
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
 	(void) chmod(pathName, 00600);
+#endif
 	if (FGets(line, sizeof(line), fp) == NULL) {
 		(void) fprintf(stderr, "%s: invalid format.\n", pathName);
 		(void) fclose(fp);
@@ -653,6 +656,9 @@ SwapBookmarkFiles(void)
 
 	(void) OurDirectoryPath(path2, sizeof(path2), kBookmarkFileName);
 	(void) OurDirectoryPath(pathName, sizeof(pathName), kTmpBookmarkFileName);
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) && !defined(getpid)
+#	define getpid _getpid
+#endif
 	(void) sprintf(pidStr, "-%u.txt", (unsigned int) getpid());
 	(void) STRNCAT(pathName, pidStr);
 
@@ -690,7 +696,10 @@ OpenTmpBookmarkFile(int nb)
 		perror(pathName);
 		return (NULL);
 	}
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
 	(void) chmod(pathName, 00600);
+#endif
 	if (nb > 0) {
 		if (fprintf(outfp, "NcFTP bookmark-file version: %d\nNumber of bookmarks: %d\n", kBookmarkVersion, nb) < 0) {
 			(void) fprintf(stderr, "Could not save bookmark.\n");
@@ -850,6 +859,33 @@ DefaultBookmarkName(char *dst, size_t siz, char *src)
 	}
 	(void) Strncpy(dst, token, siz);
 }	/* DefaultBookmarkName */
+
+
+
+
+int
+AddNewItemToBookmarkTable(void)
+{
+	int nb;
+	BookmarkPtr newTable, bmp;
+
+	if (gBookmarkTable == NULL)
+		return (-1);
+
+	nb = gNumBookmarks + 1;
+	
+	newTable = (BookmarkPtr) realloc(gBookmarkTable, (size_t) (nb) * sizeof(Bookmark));
+	if (newTable == NULL)
+		return (-1);
+
+	gBookmarkTable = newTable;
+	gNumBookmarks = nb;
+
+	bmp = &newTable[nb - 1];
+	SetBookmarkDefaults(bmp);
+
+	return (nb - 1);
+}	/* AddNewItemToBookmarkTable */
 
 
 

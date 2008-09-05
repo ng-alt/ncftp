@@ -4,6 +4,7 @@
 #endif
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#define _CRT_SECURE_NO_WARNINGS 1
 
 const char *wsaerrlist[128] = {
 	/*   0 */	"Unknown error #0",

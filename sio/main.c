@@ -5,6 +5,19 @@
 
 int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
 
+/* Your app can set this to 1 to avoid pointless setting/restoring of SIGPIPE */
+int sio_sigpipe_ignored_already = 0;
+
+
+
+void
+SIOPipeSignalIsBeingIgnoredGloballyByApplication(int value)
+{
+	sio_sigpipe_ignored_already = value;
+}	/* SIOPipeSignalIsBeingIgnoredGloballyByApplication */
+
+
+
 #ifdef UNIX_SIGNALS
 
 #if defined(HPUX) || defined(__hpux__)

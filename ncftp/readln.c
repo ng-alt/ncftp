@@ -659,7 +659,10 @@ SaveHistory(void)
 	(void) OurDirectoryPath(pathName, sizeof(pathName), kHistoryFileName);
 
 	gl_histsavefile(pathName);
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
 	(void) chmod(pathName, 00600);
+#endif
 }	/* SaveHistory */
 
 

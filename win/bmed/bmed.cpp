@@ -60,9 +60,10 @@ BOOL CBmedApp::InitInstance()
 	//  the specific initialization routines you do not need.
 
 #ifdef _AFXDLL
-	Enable3dControls();			// Call this when using MFC in a shared DLL
+	// Supposedly, this is no longer required, according to VS2008
+	// Enable3dControls();			// Call this when using MFC in a shared DLL
 #else
-	Enable3dControlsStatic();	// Call this when linking to MFC statically
+	// Enable3dControlsStatic();	// Call this when linking to MFC statically
 #endif
 
 	AfxGetApp()->m_pszAppName = "NcFTP Bookmarks";

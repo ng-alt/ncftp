@@ -11,6 +11,7 @@
 #endif
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#define _CRT_SECURE_NO_WARNINGS 1
 extern void GetSpecialDir(char *dst, size_t size, int whichDir);
 #endif
 

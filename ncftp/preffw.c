@@ -339,7 +339,10 @@ LoadFirewallPrefs(int forceReload)
 		if (fp != NULL) {
 			WriteDefaultFirewallPrefs(fp);
 			(void) fclose(fp);
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
 			(void) chmod(pathName, 00600);
+#endif
 			gNumProgramRuns = 1;
 		}
 	}

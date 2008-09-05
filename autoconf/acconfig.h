@@ -300,6 +300,9 @@
 
 #undef PRAGMA_HDRSTOP
 
+/* Define to the full path of $prefix/bin. */
+#undef PREFIX_BINDIR
+
 /* Define if you need to in order for stat and other things to work.  */
 #undef _POSIX_SOURCE
 
@@ -368,6 +371,9 @@
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
+/* Define to sizeof(off_t) */
+#undef SIZEOF_OFF_T
+
 /* Define to sizeof(int *) */
 #undef SIZEOF_PTR
 
@@ -376,6 +382,9 @@
 
 /* Define to sizeof(struct stat64), if you have it. */
 #undef SIZEOF_STRUCT_STAT64
+
+/* Define to sizeof(struct stat.st_size) */
+#undef SIZEOF_ST_SIZE
 
 #undef SNPRINTF_RETURNS_PTR
 

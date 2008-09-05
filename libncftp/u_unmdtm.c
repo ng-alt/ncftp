@@ -10,6 +10,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 /* Converts a MDTM date, like "19930602204445"
  * format to a time_t.
  */

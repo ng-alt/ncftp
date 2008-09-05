@@ -51,7 +51,13 @@ DisposeWinsock(void)
 
 int gettimeofday(struct timeval *const tp, void *junk)
 {
+#if (_WIN32_WINNT < 0x0500)
+	/* Older systems don't have all the necessary time functions. */
+
 	SYSTEMTIME systemTime;
+
+	if (tp == NULL)
+		return (-1);
 
 	GetSystemTime(&systemTime);
 
@@ -68,6 +74,49 @@ int gettimeofday(struct timeval *const tp, void *junk)
 	tp->tv_usec = systemTime.wMilliseconds * 1000;
 
 	return 0;
+#else	/* Windows 2000 or better */
+	FILETIME systemTime, unixEpochFileTime;
+	ULARGE_INTEGER sysTimeAsFileTime;
+	SYSTEMTIME unixEpochSysTime;
+	static int initialized = 0;
+	static unsigned __int64 unixEpochQuad = 0;
+	unsigned __int64 now_time64_t;
+	time_t now_time_t;
+
+	if (tp == NULL)
+		return (-1);
+
+	tp->tv_sec = 0;
+	tp->tv_usec = 0;
+
+	GetSystemTimeAsFileTime(&systemTime);
+	sysTimeAsFileTime.QuadPart = 0;
+	sysTimeAsFileTime.LowPart = systemTime.dwLowDateTime;
+	sysTimeAsFileTime.HighPart = systemTime.dwHighDateTime;
+
+	if (initialized == 0) {
+		memset(&unixEpochSysTime, 0, sizeof(unixEpochSysTime));
+		memset(&unixEpochFileTime, 0, sizeof(unixEpochFileTime));
+		unixEpochSysTime.wYear = 1970;
+		unixEpochSysTime.wMonth = 1;
+		unixEpochSysTime.wDay = 1;
+		if (! SystemTimeToFileTime(&unixEpochSysTime, &unixEpochFileTime))
+			return (-1);
+		unixEpochQuad = (unsigned __int64) unixEpochFileTime.dwLowDateTime + ((unsigned __int64) unixEpochFileTime.dwHighDateTime << 32);
+		if (sysTimeAsFileTime.QuadPart < unixEpochQuad)
+			return (-1);
+		initialized = 1;
+	}
+
+	/* Compute number of 100-ns (0.1 us) intervals since Jan 1, 1970. */
+	now_time64_t = sysTimeAsFileTime.QuadPart - unixEpochQuad;
+	tp->tv_usec = (unsigned long) ((now_time64_t / (unsigned __int64) 10) % (unsigned __int64) 1000000);
+	now_time64_t /= 10000000;
+	now_time_t = (time_t) (now_time64_t & 0xFFFFFFFF);
+	tp->tv_sec = (long) now_time_t;
+
+	return 0;
+#endif
 }	/* gettimeofday */
 
 

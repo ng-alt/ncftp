@@ -142,11 +142,19 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 #if defined(__DECC) || defined(__DECCXX)
 #	pragma message restore
 #endif
-		xx = ss;
+		MY_FD_ZERO(&xx);
+#if defined(__DECC) || defined(__DECCXX)
+#	pragma message save
+#	pragma message disable trunclongint
+#endif
+		MY_FD_SET(sfd, &xx);
+#if defined(__DECC) || defined(__DECCXX)
+#	pragma message restore
+#endif
 		tv.tv_sec = (tv_sec_t) tlen;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &xx, SELECT_TYPE_ARG5 &tv);
-		if (result == 1) {
+		if (result >= 1) {
 			/* ready */
 			break;
 		} else if (result == 0) {

@@ -623,12 +623,18 @@ main(int argc, char **argv)
 				es = kExitXferFailed;
 			}
 		} else if (ftpcat != 0) {
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+			_setmode(STDOUT_FILENO, _O_BINARY);
+#endif
 			if (FTPGetOneFile3(&fi, urlfile, NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr) {
 				es = kExitSuccess;
 			} else {
 				FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
 				es = kExitXferFailed;
 			}
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+			_setmode(STDOUT_FILENO, _O_TEXT);
+#endif
 		} else {
 			if ((rc = FTPGetFiles3(&fi, urlfile, ".", rflag, kGlobYes, xtype, resumeflag, appendflag, deleteflag, tarflag, kNoFTPConfirmResumeDownloadProc, 0)) < 0) {
 				if (rc == kErrLocalSameAsRemote) {
@@ -654,10 +660,16 @@ main(int argc, char **argv)
 			else
 				es = kExitXferFailed;
 		} else if (ftpcat != 0) {
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+			_setmode(STDOUT_FILENO, _O_BINARY);
+#endif
 			if (FTPGetOneFile3(&fi, flist[0], NULL, xtype, STDOUT_FILENO, resumeflag, kAppendNo, deleteflag, kNoFTPConfirmResumeDownloadProc, 0) == kNoErr)
 				es = kExitSuccess;
 			else
 				es = kExitXferFailed;
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+			_setmode(STDOUT_FILENO, _O_TEXT);
+#endif
 		} else {
 			if (Copy(&fi, dstdir, flist, rflag, xtype, resumeflag, appendflag, deleteflag, tarflag, perfilecmd) == 0)
 				es = kExitSuccess;

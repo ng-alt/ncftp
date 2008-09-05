@@ -105,7 +105,7 @@ FTPGetFiles3(
 			goto return_err;
 		}
 		doGlob = kGlobNo;
-	} else if ((strcmp(pattern, "/") == 0) && ((strcmp(dstdir, ".") == 0) || (dstdir[0] == '\0'))) {
+	} else if ((strcmp(pattern, "/") == 0) && ((dstdir == NULL) || (strcmp(dstdir, ".") == 0) || (dstdir[0] == '\0'))) {
 		/* Ick... but works around a problem we need to fix */
 		free(pattern2);
 		pattern2 = StrDup("/.");

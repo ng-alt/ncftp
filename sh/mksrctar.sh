@@ -58,6 +58,7 @@ find . -depth -follow -type f | sed '
 /\.pch$/d
 /\.gch$/d
 /\.cpch$/d
+/\.dSYM/d
 /SunWS_cache/d
 /\.ilk$/d
 /\.res$/d

@@ -1,13 +1,14 @@
 /* bookmark.c 
  *
- * Copyright (c) 1992-1999 by Mike Gleason.
+ * Copyright (c) 1992-2005 by Mike Gleason.
  * All rights reserved.
  * 
  */
 
-// TO-DO: Do it up right with a CBookmark class.
-
 #include "syshdrs.h"
+#ifdef PRAGMA_HDRSTOP
+#	pragma hdrstop
+#endif
 
 #include "bookmark.h"
 #include "util.h"
@@ -147,7 +148,9 @@ ParseHostLine(char *line, BookmarkPtr bmp)
 
 	SetBookmarkDefaults(bmp);
 	s = line;
-	tokenend = token + sizeof(token) - 1;
+	tokenend = token;
+	tokenend += sizeof(token);
+	--tokenend;
 	result = -1;
 	for (i=1; ; i++) {
 		if (*s == '\0')
@@ -299,7 +302,10 @@ OpenBookmarkFile(int *numBookmarks0)
 		return NULL;		/* Okay to not have one yet. */
 	}
 	
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
 	(void) chmod(pathName, 00600);
+#endif
 	if (FGets(line, sizeof(line), fp) == NULL) {
 		(void) fprintf(stderr, "%s: invalid format.\n", pathName);
 		(void) fclose(fp);
@@ -401,16 +407,18 @@ GetBookmark(const char *const bmabbr, Bookmark *bmp)
 	int exactMatch = 0;
 	size_t bmabbrLen;
 	char *cp;
+	char bmabbrtrunc[sizeof(bmp->bookmarkName)];
 
 	fp = OpenBookmarkFile(NULL);
 	if (fp == NULL)
 		return (-1);
 
+	STRNCPY(bmabbrtrunc, bmabbr);
 	bmabbrLen = strlen(bmabbr);
 	while (FGets(line, sizeof(line), fp) != NULL) {
 		if (ParseHostLine(line, bmp) < 0)
 			continue;
-		if (ISTREQ(bmp->bookmarkName, bmabbr)) {
+		if (ISTREQ(bmp->bookmarkName, bmabbrtrunc)) {
 			/* Exact match, done. */
 			byBmNameFlag = bmabbrLen;
 			exactMatch = 1;
@@ -483,7 +491,7 @@ GetBookmark(const char *const bmabbr, Bookmark *bmp)
 static int
 BookmarkSortProc(const void *a, const void *b)
 {
-	return (ISTRCMP((*(Bookmark *)a).bookmarkName, (*(Bookmark *)b).bookmarkName));	
+	return (ISTRCMP((*(const Bookmark *)a).bookmarkName, (*(const Bookmark *)b).bookmarkName));	
 }	/* BookmarkSortProc */
 
 
@@ -491,7 +499,7 @@ BookmarkSortProc(const void *a, const void *b)
 static int
 BookmarkSearchProc(const void *key, const void *b)
 {
-	return (ISTRCMP((char *) key, (*(Bookmark *)b).bookmarkName));	
+	return (ISTRCMP((const char *) key, (*(const Bookmark *)b).bookmarkName));	
 }	/* BookmarkSearchProc */
 
 
@@ -534,7 +542,7 @@ LoadBookmarkTable(void)
 	}
 	if ((nb != gNumBookmarks) && (gBookmarkTable != NULL)) {
 		/* Re-loading the table from disk. */
-		gBookmarkTable = (BookmarkPtr) realloc(gBookmarkTable, (size_t) (nb + 1) * sizeof(Bookmark));
+		gBookmarkTable = (Bookmark *) realloc(gBookmarkTable, (size_t) (nb + 1) * sizeof(Bookmark));
 		memset(gBookmarkTable, 0, (nb + 1) * sizeof(Bookmark));
 	} else {
 		gBookmarkTable = calloc((size_t) (nb + 1), (size_t) sizeof(Bookmark));
@@ -557,31 +565,6 @@ LoadBookmarkTable(void)
 	return (0);
 }	/* LoadBookmarkTable */
 
-
-
-int
-AddNewItemToBookmarkTable(void)
-{
-	int nb;
-	BookmarkPtr newTable, bmp;
-
-	if (gBookmarkTable == NULL)
-		return (-1);
-
-	nb = gNumBookmarks + 1;
-	
-	newTable = (BookmarkPtr) realloc(gBookmarkTable, (size_t) (nb) * sizeof(Bookmark));
-	if (newTable == NULL)
-		return (-1);
-
-	gBookmarkTable = newTable;
-	gNumBookmarks = nb;
-
-	bmp = &newTable[nb - 1];
-	SetBookmarkDefaults(bmp);
-
-	return (nb - 1);
-}	/* AddNewItemToBookmarkTable */
 
 
 
@@ -673,6 +656,9 @@ SwapBookmarkFiles(void)
 
 	(void) OurDirectoryPath(path2, sizeof(path2), kBookmarkFileName);
 	(void) OurDirectoryPath(pathName, sizeof(pathName), kTmpBookmarkFileName);
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__) && !defined(getpid)
+#	define getpid _getpid
+#endif
 	(void) sprintf(pidStr, "-%u.txt", (unsigned int) getpid());
 	(void) STRNCAT(pathName, pidStr);
 
@@ -682,6 +668,8 @@ SwapBookmarkFiles(void)
 	}
 	return (0);
 }	/* SwapBookmarkFiles */
+
+
 
 
 
@@ -708,7 +696,10 @@ OpenTmpBookmarkFile(int nb)
 		perror(pathName);
 		return (NULL);
 	}
+#if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#else
 	(void) chmod(pathName, 00600);
+#endif
 	if (nb > 0) {
 		if (fprintf(outfp, "NcFTP bookmark-file version: %d\nNumber of bookmarks: %d\n", kBookmarkVersion, nb) < 0) {
 			(void) fprintf(stderr, "Could not save bookmark.\n");
@@ -868,3 +859,42 @@ DefaultBookmarkName(char *dst, size_t siz, char *src)
 	}
 	(void) Strncpy(dst, token, siz);
 }	/* DefaultBookmarkName */
+
+
+
+
+int
+AddNewItemToBookmarkTable(void)
+{
+	int nb;
+	BookmarkPtr newTable, bmp;
+
+	if (gBookmarkTable == NULL)
+		return (-1);
+
+	nb = gNumBookmarks + 1;
+	
+	newTable = (BookmarkPtr) realloc(gBookmarkTable, (size_t) (nb) * sizeof(Bookmark));
+	if (newTable == NULL)
+		return (-1);
+
+	gBookmarkTable = newTable;
+	gNumBookmarks = nb;
+
+	bmp = &newTable[nb - 1];
+	SetBookmarkDefaults(bmp);
+
+	return (nb - 1);
+}	/* AddNewItemToBookmarkTable */
+
+
+
+
+void
+DisposeBookmarkTable(void)
+{
+	if (gBookmarkTable != NULL) {
+		free(gBookmarkTable);
+		gBookmarkTable = NULL;
+	}
+}	/* DisposeBookmarkTable */

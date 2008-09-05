@@ -1,6 +1,6 @@
 /* io_put.c
  *
- * Copyright (c) 1996-2006 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2008 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -9,6 +9,8 @@
 #ifdef PRAGMA_HDRSTOP
 #	pragma hdrstop
 #endif
+
+#define _CRT_SECURE_NO_WARNINGS 1
 
 #ifndef O_BINARY
 	/* Needed for platforms using different EOLN sequence (i.e. DOS) */

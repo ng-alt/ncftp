@@ -21,12 +21,17 @@ FGets(char *str, size_t size, FILE *fp)
 		cp[((int) size) - 1] = '\0';	/* ensure terminator */
 		nlptr = cp + strlen(cp) - 1;
 		if (*nlptr == '\n')
+			*nlptr-- = '\0';
+		if (*nlptr == '\r')
 			*nlptr = '\0';
 	} else {
 		memset(str, 0, size);
 	}
 	return cp;
 }	/* FGets */
+
+
+
 
 void
 StrRemoveTrailingSlashes(char *dst)

@@ -100,8 +100,22 @@ dnl
 dnl
 dnl
 dnl
+AC_DEFUN(wi_ARG_ENABLE_MACOSX_UNIVERSAL, [
+AC_ARG_ENABLE(universal,[  --enable-universal      enable production of universal binaries on Mac OS X],use_macosx_universal="$enableval",use_macosx_universal=no)
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_ARG_DISABLE_MACOSX_UNIVERSAL, [
+AC_ARG_ENABLE(universal,[  --disable-universal     disable production of universal binaries on Mac OS X],use_macosx_universal="$enableval",use_macosx_universal=yes)
+])
+dnl
+dnl
+dnl
+dnl
 AC_DEFUN(wi_ARG_DISABLE_PRECOMP, [
-AC_ARG_ENABLE(ccdv,[  --disable-precomp       disable use of precompiled header files],use_precomp="$enableval",use_precomp=yes)
+AC_ARG_ENABLE(precomp,[  --disable-precomp       disable use of precompiled header files],use_precomp="$enableval",use_precomp=yes)
 ])
 dnl
 dnl
@@ -110,6 +124,10 @@ dnl
 AC_DEFUN(wi_CC_PRECOMP, [
 AC_CACHE_CHECK([if the C compiler can use precompiled headers], [wi_cv_cc_precomp], [
 	result="no"
+	if test "${use_macosx_universal}" != no ; then
+		# Precompiling the headers doesn't seem to work when building universal binaries
+		use_precomp=no
+	fi
 	if test "${use_precomp-yes}" != no ; then
 		wi_cv_cc_precomp_type="unknown"
 		rm -f pchtest.h pchtest.p pchtest.c pchtest.o pchtest csetc.pch pchtest.pch pchtest.h.gch
@@ -422,9 +440,56 @@ done
 dnl
 dnl
 dnl
+AC_DEFUN(wi_MACOSX_UNIVERSAL_CFLAGS,
+[AC_REQUIRE([AC_PROG_CC])
+AC_REQUIRE([wi_OS_VAR])
+if test "$SYS" = macosx ; then
+	ac_cv_macosx_cflags=no
+	ac_cv_macosx_ldflags=no
+	if test "${use_macosx_universal}" != no ; then
+		macosx_sdk_path="/Developer/SDKs/MacOSX10.4u.sdk"
+		macosx_arch_flags="-arch i386 -arch ppc"
+		case "$CFLAGS" in
+			*"-isysroot"*"-arch"*|*"-arch"*"-isysroot"*)
+				# User already had both SDK path and desired architecture(s) in CFLAGS
+				;;
+			*"-arch"*)
+				ac_cv_macosx_cflags="-isysroot ${macosx_sdk_path}"
+				CFLAGS="${ac_cv_macosx_cflags} ${CFLAGS}"
+				;;
+			*"-isysroot"*)
+				ac_cv_macosx_cflags="${macosx_arch_flags}"
+				CFLAGS="${ac_cv_macosx_cflags} ${CFLAGS}"
+				;;
+			*)
+				ac_cv_macosx_cflags="-isysroot ${macosx_sdk_path} ${macosx_arch_flags}"
+				CFLAGS="${ac_cv_macosx_cflags} ${CFLAGS}"
+				;;
+		esac
+	#
+	# Apparently, only libtool (glibtool) needs this -syslibroot flag.
+	#
+	#	case "$LDFLAGS" in
+	#		*"-syslibroot"*)
+	#			# User already had SDK path in LDFLAGS
+	#			;;
+	#		*)
+	#			ac_cv_macosx_ldflags="-syslibroot ${macosx_sdk_path}"
+	#			LDFLAGS="${ac_cv_macosx_ldflags} ${LDFLAGS}"
+	#			;;
+	#	esac
+	fi
+AC_MSG_CHECKING([if we should add CFLAGS for Mac OS X])
+AC_MSG_RESULT($ac_cv_macosx_cflags)
+dnl AC_MSG_CHECKING(if additional Mac OS X linker flags are needed)
+dnl AC_MSG_RESULT($ac_cv_macosx_ldflags)
+fi
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_HPUX_CFLAGS,
-[AC_MSG_CHECKING(if HP-UX ansi C compiler flags are needed)
-AC_REQUIRE([AC_PROG_CC])
+[AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE([wi_OS_VAR])
 ac_cv_hpux_flags=no
 if test "$os" = hp-ux ; then
@@ -458,8 +523,9 @@ changequote([, ])dnl
 		fi
 	fi
 	ac_cv_hpux_flags=yes
-fi
+AC_MSG_CHECKING(if HP-UX ansi C compiler flags are needed)
 AC_MSG_RESULT($ac_cv_hpux_flags)
+fi
 ])
 dnl
 dnl
@@ -906,7 +972,7 @@ int main(int argc, char **argv)
 EOF
 	${CC-cc} $CFLAGS $CPPFLAGS conftest.c -o conftest 1>&5
 	wi_cv_prog_ldd=`ldd ./conftest 2>&1 | sed -n -e '/lib/{s/.*/yes/g;p;q;}' -e '${s/.*/no/g;p;q;}'`
-	/bin/rm -f conftest*
+	/bin/rm -rf conftest*
 changequote([, ])dnl
 ])
 ])
@@ -930,7 +996,7 @@ int main(int argc, char **argv)
 EOF
 		${CC-cc} $CFLAGS $CPPFLAGS conftest.c -o conftest 1>&5
 		wi_cv_shared_libgcc=`ldd ./conftest 2>&1 | sed -n -e '/libgcc/{s/.*/yes/g;p;q;}' -e '${s/.*/no/g;p;q;}'`
-		/bin/rm -f conftest*
+		/bin/rm -rf conftest*
 	fi
 changequote([, ])dnl
 ])
@@ -990,12 +1056,12 @@ changequote([, ])dnl
 	else
 		AC_MSG_RESULT(no)
 	fi
-	AC_MSG_CHECKING([NOOPTCFLAGS])
-	AC_MSG_RESULT($NOOPTCFLAGS)
-	AC_MSG_CHECKING([DEBUGCFLAGS])
-	AC_MSG_RESULT($DEBUGCFLAGS)
-	AC_MSG_CHECKING([CFLAGS])
-	AC_MSG_RESULT($CFLAGS)
+dnl	AC_MSG_CHECKING([NOOPTCFLAGS])
+dnl	AC_MSG_RESULT($NOOPTCFLAGS)
+dnl	AC_MSG_CHECKING([DEBUGCFLAGS])
+dnl	AC_MSG_RESULT($DEBUGCFLAGS)
+dnl	AC_MSG_CHECKING([CFLAGS])
+dnl	AC_MSG_RESULT($CFLAGS)
 ])
 dnl
 dnl
@@ -1062,37 +1128,146 @@ AC_MSG_RESULT(${LIBS-no})
 dnl
 dnl
 dnl
-AC_DEFUN(wi_CFLAGS_LFS64, [AC_REQUIRE([AC_PROG_CC])
+dnl    Macro: _LARGEFILE_SOURCE If this macro is defined some extra functions
+dnl    are available which rectify a few shortcomings in all previous
+dnl    standards. Specifically, the functions fseeko and ftello are available.
+dnl    Without these functions the difference between the ISO C interface
+dnl    (fseek, ftell) and the low-level POSIX interface (lseek) would lead to
+dnl    problems.
+dnl    
+dnl    This macro was introduced as part of the Large File Support extension
+dnl    (LFS).
+dnl    
+dnl    Macro: _LARGEFILE64_SOURCE If you define this macro an additional set of
+dnl    functions is made available which enables 32 bit systems to use files of
+dnl    sizes beyond the usual limit of 2GB. This interface is not available if
+dnl    the system does not support files that large. On systems where the
+dnl    natural file size limit is greater than 2GB (i.e., on 64 bit systems)
+dnl    the new functions are identical to the replaced functions.
+dnl    
+dnl    The new functionality is made available by a new set of types and
+dnl    functions which replace the existing ones. The names of these new
+dnl    objects contain 64 to indicate the intention, e.g., off_t vs. off64_t
+dnl    and fseeko vs. fseeko64.
+dnl    
+dnl    This macro was introduced as part of the Large File Support extension
+dnl    (LFS). It is a transition interface for the period when 64 bit offsets
+dnl    are not generally used (see _FILE_OFFSET_BITS).
+dnl    
+dnl    Macro: _FILE_OFFSET_BITS This macro determines which file system
+dnl    interface shall be used, one replacing the other. Whereas
+dnl    _LARGEFILE64_SOURCE makes the 64 bit interface available as an
+dnl    additional interface, _FILE_OFFSET_BITS allows the 64 bit interface to
+dnl    replace the old interface.
+dnl    
+dnl    If _FILE_OFFSET_BITS is undefined, or if it is defined to the value 32,
+dnl    nothing changes. The 32 bit interface is used and types like off_t have
+dnl    a size of 32 bits on 32 bit systems.
+dnl    
+dnl    If the macro is defined to the value 64, the large file interface
+dnl    replaces the old interface. I.e., the functions are not made available
+dnl    under different names (as they are with _LARGEFILE64_SOURCE). Instead
+dnl    the old function names now reference the new functions, e.g., a call to
+dnl    fseeko now indeed calls fseeko64.
+dnl    
+dnl    This macro should only be selected if the system provides mechanisms for
+dnl    handling large files. On 64 bit systems this macro has no effect since
+dnl    the *64 functions are identical to the normal functions.
+dnl    
+dnl    This macro was introduced as part of the Large File Support extension.
+dnl
+dnl
+dnl
+AC_DEFUN(wi_CFLAGS_LFS, [AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE([wi_OS_VAR])
 wi_CFLAGS
+wi_cv_lfs="no"
+result="no"
 if test "os_${os}_gcc_${GCC}" = os_hp-ux_gcc_yes ; then
 	wi_HPUX_GCC___STDC_EXT__
 fi
-case "$CFLAGS" in
-	*-D_LARGEFILE64_SOURCE*)
-		;;
-	*)
-		CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"
-		DEBUGCFLAGS="-D_LARGEFILE64_SOURCE $DEBUGCFLAGS"
-		NOOPTCFLAGS="-D_LARGEFILE64_SOURCE $NOOPTCFLAGS"
-		;;
-esac
-AC_MSG_CHECKING([if we should add to CFLAGS for LFS64 support])
-AC_MSG_RESULT($CFLAGS)
+AC_CHECK_HEADERS([unistd.h])
+if test "x$ac_cv_sizeof_stat_st_size" = x ; then
+	wi_SIZEOF_ST_SIZE
+fi
+if test "x$ac_cv_sizeof_off_t" = x ; then
+	wi_SIZEOF_OFF_T
+fi
+if test "$ac_cv_sizeof_stat_st_size" -le 4 || test "$ac_cv_sizeof_off_t" -le 4 ; then
+	unset ac_cv_sizeof_stat_st_size ac_cv_sizeof_off_t
+	CFLAGS=`echo "$CFLAGS" | sed 's/-D_LARGEFILE64_SOURCE//g'`
+	case "$CFLAGS" in
+		*-D_LARGEFILE_SOURCE*)
+			result="already included -D_LARGEFILE_SOURCE"
+			;;
+		*)
+			CFLAGS="-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 $CFLAGS"
+			DEBUGCFLAGS="-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 $DEBUGCFLAGS"
+			NOOPTCFLAGS="-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 $NOOPTCFLAGS"
+			result="-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64"
+			;;
+	esac
+	wi_cv_lfs="yes"
+fi
+AC_MSG_CHECKING([if we should add CFLAGS for Large File Support])
+AC_MSG_RESULT($result)
+if test "x$ac_cv_sizeof_off_t" = x ; then
+	# Recheck, to see if the defines took effect.
+	wi_SIZEOF_ST_SIZE
+	wi_SIZEOF_OFF_T
+fi
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_CFLAGS_LFS64, [AC_REQUIRE([AC_PROG_CC])
+AC_REQUIRE([wi_OS_VAR])
+wi_CFLAGS
+result="no"
+wi_cv_lfs64="no"
+if test "os_${os}_gcc_${GCC}" = os_hp-ux_gcc_yes ; then
+	wi_HPUX_GCC___STDC_EXT__
+fi
+if test "x$ac_cv_sizeof_stat_st_size" = x ; then
+	wi_SIZEOF_ST_SIZE
+fi
+if test "x$ac_cv_sizeof_off_t" = x ; then
+	wi_SIZEOF_OFF_T
+fi
+if test "$ac_cv_sizeof_stat_st_size" -le 4 || test "$ac_cv_sizeof_off_t" -le 4 ; then
+	unset ac_cv_sizeof_stat_st_size ac_cv_sizeof_off_t
+	case "$CFLAGS" in
+		*-D_LARGEFILE64_SOURCE*)
+			result="already included -D_LARGEFILE64_SOURCE"
+			;;
+		*)
+			CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"
+			DEBUGCFLAGS="-D_LARGEFILE64_SOURCE $DEBUGCFLAGS"
+			NOOPTCFLAGS="-D_LARGEFILE64_SOURCE $NOOPTCFLAGS"
+			result="-D_LARGEFILE64_SOURCE"
+			;;
+	esac
+	wi_cv_lfs64="yes"
+fi
+AC_MSG_CHECKING([if we should add CFLAGS for LFS64 support])
+AC_MSG_RESULT($result)
 ])
 dnl
 dnl
 dnl
 AC_DEFUN(wi_CFLAGS_REENTRANT, [AC_REQUIRE([AC_PROG_CC])
+result="no"
 case "$CFLAGS" in
 	*-D_REENTRANT*)
+		result="already included"
 		;;
 	*)
 		CFLAGS="-D_REENTRANT $CFLAGS"
+		result="-D_REENTRANT"
 		;;
 esac
-AC_MSG_CHECKING([if we should add -D_REENTRANT to CFLAGS])
-AC_MSG_RESULT($CFLAGS)
+AC_MSG_CHECKING([if we should add CFLAGS for reentrancy])
+AC_MSG_RESULT($result)
 ])
 dnl
 dnl
@@ -2041,7 +2216,134 @@ AC_MSG_RESULT($wi_cv_utmp_ut_host)
 dnl
 dnl
 dnl
+AC_DEFUN(wi_SIZEOF_OFF_T, [
+AC_MSG_CHECKING(size of off_t)
+wi_PREREQ_UNISTD_H([$0])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+main()
+{
+	off_t x = 0;
+	FILE *fp;
+
+	fp = fopen("conftest.out", "w");
+	if (fp != NULL) {
+		fprintf(fp, "%u\n", (unsigned int) sizeof(x));
+		fclose(fp);
+		exit(0);	/* OK */
+	}
+	exit(1);		/* Not OK */
+}
+],[
+	# action if true
+	x=`cat conftest.out`
+	case "$x" in
+changequote(<<, >>)dnl
+		[0-9]*)
+changequote([, ])dnl
+			dnl AC_DEFINE_UNQUOTED(SIZEOF_OFF_T, $x)
+			ac_cv_sizeof_off_t="$x"
+			;;
+		*)
+			x="failed"
+			ac_cv_sizeof_off_t="4"
+			;;
+	esac
+	rm -f conftest.out
+],[
+	# action if false
+	x="failed"
+	ac_cv_sizeof_off_t="4"
+	rm -f conftest.out
+],[
+	# action if cross compiling
+	x="unknown"
+	ac_cv_sizeof_off_t="4"
+	rm -f conftest.out
+])
+AC_MSG_RESULT($x)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SIZEOF_ST_SIZE, [
+AC_MSG_CHECKING(size of st_size field in struct stat)
+wi_PREREQ_UNISTD_H([$0])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+main()
+{
+	struct stat x;
+	FILE *fp;
+
+	fp = fopen("conftest.out", "w");
+	if (fp != NULL) {
+		fprintf(fp, "%u\n", (unsigned int) sizeof(x.st_size));
+		fclose(fp);
+		exit(0);	/* OK */
+	}
+	exit(1);		/* Not OK */
+}
+],[
+	# action if true
+	x=`cat conftest.out`
+	case "$x" in
+changequote(<<, >>)dnl
+		[0-9]*)
+changequote([, ])dnl
+			dnl AC_DEFINE_UNQUOTED(SIZEOF_ST_SIZE, $x)
+			ac_cv_sizeof_stat_st_size="$x"
+			;;
+		*)
+			x="failed"
+			ac_cv_sizeof_stat_st_size="4"
+			;;
+	esac
+	rm -f conftest.out
+],[
+	# action if false
+	x="failed"
+	ac_cv_sizeof_stat_st_size="4"
+	rm -f conftest.out
+],[
+	# action if cross compiling
+	x="unknown"
+	ac_cv_sizeof_stat_st_size="4"
+	rm -f conftest.out
+])
+AC_MSG_RESULT($x)
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_STRUCT_STAT64, [
+if test "$wi_cv_lfs64" != "yes" ; then
+	AC_MSG_CHECKING([for struct stat64])
+	AC_MSG_RESULT([not needed])
+	wi_cv_struct_stat64=no
+else
 AC_MSG_CHECKING([for struct stat64])
 AC_TRY_LINK([
 	/* includes */
@@ -2060,6 +2362,7 @@ exit(((int) &st.st_size) & 0xff);	/* bogus code, of course. */
 	wi_cv_struct_stat64=no
 ])
 AC_MSG_RESULT($wi_cv_struct_stat64)
+fi
 ])
 dnl
 dnl
@@ -3125,6 +3428,26 @@ if test "x$mandir" = 'x${prefix}/man' ; then
 		mandir="$p/share/man"
 	fi
 fi
+])
+dnl
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SUMMARIZE_COMPILER_FLAGS, [
+AC_MSG_CHECKING([CFLAGS])
+AC_MSG_RESULT([$CFLAGS])
+AC_MSG_CHECKING([CPPFLAGS])
+AC_MSG_RESULT([$CPPFLAGS])
+AC_MSG_CHECKING([DEFS])
+AC_MSG_RESULT([$DEFS])
+AC_MSG_CHECKING([LDFLAGS])
+AC_MSG_RESULT([$LDFLAGS])
+AC_MSG_CHECKING([LIBS])
+AC_MSG_RESULT([$LIBS])
+#
+# Also take the opportunity to do some post-configure clean-up
+#
+/bin/rm -rf "conftest.dSYM" "a.out"
 ])
 dnl
 dnl

@@ -410,6 +410,8 @@ InitOurDirectory(void)
 
 #ifdef BINDIR
 	(void) STRNCPY(gOurInstallationPath, BINDIR);
+#elif defined(PREFIX_BINDIR)
+	(void) STRNCPY(gOurInstallationPath, PREFIX_BINDIR);
 #else
 	memset(gOurInstallationPath, 0, sizeof(gOurInstallationPath));
 #endif

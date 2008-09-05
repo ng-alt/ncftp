@@ -14,8 +14,8 @@ typedef volatile sigproc_t vsigproc_t;
 #define STRNEQ(a,b,s) (strncmp(a,b,(size_t)(s)) == 0)
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
-#	define ISTRCMP stricmp
-#	define ISTRNCMP strnicmp
+#	define ISTRCMP _stricmp
+#	define ISTRNCMP _strnicmp
 #endif
 
 #ifndef ISTRCMP

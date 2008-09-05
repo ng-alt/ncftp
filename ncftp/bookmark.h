@@ -58,3 +58,4 @@ BookmarkPtr SearchBookmarkTable(const char *);
 void SortBookmarks(void);
 void DefaultBookmarkName(char *, size_t, char *);
 void DisposeBookmarkTable(void);
+int AddNewItemToBookmarkTable(void);

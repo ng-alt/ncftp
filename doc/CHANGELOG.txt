@@ -1,6 +1,50 @@
 NcFTP Change Log:
 ================
 
+3.2.2, 2008-08-18
+
+  + Fixed an assertion failure in NcFTP's "help" command that appeared
+    in a 2008-08-09 release.
+
+  + PASV mode will now be retried, in case of a transient failure.
+    (Thanks, Steven Frank).
+
+  + The directory listing parser now can recognize dates in the format
+    of YYYY-mm-dd HH:MM[:SS].
+
+  + Fixed feature detection for WS_FTP servers.
+
+  + Workaround bug in REST on WS_FTP 6.0 (Thanks, Dan Nelson).
+
+  + Fixed a problem where doing a get on a remote file that did not exist,
+    but a file by the same name existed locally, would err out but truncate
+    the local file anyway.
+
+  + Fix for ncftpget on Windows to write in binary to stdout when needed
+    (Thanks, Michael Langguth).
+
+  + HOME, END, and DEL keys may work on more terminal types
+    (Thanks, Anton Khramov).
+
+  + You can now type just ".." or the absolute path of a directory in
+    the ncftp command shell to "cd" to the directory (Thanks, Anton
+    Khramov).
+
+  + Added command aliases "mv" and "ll" which alias to "rename" and "dir"
+    respectively (Thanks, Anton Khramov).
+
+  + ncftpbatch now has an -L option to specify the name of a log file
+    to write progress meter output to.  Combined with "tail -f", this can
+    be used to monitor a batch file transfer in progress.
+
+  + On Mac OS X, the configure script will now try to build universal
+    binaries by default.  If you don't want that, pass --disable-universal
+    to configure.
+
+  + The default connect timeout has been reduced from 30 to 10 seconds to 
+    reflect the increase in the typical user's network speed.
+
+
 3.2.1, 2007-07-29
 
   + Now a little more tolerant of FTP servers who send their internal network

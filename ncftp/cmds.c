@@ -220,7 +220,7 @@ CurrentURL(char *dst, size_t dsize, int showpass)
 
 /*VARARGS*/
 int
-AskYesNoQuestion(int defaultAnswer, const char *const fmt, ...)
+AskYesNoQuestion(const int defaultAnswer, const char *const fmt, ...)
 {
 	va_list ap;
 	char ans[128], buf[512];
@@ -1376,7 +1376,7 @@ HelpCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	int screenColumns;
 	int len, widestName;
 	char *cp, spec[16];
-	const char *cmdnames[64];
+	const char *cmdnames[80];
 
 	ARGSUSED(gUnusedArg);
 	assert(gNumCommands < (sizeof(cmdnames) / sizeof(char *)));
@@ -1605,6 +1605,10 @@ RunBookmarkEditor(char *selectedBmName, size_t dsize)
 	STRNCPY(ncftpbookmarks, BINDIR);
 	STRNCAT(ncftpbookmarks, "/");
 	STRNCAT(ncftpbookmarks, "ncftpbookmarks");
+#elif defined(PREFIX_BINDIR)
+	STRNCPY(ncftpbookmarks, PREFIX_BINDIR);
+	STRNCAT(ncftpbookmarks, "/");
+	STRNCAT(ncftpbookmarks, "ncftpbookmarks");
 #else
 	/* Full pathname to ncftpbookmarks is not available.
 	 * We'll have to run it without a fully-qualified
@@ -1624,7 +1628,7 @@ RunBookmarkEditor(char *selectedBmName, size_t dsize)
 		STRNCAT(bmSelectionFile, pidStr);
 	}
 
-#ifdef BINDIR
+#if defined(BINDIR) || defined(PREFIX_BINDIR)
 	if (access(ncftpbookmarks, X_OK) < 0) {
 		return (-1);
 	}
@@ -1736,7 +1740,7 @@ ListCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvInfo
 	stream = stdout;
 	paging = 0;
 
-	if (argv[0][0] == 'd') {
+	if ((argv[0][0] == 'd') || ((argv[0][0] == 'l') && (argv[0][1] == 'l'))) {
 		/* dir */
 		listmode = 'l';
 	} else if (argv[0][0] == 'n') {

@@ -23,6 +23,7 @@ static const char copyright[] = "gl_getline:  Copyright (C) 1991, 1992, 1993, Ch
  */
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
+#	define _CRT_SECURE_NO_WARNINGS 1
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
 #	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
@@ -44,8 +45,9 @@ static const char copyright[] = "gl_getline:  Copyright (C) 1991, 1992, 1993, Ch
 #	include <conio.h>
 #	include <io.h>
 #	include <fcntl.h>
-#	define strcasecmp stricmp
-#	define strncasecmp strnicmp
+#	define strcasecmp _stricmp
+#	define strncasecmp _strnicmp
+#	define isatty _isatty
 #	define sleep(a) Sleep(a * 1000)
 #	ifndef S_ISREG
 #		define S_ISREG(m)      (((m) & _S_IFMT) == _S_IFREG)
@@ -1008,6 +1010,16 @@ ansi:
 		        break;
 		      case 'D':
 		        gl_fixup(gl_prompt, -1, gl_pos-1); /* left */
+		        break;
+		      case 'H':
+		        gl_fixup(gl_prompt, -1, 0); /* home */
+		        break;
+		      case 'F':
+		        gl_fixup(gl_prompt, -1, gl_cnt); /* end */
+		        break;
+		      case '3':
+                        if (gl_getc() == '~')
+	                    gl_del(0, -1); /* del */
 		        break;
 		      case '0':
 		      case '1':
@@ -2556,7 +2568,7 @@ gl_local_filename_completion_proc(const char *start, int idx)
 		if ((name[0] == '.') && ((name[1] == '\0') || ((name[1] == '.') && (name[2] == '\0'))))
 			goto next;	/* Skip . and .. */
 		
-		if ((filepfxlen == 0) || (strnicmp(name, filepfx, filepfxlen) == 0)) {
+		if ((filepfxlen == 0) || (_strnicmp(name, filepfx, filepfxlen) == 0)) {
 			/* match */
 			len = strlen(name);
 			cp = (char *) malloc(filepfxoffset + len + 4 /* spare */ + 1 /* NUL */);

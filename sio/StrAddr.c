@@ -1,4 +1,7 @@
 #include "syshdrs.h"
+
+#define _CRT_SECURE_NO_WARNINGS 1
+
 #ifdef PRAGMA_HDRSTOP
 #	pragma hdrstop
 #endif
@@ -281,6 +284,7 @@ AddrStrToAddr(const char * const s, struct sockaddr_in * const sa, const int def
 
 
 
+
 char *
 AddrToAddrStr(char *const dst, size_t dsize, struct sockaddr_in * const saddrp, int dns, const char *fmt)
 {
@@ -364,3 +368,24 @@ AddrToAddrStr(char *const dst, size_t dsize, struct sockaddr_in * const saddrp, 
 	*dp = '\0';
 	return (dst);
 }	/* AddrToAddrStr */
+
+
+
+
+char *
+AddrStrToIPStr(char *const dst, size_t dsize, const char *const src, const int defaultport)
+{
+	int rc;
+	struct sockaddr_in sa;
+
+	if (dsize == 0)
+		return NULL;
+	memset(dst, 0, dsize);
+
+	rc = AddrStrToAddr(src, &sa, (defaultport <= 0) ? 21 : defaultport);
+	if (rc < 0)
+		return (NULL);
+
+	AddrToAddrStr(dst, dsize, &sa, 0, (defaultport <= 0) ? "%h" : "%h:%p");
+	return (dst);
+}	/* AddrStrToIPStr */

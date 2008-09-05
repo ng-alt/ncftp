@@ -11,6 +11,7 @@
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
+#	define _CRT_SECURE_NO_WARNINGS 1
 #	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
 #	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
 #	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
@@ -41,8 +42,8 @@
 #	include <sys/stat.h>
 #	include <fcntl.h>
 #	include <errno.h>
-#	define strcasecmp stricmp
-#	define strncasecmp strnicmp
+#	define strcasecmp _stricmp
+#	define strncasecmp _strnicmp
 #	define sleep(a) Sleep(a * 1000)
 #	ifndef FOPEN_READ_TEXT
 #		define FOPEN_READ_TEXT "rt"

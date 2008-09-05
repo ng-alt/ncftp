@@ -347,10 +347,14 @@ RunBatch(void)
 #else
 	char *argv[8];
 	pid_t pid = 0;
-#ifdef BINDIR
+#if (defined(BINDIR) || defined(PREFIX_BINDIR))
 	char ncftpbatch[256];
 
+#ifdef BINDIR
 	STRNCPY(ncftpbatch, BINDIR);
+#else
+	STRNCPY(ncftpbatch, PREFIX_BINDIR);
+#endif
 	STRNCAT(ncftpbatch, "/");
 	STRNCAT(ncftpbatch, "ncftpbatch");
 #endif	/* BINDIR */
@@ -362,7 +366,7 @@ RunBatch(void)
 		argv[0] = strdup("ncftpbatch");
 		argv[1] = strdup("-d");
 		argv[2] = NULL;
-#ifdef BINDIR
+#if (defined(BINDIR) || defined(PREFIX_BINDIR))
 		(void) execv(ncftpbatch, argv);
 		(void) fprintf(stderr, "Could not run %s.  Is it in installed as %s?\n", argv[0], ncftpbatch);
 #else	/* BINDIR */

@@ -10,6 +10,8 @@
 #	pragma hdrstop
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 struct tm *
 Localtime(time_t t, struct tm *const tp)
 {

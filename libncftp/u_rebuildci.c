@@ -34,6 +34,7 @@ FTPRebuildConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip)
 	cip->passphraseProc = NULL;
 	cip->startingWorkingDirectory = NULL;
 	cip->asciiFilenameExtensions = NULL;
+	cip->dataTimedOut = 0;
 
 	(void) memset(&cip->lastFTPCmdResultLL, 0, sizeof(FTPLineList));
 

@@ -78,7 +78,7 @@ Usage(void)
 	(void) fprintf(fp, "\nProgram version:  %s\nLibrary version:  %s\n", gVersion + 5, gLibNcFTPVersion + 5);
 #ifdef UNAME
 	AbbrevStr(s, UNAME, 60, 1);
-	(void) fprintf(fp, "System:           %s\n", s);
+	(void) fprintf(fp, "Build system:     %s\n", s);
 #endif
 	(void) fprintf(fp, "\nThis is a freeware program by Mike Gleason (http://www.NcFTP.com).\n");
 	(void) fprintf(fp, "A directory URL ends in a slash, i.e. ftp://ftp.freebsd.org/pub/FreeBSD/\n");
@@ -231,18 +231,13 @@ SetStartupURL(const char *const urlgiven)
 static void
 OpenURL(void)
 {
-	FTPLinePtr lp;
 	int result;
 
 	if (gURLMode == 1) {
 		SetBookmarkDefaults(&gBm);
 		if (DoOpen() >= 0) {
-			for (lp = gStartupURLCdList.first; lp != NULL; lp = lp->next) {
-				result = FTPChdir(&gConn, lp->line);
-				if (result != kNoErr) {
-					FTPPerror(&gConn, result, kErrCWDFailed, "Could not chdir to", lp->line);
-					break;
-				}
+			if ((result = FTPChdirList(&gConn, &gStartupURLCdList, NULL, 0, (kChdirFullPath|kChdirOneSubdirAtATime))) != 0) {
+				FTPPerror(&gConn, result, kErrCWDFailed, "Could not change directory", NULL);
 			}
 			result = FTPGetCWD(&gConn, gRemoteCWD, sizeof(gRemoteCWD));
 			if (result != kNoErr) {

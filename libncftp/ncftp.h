@@ -1,6 +1,6 @@
 /* ncftp.h
  *
- * Copyright (c) 1996-2006 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2008 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -13,10 +13,10 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.2.1 (August 13, 2007)"
+#define kLibraryVersion "@(#) LibNcFTP 3.2.3 (September 4, 2008)"
 
 /* This is used to verify validty of the data passed in. */
-#define kLibraryMagic "LibNcFTP 3.2.1"
+#define kLibraryMagic "LibNcFTP 3.2.3"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */
@@ -29,11 +29,15 @@ extern "C"
 #	pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
 #	pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
 #	pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
+	/* We now try for at least Windows 2000 compatibility (0x0500).
+	 * The code will still work on older systems, though.
+	 * Prior versions used 0x0400 instead.
+	 */
 #	ifndef WINVER
-#		define WINVER 0x0400
+#		define WINVER 0x0500
 #	endif
 #	ifndef _WIN32_WINNT
-#		define _WIN32_WINNT 0x0400
+#		define _WIN32_WINNT 0x0500
 #	endif
 #	ifndef _INC_WINDOWS
 #		include <windows.h>	/* includes <winsock2.h> if _WIN32_WINNT >= 0x400 */
@@ -83,9 +87,8 @@ extern "C"
 #	ifndef _INC_SETJMP
 #		include <setjmp.h>
 #	endif
-#	define longest_int LONGLONG
-#	define longest_int LONGLONG
-#	define longest_uint ULONGLONG
+#	define longest_int __int64
+#	define longest_uint __uint64
 #	ifndef HAVE_LONG_LONG
 #		define HAVE_LONG_LONG 1
 #	endif
@@ -110,8 +113,12 @@ extern "C"
 #	ifndef main_void_return_t
 #		define main_void_return_t void
 #	endif
-#	define strcasecmp stricmp
-#	define strncasecmp strnicmp
+#	ifndef strcasecmp
+#		define strcasecmp _stricmp
+#		define strncasecmp _strnicmp
+#		define strdup _strdup
+#		define fdopen _fdopen
+#	endif
 #	ifndef mode_t
 #		define mode_t int
 #	endif
@@ -162,14 +169,6 @@ extern "C"
 #	endif
 #else
 	/* Includes for UNIX */
-#	if (defined(__linux__)) && (! defined(_LARGEFILE64_SOURCE)) && (! defined(NO_LARGEFILE64_SOURCE))
-		/* Define _LARGEFILE64_SOURCE or NO_LARGEFILE64_SOURCE to
-		 * quiet this warning.  Be sure to define this for ALL
-		 * code that uses LibNcFTP.
-		 */
-#		warning "<ncftp.h> is #defining _LARGEFILE64_SOURCE for you"
-#		define _LARGEFILE64_SOURCE 1
-#	endif
 #	include <unistd.h>
 #	include <sys/types.h>
 #	include <sys/stat.h>
@@ -425,6 +424,8 @@ typedef struct FTPConnectionInfo {
 	 */
 	struct sockaddr_in clientKnownExternalAddr;	
 
+	int maxNumberOfSuccessivePASVAttempts;	/* You may modify this. */
+
 #if USE_SIO
 	char srlBuf[768];
 	SReadlineInfo ctrlSrl;			/* Do not use or modify. */
@@ -511,7 +512,7 @@ typedef struct MLstItem{
  * a user-installed signal handler.
  */
 #define kDefaultXferTimeout		600
-#define kDefaultConnTimeout		30
+#define kDefaultConnTimeout		10
 #define kDefaultCtrlTimeout		135
 #define kDefaultAbortTimeout		10
 #else
@@ -527,7 +528,7 @@ typedef struct MLstItem{
 
 /* Suggested timeout values, in seconds, if you use timeouts. */
 #define kSuggestedDefaultXferTimeout	600
-#define kSuggestedDefaultConnTimeout	30
+#define kSuggestedDefaultConnTimeout	10
 #define kSuggestedDefaultCtrlTimeout	135	/* 2*MSL, + slop */ 
 #define kSuggestedAbortTimeout		10
 
@@ -535,6 +536,8 @@ typedef struct MLstItem{
 #define kDefaultRedialDelay		20	/* seconds */
 
 #define kDefaultDataPortMode		kFallBackToSendPortMode
+
+#define kDefaultMaxNumberOfSuccessivePASVAttempts	3
 
 #define kRedialStatusDialing		0
 #define kRedialStatusSleeping		1
@@ -765,9 +768,9 @@ int WinStat64(const char *const path, struct WinStat64 *const stp);
 
 /* The following block may be changed by configure script */
 #ifndef Stat
-#define Stat stat
-#define Lstat lstat
-#define Fstat fstat
+#define Stat stat64    /* set by configure at 2008-07-15 10:17:24 */
+#define Lstat lstat64    /* set by configure at 2008-07-15 10:17:24 */
+#define Fstat fstat64    /* set by configure at 2008-07-15 10:17:24 */
 #endif
 
 #define kFtwNoAutoGrowButContinue (-1)
