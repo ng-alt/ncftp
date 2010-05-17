@@ -374,6 +374,9 @@
 /* Define to sizeof(off_t) */
 #undef SIZEOF_OFF_T
 
+/* Define to sizeof(off64_t) */
+#undef SIZEOF_OFF64_T
+
 /* Define to sizeof(int *) */
 #undef SIZEOF_PTR
 
@@ -385,6 +388,9 @@
 
 /* Define to sizeof(struct stat.st_size) */
 #undef SIZEOF_ST_SIZE
+
+/* Define to sizeof(struct stat64.st_size) */
+#undef SIZEOF_STAT64_ST_SIZE
 
 #undef SNPRINTF_RETURNS_PTR
 

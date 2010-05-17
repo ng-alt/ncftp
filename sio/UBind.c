@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#ifdef HAVE_SYS_UN_H
+
 int
 UBind(int sockfd, const char *const astr, const int nTries, const int reuseFlag)
 {
@@ -58,3 +60,5 @@ UListen(int sfd, int backlog)
 {
 	return (listen(sfd, (listen_backlog_t) backlog));
 }	/* UListen */
+
+#endif	/* HAVE_SYS_UN_H */

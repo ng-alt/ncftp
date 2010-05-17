@@ -609,7 +609,7 @@ ComputeRNames(FTPFileInfoListPtr dst, const char *dstdir, int pflag, int nochop)
 		buf = NULL;
 		if (nochop != 0) {
 			if ((dstdir[0] != '\0') && (strcmp(dstdir, "."))) {
-				if (Dynscat(&buf, dstdir, "/", lp->relname, 0) == NULL)
+				if (Dynscat(&buf, dstdir, "/", lp->relname, (char *) 0) == NULL)
 					goto memerr;
 
 				if (pflag != 0) {
@@ -618,13 +618,13 @@ ComputeRNames(FTPFileInfoListPtr dst, const char *dstdir, int pflag, int nochop)
 					if (cp == NULL)
 						cp = strrchr(dstdir, '\\');
 					if (cp != NULL) {
-						if (Dynscat(&lp->lname, cp + 1, 0) == NULL)
+						if (Dynscat(&lp->lname, cp + 1, (char *) 0) == NULL)
 							goto memerr;
 						TVFSPathToLocalPath(lp->lname);
 					}
 				}
 			} else {
-				if (Dynscat(&buf, lp->relname, 0) == NULL)
+				if (Dynscat(&buf, lp->relname, (char *) 0) == NULL)
 					goto memerr;
 			}
 		} else {
@@ -637,7 +637,7 @@ ComputeRNames(FTPFileInfoListPtr dst, const char *dstdir, int pflag, int nochop)
 				} else {
 					cp = lp->relname;
 				}
-				if (Dynscat(&buf, dstdir, "/", cp, 0) == NULL)
+				if (Dynscat(&buf, dstdir, "/", cp, (char *) 0) == NULL)
 					goto memerr;
 
 				if (pflag != 0) {
@@ -646,7 +646,7 @@ ComputeRNames(FTPFileInfoListPtr dst, const char *dstdir, int pflag, int nochop)
 					if (cp == NULL)
 						cp = strrchr(dstdir, '\\');
 					if (cp != NULL) {
-						if (Dynscat(&lp->lname, cp + 1, 0) == NULL)
+						if (Dynscat(&lp->lname, cp + 1, (char *) 0) == NULL)
 							goto memerr;
 						TVFSPathToLocalPath(lp->lname);
 					}
@@ -660,7 +660,7 @@ ComputeRNames(FTPFileInfoListPtr dst, const char *dstdir, int pflag, int nochop)
 				} else {
 					cp = lp->relname;
 				}
-				if (Dynscat(&buf, cp, 0) == NULL)
+				if (Dynscat(&buf, cp, (char *) 0) == NULL)
 					goto memerr;
 			}
 		}
@@ -700,17 +700,17 @@ ComputeLNames(FTPFileInfoListPtr dst, const char *srcdir, const char *dstdir, in
 		buf = NULL;
 		if (nochop != 0) {
 			if ((dstdir[0] != '\0') && (strcmp(dstdir, "."))) {
-				if (Dynscat(&buf, dstdir, "/", 0) == NULL)
+				if (Dynscat(&buf, dstdir, "/", (char *) 0) == NULL)
 					goto memerr;
 			}
 			if (lp->lname != NULL) {
-				if (Dynscat(&buf, lp->lname, "/", 0) == NULL)
+				if (Dynscat(&buf, lp->lname, "/", (char *) 0) == NULL)
 					goto memerr;
 			} else if (srcdir != NULL) {
-				if (Dynscat(&buf, srcdir, "/", 0) == NULL)
+				if (Dynscat(&buf, srcdir, "/", (char *) 0) == NULL)
 					goto memerr;
 			}
-			if (Dynscat(&buf, lp->relname, 0) == NULL)
+			if (Dynscat(&buf, lp->relname, (char *) 0) == NULL)
 				goto memerr;
 		} else {
 			if ((dstdir[0] != '\0') && (strcmp(dstdir, "."))) {
@@ -722,7 +722,7 @@ ComputeLNames(FTPFileInfoListPtr dst, const char *srcdir, const char *dstdir, in
 				} else {
 					cp++;
 				}
-				if (Dynscat(&buf, dstdir, "/", cp, 0) == NULL)
+				if (Dynscat(&buf, dstdir, "/", cp, (char *) 0) == NULL)
 					goto memerr;
 			} else {
 				cp = strrchr(lp->relname, '/');
@@ -733,7 +733,7 @@ ComputeLNames(FTPFileInfoListPtr dst, const char *srcdir, const char *dstdir, in
 				} else {
 					cp++;
 				}
-				if (Dynscat(&buf, cp, 0) == NULL)
+				if (Dynscat(&buf, cp, (char *) 0) == NULL)
 					goto memerr;
 			}
 		}

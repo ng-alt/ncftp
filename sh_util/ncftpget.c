@@ -14,11 +14,13 @@
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	include "..\ncftp\util.h"
+#	include "..\ncftp\bookmark.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
 #	include "..\ncftp\gl_getline.h"
 #else
 #	include "../ncftp/util.h"
+#	include "../ncftp/bookmark.h"
 #	include "../ncftp/spool.h"
 #	include "../ncftp/pref.h"
 #	include "../ncftp/gl_getline.h"
@@ -38,6 +40,7 @@ extern unsigned int gFirewallPort;
 extern char gFirewallExceptionList[256];
 extern int gFwDataPortMode;
 extern const char gOS[], gVersion[];
+extern Bookmark gBm;
 
 static void
 Usage(void)
@@ -47,7 +50,8 @@ Usage(void)
 	fp = OpenPager();
 	(void) fprintf(fp, "NcFTPGet %.5s\n\n", gVersion + 11);
 	(void) fprintf(fp, "Usages:\n");
-	(void) fprintf(fp, "  ncftpget [flags] remote-host local-dir remote-path-names...      (mode 1)\n");
+	(void) fprintf(fp, "  ncftpget [flags] remote-host local-dir remote-path-names...      (mode 1a)\n");
+	(void) fprintf(fp, "  ncftpget [flags] bookmark-name local-dir remote-path-names...    (mode 1b)\n");
 	(void) fprintf(fp, "  ncftpget -f login.cfg [flags] local-dir remote-path-names...     (mode 2)\n");
 	(void) fprintf(fp, "  ncftpget [flags] ftp://url.style.host/path/name                  (mode 3)\n");
 	(void) fprintf(fp, "  ncftpget -c [flags] remote-host remote-path-name > stdout        (mode 4)\n");
@@ -62,7 +66,8 @@ Usage(void)
 	(void) fprintf(fp, "\
   -t XX  Timeout after XX seconds.\n\
   -v/-V  Do (do not) use progress meters.\n\
-  -f XX  Read the file XX for host, user, and password information.\n\
+  -f XX  Read the file XX for host, user, and password information;\n\
+         If file XX does not exist, check for bookmark XX in $HOME/.ncftp/bookmarks.\n\
   -h XX  Connect to host XX.  Useful for overriding host in -f config.file.\n\
   -c     Read from remote host and write locally to stdout.\n\
   -C     Read from remote host and write locally to specified file.\n\
@@ -71,6 +76,7 @@ Usage(void)
   -z/-Z  Do (do not) try to resume downloads (default: -z).\n\
   -E     Use regular (PORT) data connections.\n\
   -F     Use passive (PASV) data connections (default).\n\
+  -I XX  Use IP address XX for local source address.\n\
   -DD    Delete remote file after successfully downloading it.\n\
   -b     Run in background (submit job to \"ncftpbatch\" and run).\n\
   -bb    Same as \"-b\" but queue only (do not run \"ncftpbatch\").\n");
@@ -187,7 +193,9 @@ main(int argc, char **argv)
 	int i;
 	char *urlfilep;
 	const char *urldirp;
+	const char *preferredLocalAddrStr = NULL;
 	char precmd[320], postcmd[320], perfilecmd[320];
+	int configLoaded = kConfigNotLoaded, configLoaded2 = kConfigNotLoaded;
 	GetoptInfo opt;
 
 	InitWinsock();
@@ -227,8 +235,9 @@ main(int argc, char **argv)
 	postcmd[0] = '\0';
 	perfilecmd[0] = '\0';
 
+#define kGetoptOptions "P:u:j:p:h:e:d:t:aRTr:vVf:o:ADzZEFbcCB:W:X:Y:I:"
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:t:aRTr:vVf:ADzZEFbcCB:W:X:Y:")) > 0) {
+	while ((c = Getopt(&opt, argc, argv, kGetoptOptions)) > 0) {
 		if (c == 'b') {
 			batchmode++;
 		}
@@ -236,7 +245,7 @@ main(int argc, char **argv)
 
 	if (batchmode > 0) {
 		GetoptReset(&opt);
-		while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:U:t:mar:RvVf:o:AT:S:EFcCyZzDbB:W:X:Y:")) > 0) switch(c) {
+		while ((c = Getopt(&opt, argc, argv, kGetoptOptions)) > 0) switch(c) {
 			case 'v': case 'V': case 'A': case 'B': case 'T':
 			case 'd': case 'e': case 't': case 'r': case 'c':
 			case 'z': case 'Z': case 'C':
@@ -247,32 +256,13 @@ main(int argc, char **argv)
 	}
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "P:u:j:p:h:e:d:t:aRTr:vVf:o:ADzZEFbcCB:W:X:Y:")) > 0) switch(c) {
+	while ((c = Getopt(&opt, argc, argv, kGetoptOptions)) > 0) switch(c) {
 		case 'P':
-			fi.port = atoi(opt.arg);	
-			break;
 		case 'u':
-			(void) STRNCPY(fi.user, opt.arg);
-			memset(opt.arg, 0, strlen(fi.user));
-			opt.arg[0] = '?';
-			break;
 		case 'j':
-			(void) STRNCPY(fi.acct, opt.arg);
-			memset(opt.arg, 0, strlen(fi.acct));
-			opt.arg[0] = '?';
-			break;
 		case 'p':
-			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
-			fi.leavePass = 1;
-			if (fi.pass[0] == '\0')
-				fi.passIsEmpty = 1;
-			memset(opt.arg, 0, strlen(fi.pass));
-			opt.arg[0] = '?';
-			break;
 		case 'h':
-			(void) STRNCPY(fi.host, opt.arg);
-			memset(opt.arg, 0, strlen(fi.user));
-			opt.arg[0] = '?';
+			/* Use these options later */
 			break;
 		case 'e':
 			if (strcmp(opt.arg, "stdout") == 0)
@@ -281,8 +271,10 @@ main(int argc, char **argv)
 				fi.errLog = stdout;
 			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.errLog = stderr;
-			else
+			else {
 				fi.errLog = fopen(opt.arg, FOPEN_APPEND_TEXT);
+				fi.debugTimestamping = 2;
+			}
 			break;
 		case 'D':
 			/* Require two -D's in case they typo. */
@@ -295,8 +287,10 @@ main(int argc, char **argv)
 				fi.debugLog = stdout;
 			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.debugLog = stderr;
-			else
+			else {
 				fi.debugLog = fopen(opt.arg, FOPEN_APPEND_TEXT);
+				fi.debugTimestamping = 2;
+			}
 			break;
 		case 't':
 			SetTimeouts(&fi, opt.arg);
@@ -320,7 +314,10 @@ main(int argc, char **argv)
 			progmeters = 0;
 			break;
 		case 'f':
-			ReadConfigFile(opt.arg, &fi);
+			if ((configLoaded = ReadConfigFile(opt.arg, &fi)) == kErrorLoadingConfig) {
+				perror(opt.arg);
+				exit(kExitBadConfigFile);
+			}
 			break;
 		case 'o':
 			fi.manualOverrideFeatures = opt.arg;
@@ -363,6 +360,13 @@ main(int argc, char **argv)
 			break;
 		case 'C':
 			ftpcat = 2;
+			break;
+		case 'I':
+			if (AddrStrToAddr(opt.arg, &fi.preferredLocalAddr, 21) < 0) {
+				fprintf(stderr, "Bad IP address (\"%s\") used with -I.\n", opt.arg);
+				Usage();
+			}
+			preferredLocalAddrStr = opt.arg;
 			break;
 		default:
 			Usage();
@@ -413,6 +417,11 @@ main(int argc, char **argv)
 				(void) STRNCPY(fi.host, argv[opt.ind]);
 				dstdir = NULL;
 				flist = (const char **) argv + opt.ind + 1;
+			}
+			if (strchr(fi.host, '.') == NULL) {
+				/* Check if host argument corresponds to config file or entry from ~/.ncftp/bookmarks. */
+
+				configLoaded2 = ReadConfigFile(fi.host, &fi);
 			}
 		} else {
 			/* URL okay */
@@ -467,6 +476,39 @@ main(int argc, char **argv)
 			dstdir = NULL;
 			flist = (const char **) argv + opt.ind + 0;
 		}
+	}
+
+	/* In case we loaded a bookmark or config file, we allow the following
+	 * options to override those settings.
+	 */
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, kGetoptOptions)) > 0) switch(c) {
+		case 'P':
+			fi.port = atoi(opt.arg);	
+			break;
+		case 'u':
+			(void) STRNCPY(fi.user, opt.arg);
+			memset(opt.arg, 0, strlen(fi.user));
+			opt.arg[0] = '?';
+			break;
+		case 'j':
+			(void) STRNCPY(fi.acct, opt.arg);
+			memset(opt.arg, 0, strlen(fi.acct));
+			opt.arg[0] = '?';
+			break;
+		case 'p':
+			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			fi.leavePass = 1;
+			if (fi.pass[0] == '\0')
+				fi.passIsEmpty = 1;
+			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
+			break;
+		case 'h':
+			(void) STRNCPY(fi.host, opt.arg);
+			memset(opt.arg, 0, strlen(fi.user));
+			opt.arg[0] = '?';
+			break;
 	}
 
 	if (strcmp(fi.user, "anonymous") && strcmp(fi.user, "ftp")) {
@@ -526,6 +568,7 @@ main(int argc, char **argv)
 				(time_t) 0,	/* when: now */
 				0,
 				fi.manualOverrideFeatures,
+				preferredLocalAddrStr,
 				0
 			);
 			if ((rc == 0) && (batchmode < 3)) {
@@ -571,6 +614,7 @@ main(int argc, char **argv)
 					(time_t) 0,	/* when: now */
 					0,
 					fi.manualOverrideFeatures,
+					preferredLocalAddrStr,
 					0
 				);
 				if ((rc == 0) && (batchmode < 3)) {
@@ -602,6 +646,13 @@ main(int argc, char **argv)
 
 	(void) AdditionalCmd(&fi, precmd, NULL);
 
+	if ((configLoaded2 == kLoadedFromBookmark) && (strcmp(gBm.dir, "/") != 0) && (strcmp(gBm.dir, ".") != 0)) {
+		if ((result = FTPChdir(&fi, gBm.dir)) < 0) {
+			FTPPerror(&fi, result, kErrCWDFailed, "Warning: Could not change to bookmark's remote directory of", gBm.dir);
+		}
+
+	}
+
 	if (flist == NULL) {
 		/* URL mode */
 		es = kExitChdirTimedOut;
@@ -621,6 +672,8 @@ main(int argc, char **argv)
 			} else {
 				FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
 				es = kExitXferFailed;
+				if (fi.errNo == kErrGlobNoMatch)
+					es = kExitGlobNoMatch;
 			}
 		} else if (ftpcat != 0) {
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
@@ -631,6 +684,8 @@ main(int argc, char **argv)
 			} else {
 				FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
 				es = kExitXferFailed;
+				if (fi.errNo == kErrGlobNoMatch)
+					es = kExitGlobNoMatch;
 			}
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			_setmode(STDOUT_FILENO, _O_TEXT);
@@ -644,6 +699,8 @@ main(int argc, char **argv)
 				} else {
 					FTPPerror(&fi, rc, kErrCouldNotStartDataTransfer, "ncftpget", NULL);
 					es = kExitXferFailed;
+					if (fi.errNo == kErrGlobNoMatch)
+						es = kExitGlobNoMatch;
 				}
 			} else {
 				es = kExitSuccess;
@@ -659,6 +716,8 @@ main(int argc, char **argv)
 				es = kExitSuccess;
 			else
 				es = kExitXferFailed;
+			if (fi.errNo == kErrGlobNoMatch)
+				es = kExitGlobNoMatch;
 		} else if (ftpcat != 0) {
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			_setmode(STDOUT_FILENO, _O_BINARY);
@@ -670,11 +729,15 @@ main(int argc, char **argv)
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			_setmode(STDOUT_FILENO, _O_TEXT);
 #endif
+			if (fi.errNo == kErrGlobNoMatch)
+				es = kExitGlobNoMatch;
 		} else {
 			if (Copy(&fi, dstdir, flist, rflag, xtype, resumeflag, appendflag, deleteflag, tarflag, perfilecmd) == 0)
 				es = kExitSuccess;
 			else
 				es = kExitXferFailed;
+			if (fi.errNo == kErrGlobNoMatch)
+				es = kExitGlobNoMatch;
 		}
 	}
 

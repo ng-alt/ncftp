@@ -309,7 +309,7 @@ FTPGetOneF(
 			/* Don't go to all the trouble of downloading nothing. */
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 			/* Note: Windows doesn't allow zero-size files. */
-			(void) write(fd, "\r\n", (write_size_t) 2);
+			(void) PWrite(fd, "\r\n", (write_size_t) 2);
 #endif
 			(void) close(fd);
 			if (mdtm != kModTimeUnknown) {
@@ -436,7 +436,7 @@ FTPGetOneF(
 		for (;;) {
 			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
 				cip->errNo = result = kErrDataTimedOut;
-				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				break;
 			}
 			if (cip->cancelXfer > 0) {
@@ -456,17 +456,17 @@ FTPGetOneF(
 			nread = (read_return_t) SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 			if (nread == kTimeoutErr) {
 				cip->errNo = result = kErrDataTimedOut;
-				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				break;
 			} else if (nread < 0) {
 				if (errno == EPIPE) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				} else if (errno == EINTR) {
 					continue;
 				} else {
-					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 					result = kErrSocketReadFailed;
 					cip->errNo = kErrSocketReadFailed;
 				}
@@ -483,13 +483,13 @@ FTPGetOneF(
 				if ((gGotBrokenData != 0) || (errno == EPIPE)) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 					(void) shutdown(cip->dataSocket, 2);
 				} else if (errno == EINTR) {
 					continue;
 				} else {
 					result = cip->errNo = kErrSocketReadFailed;
-					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 					(void) shutdown(cip->dataSocket, 2);
 				}
 				break;
@@ -506,7 +506,7 @@ FTPGetOneF(
 			dstlim = dst + sizeof(outbuf);
 			while (src < srclim) {
 				if (dst >= dstlim) {
-					nwrote = write(fd, outbuf, (write_size_t) (dst - outbuf));
+					nwrote = PWrite(fd, outbuf, (write_size_t) (dst - outbuf));
 					if (nwrote == (write_return_t) (dst - outbuf)) {
 						/* Success. */
 						dst = outbuf;
@@ -517,7 +517,7 @@ FTPGetOneF(
 						(void) shutdown(cip->dataSocket, 2);
 						goto brk;
 					} else {
-						FTPLogError(cip, kDoPerror, "Local write failed.\n");
+						FTPLogError(cip, kDoPerror, "Local write failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 						result = kErrWriteFailed;
 						cip->errNo = kErrWriteFailed;
 						(void) shutdown(cip->dataSocket, 2);
@@ -604,7 +604,7 @@ add_eoln:
 						/* Write out buffer before
 						 * adding one or two chars.
 						 */
-						nwrote = write(fd, outbuf, (write_size_t) (dst - outbuf));
+						nwrote = PWrite(fd, outbuf, (write_size_t) (dst - outbuf));
 						if (nwrote == (write_return_t) (dst - outbuf)) {
 							/* Success. */
 							dst = outbuf;
@@ -615,7 +615,7 @@ add_eoln:
 							(void) shutdown(cip->dataSocket, 2);
 							goto brk;
 						} else {
-							FTPLogError(cip, kDoPerror, "Local write failed.\n");
+							FTPLogError(cip, kDoPerror, "Local write failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 							result = kErrWriteFailed;
 							cip->errNo = kErrWriteFailed;
 							(void) shutdown(cip->dataSocket, 2);
@@ -635,7 +635,7 @@ add_eoln:
 				*dst++ = *src++;
 			}
 			if (dst > outbuf) {
-				nwrote = write(fd, outbuf, (write_size_t) (dst - outbuf));
+				nwrote = PWrite(fd, outbuf, (write_size_t) (dst - outbuf));
 				if (nwrote != (write_return_t) (dst - outbuf)) {
 					if (errno == EPIPE) {
 						result = kErrWriteFailed;
@@ -644,7 +644,7 @@ add_eoln:
 						(void) shutdown(cip->dataSocket, 2);
 						goto brk;
 					} else {
-						FTPLogError(cip, kDoPerror, "Local write failed.\n");
+						FTPLogError(cip, kDoPerror, "Local write failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 						result = kErrWriteFailed;
 						cip->errNo = kErrWriteFailed;
 						(void) shutdown(cip->dataSocket, 2);
@@ -665,7 +665,7 @@ add_eoln:
 			/* Last block ended with a raw CR.
 			 * Write out one last end-of-line.
 			 */
-			nwrote = write(fd, cip->textEOLN, (write_size_t) strlen(cip->textEOLN));
+			nwrote = PWrite(fd, cip->textEOLN, (write_size_t) strlen(cip->textEOLN));
 			if (nwrote == (write_return_t) strlen(cip->textEOLN)) {
 				/* Success. */
 				if (mdtm != kModTimeUnknown) {
@@ -678,7 +678,7 @@ add_eoln:
 				(void) shutdown(cip->dataSocket, 2);
 				goto brk;
 			} else {
-				FTPLogError(cip, kDoPerror, "Local write failed.\n");
+				FTPLogError(cip, kDoPerror, "Local write failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				result = kErrWriteFailed;
 				cip->errNo = kErrWriteFailed;
 				(void) shutdown(cip->dataSocket, 2);
@@ -692,7 +692,7 @@ add_eoln:
 		for (;;) {
 			if (! WaitForRemoteInput(cip)) {	/* could set cancelXfer */
 				cip->errNo = result = kErrDataTimedOut;
-				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				break;
 			}
 			if (cip->cancelXfer > 0) {
@@ -712,17 +712,17 @@ add_eoln:
 			nread = (read_return_t) SRead(cip->dataSocket, buf, bufSize, (int) cip->xferTimeout, kFullBufferNotRequired|kNoFirstSelect);
 			if (nread == kTimeoutErr) {
 				cip->errNo = result = kErrDataTimedOut;
-				FTPLogError(cip, kDontPerror, "Remote read timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote read timed out after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				break;
 			} else if (nread < 0) {
 				if (errno == EPIPE) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				} else if (errno == EINTR) {
 					continue;
 				} else {
-					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 					result = kErrSocketReadFailed;
 					cip->errNo = kErrSocketReadFailed;
 				}
@@ -739,12 +739,12 @@ add_eoln:
 				if ((gGotBrokenData != 0) || (errno == EPIPE)) {
 					result = cip->errNo = kErrSocketReadFailed;
 					errno = EPIPE;
-					FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+					FTPLogError(cip, kDoPerror, "Lost data connection to remote host after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				} else if (errno == EINTR) {
 					continue;
 				} else {
 					result = cip->errNo = kErrSocketReadFailed;
-					FTPLogError(cip, kDoPerror, "Remote read failed.\n");
+					FTPLogError(cip, kDoPerror, "Remote read failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 				}
 				(void) shutdown(cip->dataSocket, 2);
 				break;
@@ -754,14 +754,14 @@ add_eoln:
 			gCanBrokenDataJmp = 0;
 #endif	/* NO_SIGNALS */
 
-			nwrote = write(fd, buf, (write_size_t) nread);
+			nwrote = PWrite(fd, buf, (write_size_t) nread);
 			if (nwrote != nread) {
 				if (errno == EPIPE) {
 					result = kErrWriteFailed;
 					cip->errNo = kErrWriteFailed;
 					errno = EPIPE;
 				} else {
-					FTPLogError(cip, kDoPerror, "Local write failed.\n");
+					FTPLogError(cip, kDoPerror, "Local write failed after " PRINTF_LONG_LONG " bytes had been received.\n", cip->bytesTransferred);
 					result = kErrWriteFailed;
 					cip->errNo = kErrWriteFailed;
 				}

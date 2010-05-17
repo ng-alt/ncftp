@@ -10,6 +10,7 @@ AC_ARG_WITH(ncurses,[  --without-ncurses       do not try to find and use the nc
 wi_ARG_DISABLE_PRECOMP
 dnl AC_ARG_WITH(readline,[  --without-readline      do not try to find and use the readline library],nc_cv_readline=$withval,nc_cv_readline=yes)
 wi_ARG_WITH_SOCKS5
+wi_ARG_ENABLE_SSP
 wi_ARG_DISABLE_MACOSX_UNIVERSAL
 
 
@@ -32,7 +33,7 @@ AC_CONFIG_AUX_DIR([sh])
 AC_PROG_CC
 wi_CC_PRECOMP
 wi_REQUEST_NO_Y2K_WARNINGS
-wi_CFLAGS_LFS
+wi_CFLAGS_LFS_OR_LFS64
 wi_CFLAGS_REENTRANT
 wi_MACOSX_UNIVERSAL_CFLAGS
 wi_SFLAG
@@ -40,9 +41,9 @@ AC_OBJEXT
 AC_EXEEXT
 wi_DEFINE_UNAME
 wi_EXTRA_SYSV_SUNOS_DIRS	dnl	For better curses library on SunOS 4
-if test "${prefix-NONE}" = "NONE" ; then
-	AC_DEFINE_UNQUOTED(PREFIX_BINDIR, "/usr/local/bin")
-else
+
+dnl Try to use PATH rather than hardcode the installation path, if possible.
+if test "${prefix-NONE}" != "NONE" && test "$prefix" != "/usr/local" && test "$prefix" != "/usr"; then
 	AC_DEFINE_UNQUOTED(PREFIX_BINDIR, "$prefix/bin")
 fi
 
@@ -84,6 +85,33 @@ fi
 dnl if test "$nc_cv_readline" = yes ; then
 dnl 	wi_LIB_READLINE
 dnl fi
+
+dnl
+dnl DNSSEC
+dnl
+# Check whether user wants DNSSEC local validation support
+AC_ARG_WITH(dnssec-local-validation,
+        [  --with-dnssec-local-validation Enable local DNSSEC validation using libval (no)], want_dnssec=$withval, want_dnssec=no)
+if ! test "x-$want_dnssec" = "x-no" ; then
+    AC_CHECK_HEADERS(validator/validator.h)
+    if test "$ac_cv_header_validator_validator_h" != yes; then
+        AC_MSG_ERROR(Can't find validator.h)
+    fi
+    AC_CHECK_LIB(ssl, SHA1_Init,,AC_MSG_ERROR([Can't find SSL library]))
+    AC_CHECK_LIB(sres, query_send,,AC_MSG_ERROR([Can't find libsres]))
+    AC_CHECK_LIB(val, p_val_status,
+                 LIBS="$LIBS -lval"
+                 have_val_res_query=yes,
+                 [ AC_CHECK_LIB(pthread, pthread_rwlock_init)
+		   AC_CHECK_LIB(val-threads, p_val_status,
+                   have_val_res_query=yes
+                   LIBS="-lval-threads $LIBS"
+                   LIBVAL_SUFFIX="-threads",
+                   AC_MSG_ERROR(Can't find libval or libval-threads))
+                 ])
+    AC_DEFINE(DNSSEC_LOCAL_VALIDATION, 1,
+              [Define if you want local DNSSEC validation support])
+fi
 
 
 
@@ -263,5 +291,7 @@ AC_SUBST(LIBNCFTP_VERSION)
 AC_SUBST(SIO_VERSION)
 AC_SUBST(STRN_VERSION)
 AC_SUBST(VIS_DPROGS)
+AC_SUBST(SIZEOF_OFF_T)
+AC_SUBST(SIZEOF_ST_SIZE)
 AC_OUTPUT_COMMANDS([/bin/rm -f ./ncftp/readln.o])
 AC_OUTPUT([Makefile Makefile.bin ncftp/Makefile libncftp/Makefile Strn/Makefile sio/Makefile sh_util/Makefile vis/Makefile])

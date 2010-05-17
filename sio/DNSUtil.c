@@ -26,7 +26,31 @@ extern int getdomainname(char *name, gethostname_size_t namelen);
 int
 GetHostByName(struct hostent *const hp, const char *const name, char *const hpbuf, size_t hpbufsize)
 {
-#if defined(HAVE_GETHOSTBYNAME_R) && (defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
+#if defined(DNSSEC_LOCAL_VALIDATION)
+	char *usehpbuf;
+	struct hostent *h;
+	int my_h_errno, rc;
+        val_status_t val_status;
+
+	usehpbuf = hpbuf;
+	forever {
+		errno = 0;
+		my_h_errno = 0;
+		h = NULL;
+		memset(usehpbuf, 0, hpbufsize);
+		rc = val_gethostbyname2_r(NULL, name, AF_INET, hp, usehpbuf,
+                                          hpbufsize, &h, &my_h_errno,
+                                          &val_status);
+		if ((rc == 0) && (h != NULL)) {
+                    if (!val_istrusted(val_status))
+			return (-2);
+                    return (0);
+                }
+		if ((rc == 0) && (my_h_errno != 0))
+			errno = ENOENT;
+		break;
+	}
+#elif defined(HAVE_GETHOSTBYNAME_R) && (defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
 	struct hostent *h;
 	int h_errno_unused = 0;
 	memset(hpbuf, 0, hpbufsize);
@@ -114,7 +138,21 @@ GetHostByName(struct hostent *const hp, const char *const name, char *const hpbu
 int
 GetHostByAddr(struct hostent *const hp, void *addr, int asize, int atype, char *const hpbuf, size_t hpbufsize)
 {
-#if defined(HAVE_GETHOSTBYADDR_R) && (defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
+#if defined(DNSSEC_LOCAL_VALIDATION)
+	struct hostent *h;
+	int h_errno_unused = 0, rc;
+	val_status_t val_status;
+
+	memset(hpbuf, 0, hpbufsize);
+	rc = val_gethostbyaddr_r(NULL, addr, asize, atype,
+                                 hp, hpbuf, hpbufsize, &h, &h_errno_unused,
+                                 &val_status);
+	if ((rc == 0) && (h != NULL)) {
+		if (!val_istrusted(val_status))
+			return (-2);
+		return (0);
+	}
+#elif defined(HAVE_GETHOSTBYADDR_R) && (defined(SOLARIS) || defined(IRIX) || defined(BSDOS))
 	struct hostent *h;
 	int h_errno_unused = 0;
 	memset(hpbuf, 0, hpbufsize);
@@ -182,7 +220,7 @@ int
 GetHostEntry(struct hostent *const hp, const char *const host, struct in_addr *const ip_address, char *const hpbuf, size_t hpbufsize)
 {
 	struct in_addr ip;
-	int rc = -1;
+	int rc;
 	
 	/* See if the host was given in the dotted IP format, like "36.44.0.2."
 	 * If it was, inet_addr will convert that to a 32-bit binary value;
@@ -190,7 +228,8 @@ GetHostEntry(struct hostent *const hp, const char *const host, struct in_addr *c
 	 */
 	ip.s_addr = inet_addr(host);
 	if (ip.s_addr != INADDR_NONE) {
-		if (GetHostByAddr(hp, (char *) &ip, (int) sizeof(ip), AF_INET, hpbuf, hpbufsize) == 0) {
+		rc = GetHostByAddr(hp, (char *) &ip, (int) sizeof(ip), AF_INET, hpbuf, hpbufsize);
+		if (rc == 0) {
 			rc = 0;
 			if (ip_address != NULL)
 				(void) memcpy(&ip_address->s_addr, hp->h_addr_list[0], (size_t) hp->h_length);
@@ -201,12 +240,19 @@ GetHostEntry(struct hostent *const hp, const char *const host, struct in_addr *c
 		/* No IP address, so it must be a hostname, like ftp.wustl.edu. */
 		if (ip_address != NULL)
 			ip_address->s_addr = INADDR_NONE;
-		if (GetHostByName(hp, host, hpbuf, hpbufsize) == 0) {
-			rc = 0;
+		rc = GetHostByName(hp, host, hpbuf, hpbufsize);
+		if (rc == 0) {
 			if (ip_address != NULL)
 				(void) memcpy(&ip_address->s_addr, hp->h_addr_list[0], (size_t) hp->h_length);
 		}
 	}
+#if defined(DNSSEC_LOCAL_VALIDATION)
+	if ((rc < 0) && (rc != -2))
+		rc = -1;
+#else
+	if ((rc < 0) && (rc != -1))
+		rc = -1;
+#endif
 	return (rc);
 }	/* GetHostEntry */
 

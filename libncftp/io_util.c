@@ -192,7 +192,7 @@ WaitForRemoteInput(const FTPCIPtr cip)
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 		result = select(fd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, &tv);
-		if (result == 1) {
+		if (result >= 1) {
 			/* ready */
 			cip->stalled = 0;
 			return (1);
@@ -271,7 +271,7 @@ WaitForRemoteOutput(const FTPCIPtr cip)
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 		result = select(fd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, &tv);
-		if (result == 1) {
+		if (result >= 1) {
 			/* ready */
 			cip->stalled = 0;
 			return (1);

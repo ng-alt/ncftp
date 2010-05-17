@@ -93,6 +93,7 @@ char gLDir[256];
 char gRFile[256];
 char gLFile[256];
 char gRStartDir[256];
+char gSourceAddrStr[128];
 
 /* Writes logging data to a ~/.ncftp/spool/log file.
  * This is nice for me when I need to diagnose problems.
@@ -702,6 +703,7 @@ LoadCurrentSpoolFileContents(int logErrors)
 	gRFile[0] = '\0';
 	gLFile[0] = '\0';
 	gManualOverrideFeatures[0] = '\0';
+	gSourceAddrStr[0] = '\0';
 	gPreFTPCommand[0] = '\0';
 	gPerFileFTPCommand[0] = '\0';
 	gPostFTPCommand[0] = '\0';
@@ -758,6 +760,8 @@ LoadCurrentSpoolFileContents(int logErrors)
 			(void) STRNCPY(gRFile, tok2);
 		} else if (strcmp(tok1, "local-file") == 0) {
 			(void) STRNCPY(gLFile, tok2);
+		} else if (strcmp(tok1, "source-address") == 0) {
+			(void) STRNCPY(gSourceAddrStr, tok2);
 		} else if (strcmp(tok1, "manual-override-features") == 0) {
 			(void) STRNCPY(gManualOverrideFeatures, tok2);
 		} else if (strcmp(tok1, "pre-ftp-command") == 0) {
@@ -1197,6 +1201,9 @@ DoItem(void)
 			(void) STRNCPY(gConn.firewallPass, gFirewallPass);
 			gConn.firewallPort = gFirewallPort;
 		}
+
+		if (gSourceAddrStr[0] != '\0')
+			(void) AddrStrToAddr(gSourceAddrStr, &gConn.preferredLocalAddr, 21);
 		
 		gConn.connTimeout = 30;
 		gConn.ctrlTimeout = 135;
@@ -1635,6 +1642,7 @@ EventShell(volatile unsigned int sleepval)
 						tnext,
 						gDelaySinceLastFailure,
 						gManualOverrideFeatures,
+						gSourceAddrStr,
 						0
 					) < 0) {
 						/* quit now */

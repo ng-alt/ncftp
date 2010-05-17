@@ -690,6 +690,9 @@ MyGetHostByName(char *const volatile dst, size_t dsize, const char *const hn, in
 #ifdef HAVE_INET_ATON
 	struct in_addr ina;
 #endif
+#ifdef DNSSEC_LOCAL_VALIDATION
+        val_status_t val_status;
+#endif
 
 #ifdef HAVE_INET_ATON
 	if (inet_aton(hn, &ina) != 0) {
@@ -728,12 +731,26 @@ MyGetHostByName(char *const volatile dst, size_t dsize, const char *const hn, in
 		osigalrm = NcSignal(SIGALRM, CancelGetHostByName);
 		if (t > 0)
 			(void) alarm((unsigned int) t);
+#ifndef DNSSEC_LOCAL_VALIDATION
 		hp = gethostbyname(hn);
+#else
+                hp = val_gethostbyname(NULL, hn, &val_status);
+#endif
 		if (t > 0)
 			(void) alarm(0);
 		(void) NcSignal(SIGPIPE, osigpipe);
 		(void) NcSignal(SIGINT, osigint);
 		(void) NcSignal(SIGALRM, osigalrm);
+#ifdef DNSSEC_LOCAL_VALIDATION
+                /*
+                 * It would be nice to pass a little more information back,
+                 * but that would mean an API change to MyGetHostByName.
+                 */
+                if ((hp != NULL) && ! val_istrusted(val_status)) {
+                    *dst = '\0';
+                    return (-2);
+                }
+#endif
 		if (hp != NULL) {
 			InetNtoA(dst, ((struct in_addr **) hp->h_addr_list)[0], dsize);
 			return (0);

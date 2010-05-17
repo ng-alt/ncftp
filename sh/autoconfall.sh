@@ -1,6 +1,7 @@
 #!/bin/sh
 
 PROJECT_HOME="$HOME/src/ncftp/current"
+AUTOCONF_BIN="/usr/local/autoconf-2.13/bin"
 if [ ! -d "$PROJECT_HOME" ] ; then
 	/bin/ls -ld "$PROJECT_HOME"
 	exit 1
@@ -15,7 +16,7 @@ for f in \
 	sio/configure.in \
 	Strn/configure.in \
 	libncftp/configure.in \
-	/home/gleason/src/libncftp/current/libncftp/configure.in \
+	"$HOME"/src/libncftp/current/libncftp/configure.in \
 ; do
 	abs=no
 	case "$f" in
@@ -31,7 +32,7 @@ for f in \
 		is_diff=no
 
 		/bin/mv config.h.in config.h.in.orig 2>/dev/null
-		autoheader 2>&1 | fgrep -v AC_TRY_RUN
+		"$AUTOCONF_BIN"/autoheader 2>&1 | fgrep -v AC_TRY_RUN
 		if [ ! -f config.h.in ] ; then
 			echo "* Warning: config.h.in not generated"
 			if [ -f config.h.in.orig ] ; then
@@ -50,7 +51,7 @@ for f in \
 		fi
 
 		/bin/mv configure configure.orig 2>/dev/null
-		autoconf 2>&1 | fgrep -v AC_TRY_RUN
+		"$AUTOCONF_BIN"/autoconf 2>&1 | fgrep -v AC_TRY_RUN
 		if [ ! -f configure ] ; then
 			echo "* Warning: configure not generated"
 			if [ -f configure.orig ] ; then

@@ -14,8 +14,10 @@
 #ifndef ncftp
 #	if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #		include "..\ncftp\util.h"
+#		include "..\ncftp\bookmark.h"
 #	else
 #		include "../ncftp/util.h"
+#		include "../ncftp/bookmark.h"
 #	endif
 #endif
 
@@ -25,6 +27,8 @@
 #endif
 
 static int gIsAtty1 = 1, gIsAtty2 = 1;
+extern int gLoadedBm, gBookmarkMatchMode;
+Bookmark gBm;
 
 double
 FileSize(double size, const char **uStr0, double *uMult0)
@@ -310,22 +314,54 @@ PrStatBar(const FTPCIPtr cip, int mode)
 
 
 
+int
+ReadConfigFromBookmark(const char *const bmname, FTPCIPtr cip)
+{
+	Bookmark bm;
+	int rc;
 
-void
-ReadConfigFile(const char *fn, FTPCIPtr cip)
+	gBookmarkMatchMode = 0;		/* Exact match only */
+	memset(&gBm, 0, sizeof(gBm));
+	if ((rc = GetBookmark(bmname, &bm)) >= 0) {
+		gLoadedBm = 1;
+		(void) STRNCPY(cip->host, bm.name);
+		(void) STRNCPY(cip->user, bm.user);
+		(void) STRNCPY(cip->pass, bm.pass);
+		(void) STRNCPY(cip->acct, bm.acct);
+		cip->port = bm.port;
+		memcpy(&gBm, &bm, sizeof(gBm));
+		return (kLoadedFromBookmark);
+	}
+	errno = ENOENT;
+	return (-1);
+}	/* ReadConfigFromBookmark */
+
+
+
+
+int
+ReadConfigFile(const char *fn0, FTPCIPtr cip)
 {
 	FILE *fp;
-	char line[128];
+	char line[128], fn[128];
 	char *cp;
 	int goodfile = 0;
+
+	STRNCPY(fn, fn0);
 
 	if ((fn[0] == '\0') || (strcmp(fn, "-") == 0)) {
 		fp = stdin;
 	} else {
 		fp = fopen(fn, FOPEN_READ_TEXT);
 		if (fp == NULL) {
-			perror(fn);
-			exit(kExitBadConfigFile);
+			if (ReadConfigFromBookmark(fn, cip) == kLoadedFromBookmark)
+				return (kLoadedFromBookmark);
+
+			/* Re-try solely for setting correct errno. */
+			fp = fopen(fn, FOPEN_READ_TEXT);
+			if (fp == NULL) {
+				return (kErrorLoadingConfig);
+			}
 		}
 	}
 	
@@ -374,13 +410,15 @@ ReadConfigFile(const char *fn, FTPCIPtr cip)
 
 	if (goodfile == 0) {
 		(void) fprintf(stderr, "%s doesn't contain anything useful.\n", fn);
-		(void) fprintf(stderr, "%s should look something like this:\n", fn);
+		(void) fprintf(stderr, "A NcFTP host configuration file should look something like this:\n");
 		(void) fprintf(stderr, "# Comment lines starting with a hash character\n# and blank lines are ignored.\n\n");
 		(void) fprintf(stderr, "host Bozo.probe.net\n");
 		(void) fprintf(stderr, "user gleason\n");
 		(void) fprintf(stderr, "pass mypasswd\n");
-		exit(kExitBadConfigFile);
+		return (kErrorLoadingConfig);
 	}
+
+	return (kLoadedFromConfigFile);
 }	/* ReadConfigFile */
 
 

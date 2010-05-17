@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#ifdef HAVE_SYS_UN_H
+
 int
 URecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_un *const fromAddr, int *ualen, int tlen)
 {
@@ -41,7 +43,7 @@ URecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_un *con
 			tv.tv_sec = (tv_sec_t) tleft;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, SELECT_TYPE_ARG5 &tv);
-			if (result == 1) {
+			if (result >= 1) {
 				/* ready */
 				break;
 			} else if (result == 0) {
@@ -78,3 +80,5 @@ URecvfrom(int sfd, char *const buf, size_t size, int fl, struct sockaddr_un *con
 
 	return ((int) nread);
 }	/* URecvfrom */
+
+#endif	/* HAVE_SYS_UN_H */

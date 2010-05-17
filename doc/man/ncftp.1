@@ -976,6 +976,16 @@ otherwise, leave it set to
 .I "no"
 and the program will prompt you for which action to take.
 .\"-------
+.IP "auto\-ascii"
+.\"-------
+If set to a list of pipe-character delimited extensions, files with
+these extensions will be sent in ASCII mode even if binary mode is
+currently in effect.  This option allows you to transfer most files in
+binary, with the exception of a few well-known file types that should be
+sent in ASCII.  This option is enabled by default, and set to a list
+of common extensions (e.g., 
+.IR "\.txt" " and " "\.html" ")."
+.\"-------
 .IP "autosave\-bookmark\-changes"
 .\"-------
 With the advent of version 3 of
@@ -1080,6 +1090,13 @@ $HOME/.ncftp/bookmarks
 file.
 The passwords aren't in clear text, but it is still trivial to
 decode them if someone wants to make a modest effort.
+.\"-------
+.IP "show\-status\-in\-xterm\-titlebar"
+.\"-------
+If set to
+.I yes
+and operating from within an xterm window,
+the program will change the window's titlebar accordingly.
 .\"-------
 .IP "so-bufsize"
 .\"-------

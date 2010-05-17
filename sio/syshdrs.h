@@ -7,18 +7,28 @@
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	pragma once
 #	define _CRT_SECURE_NO_WARNINGS 1
-#	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
-#	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
-#	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
-#	pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
-#	pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
-#	pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
-#	pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
-#	pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
+#	ifndef __MINGW32__
+#		pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
+#		pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
+#		pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
+#		pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
+#		pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
+#		pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
+#		pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
+#		pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
+#	endif
 	/* Include "wincfg.h" in place of "config.h" */
 #	include "wincfg.h"
-#	define WINVER 0x0400
-#	define _WIN32_WINNT 0x0400
+	/* We now try for at least Windows 2000 compatibility (0x0500).
+	 * The code will still work on older systems, though.
+	 * Prior versions used 0x0400 instead.
+	 */
+#	ifndef WINVER
+#		define WINVER 0x0500
+#	endif
+#	ifndef _WIN32_WINNT
+#		define _WIN32_WINNT 0x0500
+#	endif
 #	include <windows.h>		/* includes <winsock2.h> if _WIN32_WINNT >= 0x400 */
 #	include <io.h>
 #	include <errno.h>
@@ -214,5 +224,9 @@ extern ssize_t nsendmsg(int, const struct msghdr *, int);
 #		include <socks.h>
 #	endif
 #endif	/* SOCKS */
+
+#ifdef DNSSEC_LOCAL_VALIDATION
+#include <validator/validator.h>
+#endif
 
 /* eof */

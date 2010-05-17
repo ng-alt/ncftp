@@ -9,12 +9,23 @@ PREFIX=@prefix@
 
 @SET_MAKE@
 CC=@CC@
-DEFS=-DO_S=\"@OS@\" @DEFS@@NDEFS@
+DEFS1=-DO_S=\"@OS@\"
+DEFS2=@DEFS@@NDEFS@
+DEFS=$(DEFS1) $(DEFS2)
 CFLAGS=@CFLAGS@
 #CC=gcc
 #CFLAGS=-g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wbad-function-cast -Wwrite-strings -Wconversion
 VPATH=@srcdir@
+TOPDIR=@TOPDIR@
 CPPFLAGS=@CPPFLAGS@
+LDFLAGS=@LDFLAGS@
+
+DELETE=/bin/rm -rf
+COPY=/bin/cp -pr
+LIST=/bin/ls -l
+MKDIR=mkdir -m 755 -p
+SYMLINK=/bin/ln -s
+HARDLINK=/bin/ln
 
 LIB=libncftp.a
 LIBSO=libncftp.so.3
@@ -34,54 +45,54 @@ SHELL=/bin/sh
 .SUFFIXES: .c .o .so
 
 all: $(LIBSET)
-	@( cd ../sio ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	@( cd ../Strn ; $(MAKE) "CC=$(CC)" "CFLAGS=$(CFLAGS)" )
-	@[ ! -d ./samples/minincftp ] || ( cd ./samples/minincftp && $(MAKE) )
-	@[ ! -d ./samples/misc ] || ( cd ./samples/misc && $(MAKE) )
-	@[ ! -d ./samples/monkey ] || ( cd ./samples/monkey && $(MAKE) )
-	@[ ! -d ./samples/ncftpget ] || ( cd ./samples/ncftpget && $(MAKE) )
-	@[ ! -d ./samples/ncftpls ] || ( cd ./samples/ncftpls && $(MAKE) )
-	@[ ! -d ./samples/ncftpput ] || ( cd ./samples/ncftpput && $(MAKE) )
-	@[ ! -d ./samples/ncftpftw ] || ( cd ./samples/ncftpftw && $(MAKE) )
-	@[ ! -d ./samples/ncftpsyncput ] || ( cd ./samples/ncftpsyncput && $(MAKE) )
-	@[ ! -d ./samples/simpleget ] || ( cd ./samples/simpleget && $(MAKE) )
+	@( cd ../sio ; $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CFLAGS=$(CFLAGS)" )
+	@( cd ../Strn ; $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/minincftp ] || ( cd ./samples/minincftp && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/misc ] || ( cd ./samples/misc && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/monkey ] || ( cd ./samples/monkey && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/ncftpget ] || ( cd ./samples/ncftpget && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/ncftpls ] || ( cd ./samples/ncftpls && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/ncftpput ] || ( cd ./samples/ncftpput && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/ncftpftw ] || ( cd ./samples/ncftpftw && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/ncftpsyncput ] || ( cd ./samples/ncftpsyncput && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
+	@[ ! -d ./samples/simpleget ] || ( cd ./samples/simpleget && $(MAKE) "CC=$(CC)" "DEFS=$(DEFS2)" "CPPFLAGS=$(CPPFLAGS)" "LDFLAGS=$(LDFLAGS)" "CFLAGS=$(CFLAGS)" )
 	@echo 'Done.'
 
 $(LIB): $(OBJS)
-	-@/bin/rm -f $(LIB)
+	-@$(DELETE) $(LIB)
 	@CCDV@@AR@ r $(LIB) $(OBJS)
 	-@chmod 644 $(LIB)
 	-@@RANLIB@ $(LIB)
-	@/bin/ls -l $(LIB)
+	@$(LIST) $(LIB)
 
 shared: $(LIBSO)
 
 so: $(LIBSO)
 
 $(LIBSO): $(SOBJS)
-	/bin/rm -f $(LIBSO) $(LIBSOS)
+	$(DELETE) $(LIBSO) $(LIBSOS)
 	$(CC) -shared -Wl,-soname,$(LIBSO) -o $(LIBSO) $(SOBJS)
-	/bin/ln -s $(LIBSO) $(LIBSOS)
-	-@/bin/ls -l $(LIBSOS) $(LIBSO)
+	$(SYMLINK) $(LIBSO) $(LIBSOS)
+	-@$(LIST) $(LIBSOS) $(LIBSO)
 
 soinstall: $(LIBSO)
-	[ -d "$(PREFIX)/lib" ] || mkdir -m 755 "$(PREFIX)/lib"
-	[ -d "$(PREFIX)/include" ] || mkdir -m 755 "$(PREFIX)/include"
-	cp $(LIBSO) $(PREFIX)/lib/$(LIBSO)
-	( cd $(PREFIX)/lib ; /bin/rm -f $(LIBSOS) ; /bin/ln -s $(LIBSO) $(LIBSOS) )
-	cp ncftp.h ncftp_errno.h $(PREFIX)/include
+	[ -d "$(PREFIX)/lib" ] || $(MKDIR) "$(PREFIX)/lib"
+	[ -d "$(PREFIX)/include" ] || $(MKDIR) "$(PREFIX)/include"
+	$(COPY) $(LIBSO) $(PREFIX)/lib/$(LIBSO)
+	( cd $(PREFIX)/lib ; $(DELETE) $(LIBSOS) ; $(SYMLINK) $(LIBSO) $(LIBSOS) )
+	$(COPY) ncftp.h ncftp_errno.h $(PREFIX)/include
 	-chmod a+r $(PREFIX)/lib/$(LIBSO) $(PREFIX)/include/ncftp.h $(PREFIX)/include/ncftp_errno.h
-	-@/bin/ls -ld $(PREFIX)/lib/$(LIBSO)
+	-@$(LIST) $(PREFIX)/lib/$(LIBSO)
 	-@echo
 	-@echo "Make sure that your dynamic loader searches for the directory $(PREFIX)/lib."
 	-@echo "For example, edit /etc/ld.so.conf accordingly if your system uses ld.so."
 
 install: $(LIB)
-	[ -d "$(PREFIX)/lib" ] || mkdir -m 755 "$(PREFIX)/lib"
-	[ -d "$(PREFIX)/include" ] || mkdir -m 755 "$(PREFIX)/include"
-	cp $(LIB) $(PREFIX)/lib/$(LIB)
+	[ -d "$(PREFIX)/lib" ] || $(MKDIR) "$(PREFIX)/lib"
+	[ -d "$(PREFIX)/include" ] || $(MKDIR) "$(PREFIX)/include"
+	$(COPY) $(LIB) $(PREFIX)/lib/$(LIB)
 	-@@RANLIB@ $(PREFIX)/lib/$(LIB)
-	cp ncftp.h ncftp_errno.h $(PREFIX)/include
+	$(COPY) ncftp.h ncftp_errno.h $(PREFIX)/include
 	-chmod a+r $(LIB) $(PREFIX)/lib/$(LIB) $(PREFIX)/include/ncftp.h $(PREFIX)/include/ncftp_errno.h
 	( cd ../sio ; $(MAKE) "PREFIX=$(PREFIX)" install)
 	( cd ../Strn ; $(MAKE) "PREFIX=$(PREFIX)" install_min )
@@ -104,7 +115,7 @@ gz sgz: $(PACKAGE)
 ### Cleaning supplies ########################################################
 
 clean:
-	-/bin/rm -rf *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) $(LIBSOS) core *.pch libncftp.opt libncftp.plg libncftp.ncb SunWS_cache
+	-$(DELETE) *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) $(LIBSOS) core *.pch libncftp.opt libncftp.plg libncftp.ncb SunWS_cache *.dSYM */*.dSYM */*/*.dSYM
 	@[ ! -d ./samples/minincftp ] || ( cd ./samples/minincftp && $(MAKE) clean )
 	@[ ! -d ./samples/misc ] || ( cd ./samples/misc && $(MAKE) clean )
 	@[ ! -d ./samples/monkey ] || ( cd ./samples/monkey && $(MAKE) clean )
@@ -118,7 +129,7 @@ clean:
 	@( cd ../Strn ; $(MAKE) clean )
 
 distclean: clean
-	-/bin/rm -f ccdv
+	-$(DELETE) ccdv
 	-find . \
 	           -name config.status -exec rm {} \; \
 		-o -name config.cache -exec rm {} \; \

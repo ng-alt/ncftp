@@ -58,6 +58,119 @@ SortRecursiveFileList(FTPFileInfoListPtr files)
 }	/* SortRecursiveFileList */
 #endif
 
+struct MyFtwExtraInfo {
+	size_t limitMaxDirs;
+	size_t limitMaxFiles;
+	size_t limitMaxDepth;
+	FTPFileInfoListPtr fileList;
+};
+
+int
+FTPRemoteFtwProc(const FtwInfoPtr ftwip)
+{
+	struct MyFtwExtraInfo *xinfop = (struct MyFtwExtraInfo *) ftwip->userdata;
+	FTPCIPtr cip = (FTPCIPtr) ftwip->cip;
+	FTPFileInfo fi;
+
+	if ((xinfop->limitMaxDepth != 0) && (ftwip->depth >= xinfop->limitMaxDepth)) {
+		FTPLogError(cip, kDontPerror, "Depth limit reached (%u dirs deep).\n", (unsigned int) ftwip->depth);
+		return (-1);
+	}
+
+	InitFileInfo(&fi);
+	if (strncmp(ftwip->curPath, "./", 2) == 0) {
+		fi.relnameLen = ftwip->curPathLen - 2;
+		fi.relname = StrDup(ftwip->curPath + 2);
+	} else if (strcmp(ftwip->curPath, ".") == 0) {
+		/* Don't need starting directory */
+		return (0);
+	} else {
+		fi.relnameLen = ftwip->curPathLen;
+		fi.relname = StrDup(ftwip->curPath);
+	}
+	fi.rname = NULL;
+	fi.lname = NULL;
+	fi.rlinkto = (ftwip->rlinkto == NULL) ? NULL : StrDup(ftwip->rlinkto);
+	fi.mdtm = ftwip->curStat.st_mtime;
+	fi.size = (longest_int) ftwip->curStat.st_size;
+	fi.type = ftwip->curType;
+	fi.mode = ftwip->curStat.st_mode;
+	AddFileInfo(xinfop->fileList, &fi);
+	
+	/*
+fprintf(stderr, "(%c) relname [%s], rlinkto [%s], mdtm %lld, size %lld, mode %08o\n", fi.type, fi.relname, fi.rlinkto == NULL ? "" : fi.rlinkto, fi.mdtm, fi.size, fi.mode);
+	*/
+
+	if ((xinfop->limitMaxDirs != 0) && (ftwip->numDirs >= xinfop->limitMaxDirs)) {
+		FTPLogError(cip, kDontPerror, "Max subdirs limit (%u) reached.\n", (unsigned int) ftwip->numDirs);
+		return (-1);
+	}
+	if ((xinfop->limitMaxFiles != 0) && (ftwip->numFiles >= xinfop->limitMaxFiles)) {
+		FTPLogError(cip, kDontPerror, "Max files limit (%u) reached.\n", (unsigned int) ftwip->numFiles);
+		return (-1);
+	}
+	return (0);
+}	/* FTPRemoteFtwProc */
+
+
+
+
+int
+FTPRemoteRecursiveFileList2(FTPCIPtr cip, char *const rdir, FTPFileInfoListPtr files)
+{
+	int result;
+	char rcwd[512];
+	FtwInfo ftwi;
+	struct MyFtwExtraInfo xinfo;
+
+	if ((result = FTPGetCWD(cip, rcwd, sizeof(rcwd))) < 0)
+		return (result);
+
+	InitFileInfoList(files);
+
+	if (rdir == NULL)
+		return (-1);
+
+	if (FTPChdir(cip, rdir) < 0) {
+		/* Probably not a directory.
+		 * Just add it as a plain file
+		 * to the list.
+		 */
+		(void) ConcatFileToFileInfoList(files, rdir);
+		return (kNoErr);
+	}
+
+	FtwInit(&ftwi);
+
+	xinfo.limitMaxDirs = 0;
+	xinfo.limitMaxFiles = 0;
+	xinfo.limitMaxDepth = 50;
+	xinfo.fileList = files;
+	ftwi.userdata = &xinfo;
+
+	/* Paths collected must be relative. */
+	if ((result = FTPFtw(cip, &ftwi, ".", FTPRemoteFtwProc)) != 0) {
+		FTPPerror(cip, cip->errNo, kErrCWDFailed, "Could not traverse directory", NULL);
+		if ((result = FTPChdir(cip, rcwd)) < 0) {
+			rcwd[0] = '\0';
+		}
+		FtwDispose(&ftwi);
+		return (result);
+	}
+	FtwDispose(&ftwi);
+
+	/* print1(&fil); */
+	/* Could sort it to breadth-first here. */
+	/* (void) SortRecursiveFileList(&fil); */
+	(void) ComputeRNames(files, rdir, 1, 1);
+
+	if ((result = FTPChdir(cip, rcwd)) < 0) {
+		rcwd[0] = '\0';
+		return (result);
+	}
+	return (kNoErr);
+}	/* FTPRemoteRecursiveFileList2 */
+
 
 
 
@@ -90,8 +203,8 @@ FTPRemoteRecursiveFileList1(FTPCIPtr cip, char *const rdir, FTPFileInfoListPtr f
 	if ((result = FTPListToMemory2(cip, "", &dirContents, "-lRa", 1, (int *) 0)) < 0) {
 		if ((result = FTPChdir(cip, rcwd)) < 0) {
 			rcwd[0] = '\0';
-			return (result);
 		}
+		return (result);
 	}
 
 #if 0

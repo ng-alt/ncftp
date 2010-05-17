@@ -1,7 +1,7 @@
 Document Type: WSE
 item: Global
   Version=8.14
-  Title=NcFTP 3.2.2 Installation
+  Title=NcFTP 3.2.4 Installation
   Flags=00010100
   Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
   Copy Default=1
@@ -21,13 +21,13 @@ item: Global
   Patch Flags=0000000000000001
   Patch Threshold=85
   Patch Memory=4000
-  EXE Filename=ncftp-3.2.2-win32.exe
+  EXE Filename=ncftp-3.2.4-win32.exe
   FTP Cluster Size=20
   Per-User Version ID=1
   Dialogs Version=7
   Crystal Format=01111101101100000010001001001001
   Crystal Destination=00000000000000000000000000001011
-  Distribute Path=\\qanuck\ztmp
+  Distribute Path=\\qanuck\xtmp
   Distribute Type=1
   Step View=Properties
   Variable Name1=_SYS_
@@ -115,7 +115,7 @@ item: Remark
 end
 item: Set Variable
   Variable=APPTITLE
-  Value=NcFTP 3.2.2
+  Value=NcFTP 3.2.4
   Flags=10000000
 end
 item: Remark

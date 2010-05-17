@@ -139,6 +139,7 @@ SpoolX(
 	const time_t when,
 	const unsigned int delaySinceLastFailure,
 	const char *const manualOverrideFeatures,
+	const char *const preferredLocalAddrStr,
 	const int UNUSED(reserved)
 	)
 {
@@ -254,6 +255,12 @@ SpoolX(
 		if (fprintf(fp, "manual-override-features=") < 0)
 			goto err;
 		if (WriteSpoolLine(fp, manualOverrideFeatures) < 0)
+			goto err;
+	}
+	if ((preferredLocalAddrStr != NULL) && (preferredLocalAddrStr[0] != '\0')) {
+		if (fprintf(fp, "source-address=") < 0)
+			goto err;
+		if (WriteSpoolLine(fp, preferredLocalAddrStr) < 0)
 			goto err;
 	}
 	if ((preftpcmd != NULL) && (preftpcmd[0] != '\0')) {

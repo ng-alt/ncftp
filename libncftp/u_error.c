@@ -25,14 +25,28 @@ FTPLogError(const FTPCIPtr cip, const int pError, const char *const fmt, ...)
 #ifndef HAVE_STRERROR
 	char errnostr[16];
 #endif
+	size_t buflen = 0;
+	int x;
+	time_t t;
+	struct tm lt, *ltp;
+
+	buf[0] = '\0';
+	if ((x = cip->debugTimestamping) != 0) {
+		ltp = Localtime(time(&t), &lt);
+		if (x == 1) {
+			buflen = strftime(buf, sizeof(buf), "%H:%M:%S  ", ltp);
+		} else {
+			buflen = strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S  ", ltp);
+		}
+	}
 
 	errnum = errno;
 	va_start(ap, fmt);
 #ifdef HAVE_VSNPRINTF
-	vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
+	vsnprintf(buf + buflen, sizeof(buf) - 1 - buflen, fmt, ap);
 	buf[sizeof(buf) - 1] = '\0';
 #else
-	(void) vsprintf(buf, fmt, ap);
+	(void) vsprintf(buf + buflen, fmt, ap);
 #endif
 	va_end(ap);
 

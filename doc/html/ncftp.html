@@ -1202,6 +1202,20 @@ E-mail addresses.  </DD>
 
 <dt>&nbsp;</dt>
 </DL>
+  
+<pre>auto-ascii</pre>
+  
+<DL>
+
+<DD> If set to a list of pipe-character delimited extensions, files with
+these extensions will be sent in ASCII mode even if binary mode is
+currently in effect.  This option allows you to transfer most files in
+binary, with the exception of a few well-known file types that should be
+sent in ASCII.  This option is enabled by default, and set to a list
+of common extensions (e.g., <tt>.txt</tt> and <tt>.html</tt>).</DD>
+
+<dt>&nbsp;</dt>
+</DL>
 
 <pre>auto-resume</pre>
 
@@ -1345,6 +1359,16 @@ be very dangerous since your account information is now sitting in the
 $HOME/.ncftp/bookmarks file. The passwords aren't in clear text, but it is
 still trivial to decode them if someone wants to make a modest effort. 
 </DD>
+
+<dt>&nbsp;</dt>
+</DL>
+
+<pre>show-status-in-xterm-titlebar</pre>
+  
+<DL>
+
+<DD> If set to <I>yes</I> and operating from within an <i>xterm</i> window,
+the program will change the window's titlebar accordingly.  </DD>
 
 <dt>&nbsp;</dt>
 </DL>

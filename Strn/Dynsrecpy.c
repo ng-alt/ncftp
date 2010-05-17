@@ -13,30 +13,30 @@
  * Example:
  *
  * {
- *     char *p;                            -* p contains garbage *-
- *     Dynscpy(&p, "foo", "bar", 0);       -* no need to initialize p *-
- *     free(p);                            -* must free p to avoid leak *-
- *     Dynscpy(&p, "hello", "world", 0);   -* p can now be reused *-
- *     free(p);                            -* must free p to avoid leak *-
- *     Dynscpy(&p, "test", "123", 0);      -* p can now be reused *-
- *     free(p);                            -* free p when finished *-
+ *     char *p;                                     - p contains garbage
+ *     Dynscpy(&p, "foo", "bar", (char *) 0);       - no need to initialize p
+ *     free(p);                                     - must free p to avoid leak
+ *     Dynscpy(&p, "hello", "world", (char *) 0);   - p can now be reused
+ *     free(p);                                     - must free p to avoid leak
+ *     Dynscpy(&p, "test", "123", (char *) 0);      - p can now be reused
+ *     free(p);                                     - free p when finished
  * }
  *
  * {
  *     char *p;
- *     p = NULL;  -* Must init p to NULL, else free() will get garbage *-
- *     Dynsrecpy(&p, "foo", "bar", 0);     -* on this call to Dynsrecpy *-
- *     Dynsrecpy(&p, "hello", "world", 0); -* p will be freed *-
- *     Dynsrecpy(&p, "test", "123", 0);    -* p will be freed *-
- *     free(p);                            -* free p when finished *-
+ *     p = NULL;                                    - Must init p to NULL, else free() will get garbage
+ *     Dynsrecpy(&p, "foo", "bar", (char *) 0);     - on this call to Dynsrecpy
+ *     Dynsrecpy(&p, "hello", "world", (char *) 0); - p will be freed
+ *     Dynsrecpy(&p, "test", "123", (char *) 0);    - p will be freed
+ *     free(p);                                     - free p when finished
  * }
  *
  * You can also do stuff like this:
  *
  *     p = NULL;
- *     Dynsrecpy(&p, "cruel", 0);
- *     Dynsrecpy(&p, "hello, ", p, " world!", 0);
- *     -* p now contains "hello, cruel world!" *-
+ *     Dynsrecpy(&p, "cruel", (char *) 0);
+ *     Dynsrecpy(&p, "hello, ", p, " world!", (char *) 0);
+ *     - p now contains "hello, cruel world!" -
  */
 
 

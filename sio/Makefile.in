@@ -21,6 +21,13 @@ STRIP=@STRIP@
 MAKE=@MAKE@
 CCDV=@CCDV@
 
+DELETE=/bin/rm -rf
+COPY=/bin/cp -pr
+LIST=/bin/ls -l
+MKDIR=mkdir -m 755 -p
+SYMLINK=/bin/ln -s
+HARDLINK=/bin/ln
+
 OBJS_U=\
 	UAccept.o  UBind.o	UConnectByName.o  UConnect.o \
 	UNew.o	   URecvfrom.o	USendtoByName.o   USendto.o
@@ -46,22 +53,22 @@ SOBJS=@SIO_SOBJS_U@\
 	SSendto.so   StrAddr.so	 SWait.so   SWrite.so
 
 all: $(LIB)
-	-@/bin/ls -l $(LIB)
 	-@echo 'Done.'
 
 $(LIB): $(OBJS)
-	-@/bin/rm -f $(LIB)
+	-@$(DELETE) $(LIB)
 	@CCDV@@AR@ r $(LIB) $(OBJS)
 	-@RANLIB@ $(LIB)
 	-@echo $(VER) > sio.version
 	-@chmod a+r $(LIB) sio.h usio.h
+	-@$(LIST) $(LIB)
 
 install: $(LIB)
-	cp $(LIB) $(PREFIX)/lib/$(LIB)
+	$(COPY) $(LIB) $(PREFIX)/lib/$(LIB)
 	-@@RANLIB@ $(PREFIX)/lib/$(LIB)
-	cp sio.h usio.h $(PREFIX)/include
+	$(COPY) sio.h usio.h $(PREFIX)/include
 	chmod a+r $(PREFIX)/lib/$(LIB) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
-	-@/bin/ls -l $(PREFIX)/lib/$(LIB) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
+	-@$(LIST) $(PREFIX)/lib/$(LIB) $(PREFIX)/include/sio.h $(PREFIX)/include/usio.h
 
 dynamic: $(LIBSO)
 
@@ -70,19 +77,19 @@ shared: $(LIBSO)
 so: $(LIBSO)
 
 $(LIBSO): $(SOBJS)
-	/bin/rm -f "$(LIBSO)" "$(LIBSOS)"
+	$(DELETE) "$(LIBSO)" "$(LIBSOS)"
 	$(CC) -shared "-Wl,-soname,$(LIBSO)" -o "$(LIBSO)" $(SOBJS)
 	chmod a+r "$(LIBSO)" sio.h usio.h
-	/bin/ln -s "$(LIBSO)" "$(LIBSOS)"
-	-@/bin/ls -l "$(LIBSOS)" "$(LIBSO)"
+	$(SYMLINK) "$(LIBSO)" "$(LIBSOS)"
+	-@$(LIST) "$(LIBSOS)" "$(LIBSO)"
 
 soinstall: $(LIBSO)
-	cp "$(LIBSO)" "$(PREFIX)/lib/$(LIBSO)"
-	/bin/rm -f "$(PREFIX)/lib/$(LIBSOS)"
-	( cd "$(PREFIX)/lib" ; /bin/ln -s "$(LIBSO)" "$(LIBSOS)" )
-	cp sio.h usio.h "$(PREFIX)/include"
+	$(COPY) "$(LIBSO)" "$(PREFIX)/lib/$(LIBSO)"
+	$(DELETE) "$(PREFIX)/lib/$(LIBSOS)"
+	( cd "$(PREFIX)/lib" ; $(SYMLINK) "$(LIBSO)" "$(LIBSOS)" )
+	$(COPY) sio.h usio.h "$(PREFIX)/include"
 	chmod a+r "$(PREFIX)/lib/$(LIBSO)" "$(PREFIX)/include/sio.h" "$(PREFIX)/include/usio.h"
-	-@/bin/ls -l "$(PREFIX)/lib/$(LIBSO)" "$(PREFIX)/include/sio.h" "$(PREFIX)/include/usio.h"
+	-@$(LIST) "$(PREFIX)/lib/$(LIBSO)" "$(PREFIX)/include/sio.h" "$(PREFIX)/include/usio.h"
 
 ucase_c: ucase_c/ucase_c.c $(LIB)
 	( cd ucase_c ; $(MAKE) "CFLAGS=$(CFLAGS)" "STRIP=$(STRIP)" "LIBS=$(LIBS)" )
@@ -113,10 +120,10 @@ SHELL=/bin/sh
 ### Cleaning supplies ########################################################
 
 clean:
-	-/bin/rm -rf *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch *.gch SunWS_cache
+	-$(DELETE) *.@OBJEXT@ *.so $(PCH) $(LIB) $(LIBSO) ucase_c/ucase_c ucase_s/ucase_s time_c/time_c time_s/time_s core *.pch */*.pch *.gch SunWS_cache
 
 distclean: clean
-	-/bin/rm -f config.h Makefile config.status config.cache config.log sio.version
+	-$(DELETE) config.h Makefile config.status config.cache config.log sio.version
 
 ### Archiving #################################################################
 
@@ -146,27 +153,27 @@ TARFILE=$(TARDIR).tar
 TGZFILE=$(TARDIR).tar.gz
 
 tarcp:
-	-@mkdir -p $(TMPDIR)/TAR/$(TARDIR)
+	-@$(MKDIR) $(TMPDIR)/TAR/$(TARDIR)
 	-@chmod ga+r $(PACKAGE)
 	-@chmod 755 $(TMPDIR)/TAR/$(TARDIR)
-	cp -pr $(PACKAGE) $(TMPDIR)/TAR/$(TARDIR)
+	$(COPY) $(PACKAGE) $(TMPDIR)/TAR/$(TARDIR)
 
 tar: clean
-	-@mkdir $(TMPDIR)/TAR
-	-@mkdir $(TMPDIR)/TAR/$(TARDIR)
+	-@$(MKDIR) $(TMPDIR)/TAR
+	-@$(MKDIR) $(TMPDIR)/TAR/$(TARDIR)
 	-@chmod ga+r $(PACKAGE)
 	find . -follow -depth -type f -print | cut -c3- | egrep -i -v '(((\.(o|so|log|a|lib|ncb|obj|exe|idb|cache|opt|zip|gz|swp|tar|plg|pch|gch))|(config\.h))$$|(/\.)|(^\.))' | cpio -Lpdm $(TMPDIR)/TAR/$(TARDIR)
 	( cd $(TMPDIR)/TAR ; @TAR@ @TARFLAGS@ $(TARFILE) $(TARDIR) )
-	cp $(TMPDIR)/TAR/$(TARFILE) .
+	$(COPY) $(TMPDIR)/TAR/$(TARFILE) .
 	-@chmod 644 $(TARFILE)
-	-@rm -rf $(TMPDIR)/TAR
-	-@ls -l $(TARFILE)
+	-@$(DELETE) $(TMPDIR)/TAR
+	-@$(LIST) $(TARFILE)
 
 gz: tar
 	gzip -c $(TARFILE) > $(TGZFILE)
-	-@rm $(TARFILE)
+	-@$(DELETE) $(TARFILE)
 	-@chmod 644 $(TGZFILE)
-	-@ls -l $(TGZFILE)
+	-@$(LIST) $(TGZFILE)
 
 ### Dependencies #############################################################
 

@@ -95,6 +95,8 @@ FTPChdir3(FTPCIPtr cip, const char *const cdCwd, char *const newCwd, const size_
 
 	if (one != 0) {
 		cp = cip->buf;
+		if ((cp == NULL) || (cip->bufSize <= 1))
+			return (kErrBadParameter);
 		cp[cip->bufSize - 1] = '\0';
 		(void) Strncpy(cip->buf, cdCwd, cip->bufSize);
 		if (cp[cip->bufSize - 1] != '\0')

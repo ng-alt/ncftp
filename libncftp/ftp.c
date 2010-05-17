@@ -137,6 +137,7 @@ CancelConnect(int signum)
 int
 OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 {
+	struct sockaddr_in localAddr;
 	struct in_addr ip_address;
 	int err = 0;
 	int result;
@@ -145,7 +146,7 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 	volatile int sock2fd = -1;
 	ResponsePtr rp = NULL;
 	char **volatile curaddr;
-	int hpok;
+	int hpok, hprc;
 	struct hostent hp;
 	char *volatile fhost;
 	unsigned int fport;
@@ -185,11 +186,19 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 
 	cip->servCtlAddr.sin_port = (unsigned short) fport;
 
-	if (GetHostEntry(&hp, fhost, &ip_address, cip->buf, cip->bufSize) != 0) {
+	hprc = GetHostEntry(&hp, fhost, &ip_address, cip->buf, cip->bufSize);
+	if (hprc != 0) {
 		hpok = 0;
 		/* Okay, no Host entry, but maybe we have a numeric address
 		 * in ip_address we can try.
 		 */
+#ifdef DNSSEC_LOCAL_VALIDATION
+		if (hprc == -2) {
+			FTPLogError(cip, kDontPerror, "%s: untrusted DNS response.\n", fhost);
+			cip->errNo = kErrHostUnknown;
+			return (kErrHostUnknown);
+		}
+#endif
 		if (ip_address.s_addr == INADDR_NONE) {
 			FTPLogError(cip, kDontPerror, "%s: unknown host.\n", fhost);
 			cip->errNo = kErrHostUnknown;
@@ -219,6 +228,19 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 			FTPLogError(cip, kDoPerror, "Could not get a socket.\n");
 			cip->errNo = kErrNewStreamSocket;
 			return (kErrNewStreamSocket);
+		}
+
+		/* On rare occasions, the user may specify a local IP address to use. */
+		if (cip->preferredLocalAddr.sin_family != 0) {
+			localAddr = cip->preferredLocalAddr;
+			localAddr.sin_port = 0;
+			if (BindToEphemeralPortNumber(sockfd, &localAddr, (int) cip->ephemLo, (int) cip->ephemHi) < 0) {
+				FTPLogError(cip, kDoPerror, "Could not bind the control socket");
+				result = kErrBindCtrlSocket;
+				cip->errNo = kErrBindCtrlSocket;
+				(void) SClose(sockfd, 3);
+				return (kErrBindCtrlSocket);
+			}
 		}
 
 		/* This doesn't do anything if you left these
@@ -305,6 +327,19 @@ OpenControlConnection(const FTPCIPtr cip, char *host, unsigned int port)
 			 * just for this purpose.
 			 */
 			(void) memcpy(&cip->servCtlAddr.sin_addr, *curaddr, (size_t) hp.h_length);
+
+			/* On rare occasions, the user may specify a local IP address to use. */
+			if (cip->preferredLocalAddr.sin_family != 0) {
+				localAddr = cip->preferredLocalAddr;
+				localAddr.sin_port = 0;
+				if (BindToEphemeralPortNumber(sockfd, &localAddr, (int) cip->ephemLo, (int) cip->ephemHi) < 0) {
+					FTPLogError(cip, kDoPerror, "Could not bind the control socket");
+					result = kErrBindCtrlSocket;
+					cip->errNo = kErrBindCtrlSocket;
+					(void) SClose(sockfd, 3);
+					return (kErrBindCtrlSocket);
+				}
+			}
 
 			/* This doesn't do anything if you left these
 			 * at their defaults (zero).  Otherwise it
@@ -891,8 +926,8 @@ FTPFixClientDataAddr(const FTPCIPtr cip)
 
 
 
-static int
-BindToEphemeralPortNumber(int sockfd, struct sockaddr_in *addrp, int ephemLo, int ephemHi)
+int
+BindToEphemeralPortNumber(const int sockfd, struct sockaddr_in *const addrp, const int ephemLo, const int ephemHi)
 {
 	int i;
 	int result;
@@ -919,7 +954,7 @@ BindToEphemeralPortNumber(int sockfd, struct sockaddr_in *addrp, int ephemLo, in
 			if (result == 0)
 				break;
 			sleep(1);
-			if ((errno != 999)
+			if ((errno == 999)
 				/* This next line is just fodder to
 				 * shut the compiler up about variable
 				 * not being used.
@@ -984,6 +1019,9 @@ tryPort2:
 
 	if ((cip->hasPASV == kCommandNotAvailable) || (mode == kSendPortMode)) {
 tryPort:
+		/* Use the same IP that we're using for our control connection,
+		 * which may have been set to something explicitly.
+		 */
 		cip->ourDataAddr = cip->ourCtlAddr;
 		cip->ourDataAddr.sin_family = AF_INET;
 

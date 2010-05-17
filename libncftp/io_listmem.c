@@ -38,8 +38,11 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 	char line[512];
 	char lsflags1[128];
 	const char *command = "NLST";
+	const char *pattern1;
 	const char *scp;
 	char *dcp, *lim;
+	ResponsePtr rp;
+	MLstItem mlsInfo;
 #ifndef NO_SIGNALS
 	char *secBufPtr, *secBufLimit;
 	volatile FTPSigProc osigpipe;
@@ -60,10 +63,75 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 	if ((llines == NULL) || (pattern == NULL) || (lsflags == NULL))
 		return (kErrBadParameter);
 
+	pattern1 = pattern;
+	if (strcmp(pattern, ".") == 0)
+		pattern1 = "";
+
 	if ((tryMLSD != (int *) 0) && (*tryMLSD != 0) && (cip->hasMLSD == kCommandAvailable)) {
 		command = "MLSD";
-		if ((lsflags[0] == '-') && (strchr(lsflags, 'd') != NULL) && (cip->hasMLST == kCommandAvailable))
-			command = "MLST";
+		if ((lsflags[0] == '-') && (strchr(lsflags, 'd') != NULL) && (cip->hasMLST == kCommandAvailable)) {
+			/* We do a special check for older versions of NcFTPd which
+			 * are based off of an incompatible previous version of IETF
+			 * extensions.
+			 *
+			 * Roxen also seems to be way outdated, where MLST was on the
+			 * data connection among other things.
+			 *
+			 */
+			if (
+				(cip->hasMLST == kCommandNotAvailable) ||
+				((cip->serverType == kServerTypeNcFTPd) && (cip->ietfCompatLevel < 19981201)) ||
+				(cip->serverType == kServerTypeRoxen)
+			) {
+				cip->errNo = kErrMLSTNotAvailable;
+				return (cip->errNo);
+			}
+
+			rp = InitResponse();
+			if (rp == NULL) {
+				result = cip->errNo = kErrMallocFailed;
+				FTPLogError(cip, kDontPerror, "Malloc failed.\n");
+			} else {
+				FTPRequestMlsOptions(cip);
+				if (pattern1[0] == '\0')
+					pattern1 = ".";
+				result = RCmd(cip, rp, "MLST %s", pattern1);
+				if (
+					(result == 2) &&
+					(rp->msg.first->line != NULL) &&
+					(rp->msg.first->next != NULL) &&
+					(rp->msg.first->next->line != NULL)
+				) {
+					/* We parse it for you to see if it looks valid,
+					 * but we actually return the full text rather
+					 * than the parsed version.
+					 */
+					result = UnMlsT(cip, rp->msg.first->next->line, &mlsInfo);
+					if (result < 0) {
+						cip->errNo = result = kErrInvalidMLSTResponse;
+					} else {
+						if (CopyLineList(llines, &rp->msg) < 0) {
+							cip->errNo = result = kErrMallocFailed;
+							FTPLogError(cip, kDontPerror, "Malloc failed.\n");
+						}
+						/* Remove the uninteresting lines. */
+						if (llines->nLines == 3) {
+							RemoveLine(llines, llines->first);
+							RemoveLine(llines, llines->last);
+						}
+					}
+				} else if (FTP_UNIMPLEMENTED_CMD(rp->code)) {
+					cip->hasMLST = kCommandNotAvailable;
+					cip->errNo = kErrMLSTNotAvailable;
+					result = kErrMLSTNotAvailable;
+				} else {
+					cip->errNo = kErrMLSTFailed;
+					result = kErrMLSTFailed;
+				}
+				DoneWithResponse(cip, rp);
+			}
+			return (result);
+		}
 		lsflags1[0] = '\0';
 		FTPRequestMlsOptions(cip);
 	} else {
@@ -92,6 +160,8 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 					if (*scp == 'l') {
 						/* do not add the 'l' */
 						command = "LIST";
+					} else if ((*scp == 'a') && (cip->hasNLST_a == kCommandNotAvailable)) {
+						continue;
 					} else if (dcp < lim) {
 						if (dcp == lsflags1)
 							*dcp++ = '-';
@@ -116,8 +186,8 @@ FTPListToMemory2(const FTPCIPtr cip, const char *const pattern, const FTPLineLis
 		command,
 		(lsflags1[0] == '\0') ? "" : " ",
 		lsflags1,
-		(pattern[0] == '\0') ? "" : " ",
-		pattern
+		(pattern1[0] == '\0') ? "" : " ",
+		pattern1
 	);
 
 #ifdef NO_SIGNALS

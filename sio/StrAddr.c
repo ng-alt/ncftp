@@ -268,8 +268,16 @@ AddrStrToAddr(const char * const s, struct sockaddr_in * const sa, const int def
 		sa->sin_family = AF_INET;
 		sa->sin_addr.s_addr = ipnum;
 	} else {
+#ifdef DNSSEC_LOCAL_VALIDATION
+		val_status_t val_status;
+		errno = 0;
+		hp = val_gethostbyname(NULL,hostcp,&val_status);
+		if ((hp != NULL) && (!val_istrusted(val_status)))
+			hp = NULL;
+#else
 		errno = 0;
 		hp = gethostbyname(hostcp);
+#endif
 		if (hp == NULL) {
 			if (errno == 0)
 				errno = ENOENT;
@@ -305,7 +313,14 @@ AddrToAddrStr(char *const dst, size_t dsize, struct sockaddr_in * const saddrp, 
 		InetNtoA(addrName, &saddrp->sin_addr, sizeof(addrName));
 		addrNamePtr = addrName;
 	} else {
+#ifdef DNSSEC_LOCAL_VALIDATION
+		val_status_t val_status;
+		hp = val_gethostbyaddr(NULL, (const char*)&saddrp->sin_addr, sizeof(struct in_addr), AF_INET, &val_status);
+		if ((hp != NULL) && (!val_istrusted(val_status)))
+			hp = NULL;
+#else
 		hp = gethostbyaddr((gethost_addrptr_t) &saddrp->sin_addr, sizeof(struct in_addr), AF_INET);
+#endif
 		if ((hp != NULL) && (hp->h_name != NULL) && (hp->h_name[0] != '\0')) {
 			addrNamePtr = hp->h_name;
 		} else {

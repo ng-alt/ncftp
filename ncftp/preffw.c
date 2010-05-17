@@ -294,10 +294,7 @@ LoadFirewallPrefs(int forceReload)
 	if ((gFirewallPrefsLoaded != 0) && (forceReload == 0))
 		return;
 	gFirewallPrefsLoaded = 1;
-
-	if (gOurDirectoryPath[0] == '\0')
-		return;		/* Don't create in root directory. */
-	(void) OurDirectoryPath(pathName, sizeof(pathName), kFirewallPrefFileName);
+	pathName[0] = '\0';
 
 	/* Set default values. */
 	gFirewallType = kFirewallNotInUse;
@@ -315,12 +312,15 @@ LoadFirewallPrefs(int forceReload)
 		sysFile++;
 	}
 
-	fp = fopen(pathName, FOPEN_READ_TEXT);
-	if (fp != NULL) {
-		/* Do user's firewall file. */
-		ProcessFirewallPrefFile(fp);
-		(void) fclose(fp);
-		userFile = 1;
+	if (gOurDirectoryPath[0] != '\0') {
+		(void) OurDirectoryPath(pathName, sizeof(pathName), kFirewallPrefFileName);
+		fp = fopen(pathName, FOPEN_READ_TEXT);
+		if (fp != NULL) {
+			/* Do user's firewall file. */
+			ProcessFirewallPrefFile(fp);
+			(void) fclose(fp);
+			userFile = 1;
+		}
 	}
 
 	fp2 = fopen(kGlobalFixedFirewallPrefFileName, FOPEN_READ_TEXT);
@@ -331,9 +331,9 @@ LoadFirewallPrefs(int forceReload)
 		sysFile++;
 	}
 
-	if ((userFile == 0) && (sysFile == 0)) {
-		/* Create a blank one, if
-		 * there were no system-wide files.
+	if ((userFile == 0) && (sysFile == 0) && (pathName[0] != '\0')) {
+		/* Create a blank one, if there were no system-wide files,
+		 * and if the user's $HOME is not the root directory.
 		 */
 		fp = fopen(pathName, FOPEN_WRITE_TEXT);
 		if (fp != NULL) {

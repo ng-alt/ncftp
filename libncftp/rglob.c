@@ -233,10 +233,15 @@ FTPRemoteGlob(FTPCIPtr cip, FTPLineListPtr fileList, const char *pattern, int do
 		if ((result = FTPListToMemory2(cip, pattern, fileList, lsflags, 0, (int *) 0)) < 0) {
 			if (*lsflags == '\0')
 				return (result);
-			/* Try again, without "-a" */
-			cip->hasNLST_a = kCommandNotAvailable;
-			lsflags = "";
-			if ((result = FTPListToMemory2(cip, pattern, fileList, lsflags, 0, (int *) 0)) < 0) {
+			if (strchr(lsflags, 'a') != NULL) {
+				/* Try again, without "-a" */
+				cip->hasNLST_a = kCommandNotAvailable;
+				lsflags = "";
+				if ((result = FTPListToMemory2(cip, pattern, fileList, lsflags, 0, (int *) 0)) < 0) {
+					return (result);
+				}
+				/* else proceed */
+			} else {
 				return (result);
 			}
 		}

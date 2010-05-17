@@ -134,7 +134,7 @@ FTPGetFiles3(
 				continue;
 			}
 #endif	/* TAR */
-			(void) FTPRemoteRecursiveFileList1(cip, itemPtr->line, &files);
+			(void) FTPRemoteRecursiveFileList2(cip, itemPtr->line, &files);
 			(void) ComputeLNames(&files, itemPtr->line, dstdir, 1);
 			recurse1 = recurse;
 		} else {

@@ -320,7 +320,7 @@
 #	define Lstat lstat
 #endif
 
-#if ((defined(_FILE_OFFSET_BITS)) && (_FILE_OFFSET_BITS > 32))
+#if (((defined(_FILE_OFFSET_BITS)) && (_FILE_OFFSET_BITS > 32)) || ((defined(SIZEOF_OFF_T)) && (SIZEOF_OFF_T > 4)))
 #	define Lseek(a,b,c) lseek(a, (off_t) b, c)
 #elif ((defined(HAVE_LONG_LONG)) && (defined(_LARGEFILE64_SOURCE)) && (defined(HAVE_LSEEK64)))
 #	define Lseek(a,b,c) lseek64(a, (longest_int) b, c)
@@ -340,3 +340,8 @@
 #include <Strn.h>			/* Library header. */
 #include <sio.h>			/* Because ../ncftp/util.c needs it. */
 #include <ncftp.h>			/* Mostly for utility routines it has. */
+
+#ifdef DNSSEC_LOCAL_VALIDATION
+#include <validator/validator.h>
+#endif
+

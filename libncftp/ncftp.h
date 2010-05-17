@@ -1,6 +1,6 @@
 /* ncftp.h
  *
- * Copyright (c) 1996-2008 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2010 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -13,22 +13,24 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.2.3 (September 4, 2008)"
+#define kLibraryVersion "@(#) LibNcFTP 3.2.4 (April 3, 2010)"
 
 /* This is used to verify validty of the data passed in. */
-#define kLibraryMagic "LibNcFTP 3.2.3"
+#define kLibraryMagic "LibNcFTP 3.2.4"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */
 #	pragma once
-#	pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
-#	pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
-#	pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
-#	pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
-#	pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
-#	pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
-#	pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
-#	pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
+#	ifndef __MINGW32__
+#		pragma warning(disable : 4127)	// warning C4127: conditional expression is constant
+#		pragma warning(disable : 4100)	// warning C4100: 'lpReserved' : unreferenced formal parameter
+#		pragma warning(disable : 4514)	// warning C4514: unreferenced inline function has been removed
+#		pragma warning(disable : 4115)	// warning C4115: '_RPC_ASYNC_STATE' : named type definition in parentheses
+#		pragma warning(disable : 4201)	// warning C4201: nonstandard extension used : nameless struct/union
+#		pragma warning(disable : 4214)	// warning C4214: nonstandard extension used : bit field types other than int
+#		pragma warning(disable : 4115)	// warning C4115: 'IRpcStubBuffer' : named type definition in parentheses
+#		pragma warning(disable : 4711)	// warning C4711: function selected for automatic inline expansion
+#	endif
 	/* We now try for at least Windows 2000 compatibility (0x0500).
 	 * The code will still work on older systems, though.
 	 * Prior versions used 0x0400 instead.
@@ -269,9 +271,9 @@ typedef void (*FTPGetPassphraseProc)(const FTPCIPtr, FTPLineListPtr pwPrompt, ch
 typedef struct FTPConnectionInfo {
 	char magic[16];				/* Don't modify this field. */
 	
-	char host[64];				/* REQUIRED input parameter. */
-	char user[64];				/* OPTIONAL input parameter. */
-	char pass[64];				/* OPTIONAL input parameter. */
+	char host[128];				/* REQUIRED input parameter. */
+	char user[128];				/* OPTIONAL input parameter. */
+	char pass[256];				/* OPTIONAL input parameter. */
 	char acct[64];				/* OPTIONAL input parameter. */
 	unsigned int passIsEmpty;		/* OPTIONAL input parameter. */
 	unsigned int port;			/* OPTIONAL input parameter. */
@@ -282,6 +284,7 @@ typedef struct FTPConnectionInfo {
 	int lastFTPCmdResultNum;		/* You may modify this if you want. */
 
 	FILE *debugLog;				/* OPTIONAL input parameter. */
+	int debugTimestamping;			/* OPTIONAL input parameter. */
 	FTPLogProc debugLogProc;		/* OPTIONAL input parameter. */
 
 	unsigned int xferTimeout;		/* OPTIONAL input parameter. */
@@ -355,6 +358,8 @@ typedef struct FTPConnectionInfo {
 	int hasSIZE;				/* Do not modify this field. */
 	int hasMDTM;				/* Do not modify this field. */
 	int hasMDTM_set;			/* Do not modify this field. */
+	int hasMFMT;				/* Do not modify this field. */
+	int hasMFF;				/* Do not modify this field. */
 	int hasREST;				/* Do not modify this field. */
 	int hasNLST_a;				/* Do not modify this field. */
 	int hasNLST_d;				/* Do not modify this field. */
@@ -372,6 +377,7 @@ typedef struct FTPConnectionInfo {
 	int hasSITE_SBUFSIZ;			/* Do not modify this field. */
 	int hasSITE_SBUFSZ;			/* Do not modify this field. */
 	int hasSITE_BUFSIZE;			/* Do not modify this field. */
+	int hasRETR_tar;			/* Do not modify this field. */
 	int mlsFeatures;			/* Do not modify this field. */
 	int STATfileParamWorks;			/* Do not modify this field. */
 	int NLSTfileParamWorks;			/* Do not modify this field. */
@@ -424,6 +430,7 @@ typedef struct FTPConnectionInfo {
 	 */
 	struct sockaddr_in clientKnownExternalAddr;	
 
+	struct sockaddr_in preferredLocalAddr;	/* You may modify this. */
 	int maxNumberOfSuccessivePASVAttempts;	/* You may modify this. */
 
 #if USE_SIO
@@ -768,9 +775,9 @@ int WinStat64(const char *const path, struct WinStat64 *const stp);
 
 /* The following block may be changed by configure script */
 #ifndef Stat
-#define Stat stat64    /* set by configure at 2008-07-15 10:17:24 */
-#define Lstat lstat64    /* set by configure at 2008-07-15 10:17:24 */
-#define Fstat fstat64    /* set by configure at 2008-07-15 10:17:24 */
+#define Stat stat
+#define Lstat lstat
+#define Fstat fstat
 #endif
 
 #define kFtwNoAutoGrowButContinue (-1)
@@ -836,10 +843,10 @@ typedef struct GetoptInfo {
 #endif
 
 extern const char gLibNcFTPVersion[];
-extern int gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
+extern const char *gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 
 #if (defined(__APPLE_CC__)) && (__APPLE_CC__ < 10000)
-#	define LIBNCFTP_USE_VAR(a) gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	define LIBNCFTP_USE_VAR(a) gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (const char *) (&a)
 #	ifndef UNUSED
 #		define UNUSED(a) a
 #	endif
@@ -854,7 +861,7 @@ extern int gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 #	endif
 #	define LIBNCFTP_USE_VAR(a)
 #else
-#	define LIBNCFTP_USE_VAR(a) gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	define LIBNCFTP_USE_VAR(a) gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (const char *) (&a)
 #	ifndef UNUSED
 #		define UNUSED(a) a
 #	endif
@@ -1047,6 +1054,8 @@ int FTPLocalRecursiveFileList2(FTPCIPtr cip, FTPLineListPtr fileList, FTPFileInf
  */
 int FTPRemoteRecursiveFileList(FTPCIPtr, FTPLineListPtr, FTPFileInfoListPtr);
 int FTPRemoteRecursiveFileList1(FTPCIPtr, char *const, FTPFileInfoListPtr);
+int FTPRemoteFtwProc(const FtwInfoPtr ftwip);
+int FTPRemoteRecursiveFileList2(FTPCIPtr cip, char *const rdir, FTPFileInfoListPtr files);
 
 int FTPRebuildConnectionInfo(const FTPLIPtr lip, const FTPCIPtr cip);
 
@@ -1056,6 +1065,7 @@ int FTPFileExistsNlst(const FTPCIPtr cip, const char *const file);
 int FTPFileExists2(const FTPCIPtr cip, const char *const file, const int tryMDTM, const int trySIZE, const int tryMLST, const int trySTAT, const int tryNLST);
 
 void FTPGetDateStr(time_t t, const char *fmt, char *const ltstr1, const size_t ltstr1size, char *const gtstr1, const size_t gtstr1size);
+int BindToEphemeralPortNumber(const int sockfd, struct sockaddr_in *const addrp, const int ephemLo, const int ephemHi);
 int BufferGets(char *, size_t, int, char *, char **, char **, size_t);
 void DisposeFileInfoListContents(FTPFileInfoListPtr);
 void InitFileInfoList(FTPFileInfoListPtr);

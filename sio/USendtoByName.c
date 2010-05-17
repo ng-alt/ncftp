@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#ifdef HAVE_SYS_UN_H
+
 int
 USendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *const toAddrStr, int tlen)
 {
@@ -19,3 +21,5 @@ USendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 	result = USendto(sfd, buf, size, fl, &toAddr, ualen, tlen);
 	return (result);
 }	/* USendtoByName */
+
+#endif	/* HAVE_SYS_UN_H */

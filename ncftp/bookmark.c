@@ -174,7 +174,7 @@ ParseHostLine(char *line, BookmarkPtr bmp)
 				if ((n1 >= 0) && (n2 >= 0)) {
 					n = (n1 << 4) | n2;
 					if (d < tokenend)
-						*(unsigned char *)d++ = (unsigned int) n;
+						*(unsigned char *)d++ = (unsigned char) n;
 				}
 				s += 3;
 			} else {
@@ -413,6 +413,10 @@ GetBookmark(const char *const bmabbr, Bookmark *bmp)
 	if (fp == NULL)
 		return (-1);
 
+	memset(&byHostName, 0, sizeof(Bookmark));
+	memset(&byHostAbbr, 0, sizeof(Bookmark));
+	memset(&byBmAbbr, 0, sizeof(Bookmark));
+
 	STRNCPY(bmabbrtrunc, bmabbr);
 	bmabbrLen = strlen(bmabbr);
 	while (FGets(line, sizeof(line), fp) != NULL) {
@@ -584,7 +588,7 @@ BmEscapeTok(char *dst, size_t dsize, char *src)
 			/* These need to be escaped. */
 			if ((dst + 1) < dlim) {
 				*dst++ = '\\';
-				*dst++ = c;
+				*dst++ = (char) c;
 			}
 		} else if (!isprint(c)) {
 			/* Escape non-printing characters. */
@@ -594,7 +598,7 @@ BmEscapeTok(char *dst, size_t dsize, char *src)
 			}
 		} else {
 			if (dst < dlim)
-				*dst++ = c;
+				*dst++ = (char) c;
 		}
 	}
 	*dst = '\0';

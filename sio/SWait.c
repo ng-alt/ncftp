@@ -34,7 +34,7 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 #endif
 			ss2 = ss;
 			result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, NULL);
-			if (result == 1) {
+			if (result >= 1) {
 				/* ready */
 				return (1);
 			} else if ((result < 0) && (errno != EINTR)) {
@@ -59,7 +59,7 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, &tv);
-			if (result == 1) {
+			if (result >= 1) {
 				/* ready */
 				return (1);
 			} else if (result == 0) {
@@ -93,7 +93,7 @@ SWaitUntilReadyForReading(const int sfd, const int tlen)
 		tv.tv_sec = (tv_sec_t) tleft;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG234 &ss2, &tv);
-		if (result == 1) {
+		if (result >= 1) {
 			/* ready */
 			return (1);
 		} else if (result < 0) {
@@ -153,7 +153,7 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 #endif
 			ss2 = ss;
 			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, NULL);
-			if (result == 1) {
+			if (result >= 1) {
 				/* ready */
 				return (1);
 			} else if ((result < 0) && (errno != EINTR)) {
@@ -178,7 +178,7 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, &tv);
-			if (result == 1) {
+			if (result >= 1) {
 				/* ready */
 				return (1);
 			} else if (result == 0) {
@@ -212,7 +212,7 @@ SWaitUntilReadyForWriting(const int sfd, const int tlen)
 		tv.tv_sec = (tv_sec_t) tleft;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, SELECT_TYPE_ARG234 &ss2, &tv);
-		if (result == 1) {
+		if (result >= 1) {
 			/* ready */
 			return (1);
 		} else if (result < 0) {

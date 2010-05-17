@@ -50,6 +50,10 @@ char * Dynsrecpy(char **dst, ...);
 /* StrFree.c */
 void StrFree(char **dst);
 
+/* NoZeroPad */
+char *Strncat_NoZeroPad(char *const, const char *const, const size_t);
+char *Strncpy_NoZeroPad(char *const, const char *const, const size_t);
+
 #ifndef _DStrInternal_h_
 typedef struct DStr {
 	/* All of these structure fields are read-only; do not modify

@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#ifdef HAVE_SYS_UN_H
+
 int
 UAccept(int sfd, struct sockaddr_un *const addr, int *ualen, int tlen)
 {
@@ -47,7 +49,7 @@ UAccept(int sfd, struct sockaddr_un *const addr, int *ualen, int tlen)
 		tv.tv_sec = (tv_sec_t) tlen;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, &tv);
-		if (result == 1) {
+		if (result >= 1) {
 			/* ready */
 			break;
 		} else if (result == 0) {
@@ -71,3 +73,5 @@ UAccept(int sfd, struct sockaddr_un *const addr, int *ualen, int tlen)
 	RESTORE_SIGPIPE
 	return (result);
 }	/* UAccept */
+
+#endif	/* HAVE_SYS_UN_H */

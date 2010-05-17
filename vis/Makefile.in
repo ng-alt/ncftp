@@ -31,6 +31,7 @@ all: $(DPROGS)
 ../bin/ncftpbookmarks@EXEEXT@: bmed.c wgets.@OBJEXT@ wutil.@OBJEXT@ pref.@OBJEXT@ preffw.@OBJEXT@ trace.@OBJEXT@ util.@OBJEXT@ bookmark.@OBJEXT@ version.@OBJEXT@ bmed.h wgets.h syshdrs.h ../libncftp/libncftp.a
 	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) bmed.c wgets.@OBJEXT@ wutil.@OBJEXT@ pref.@OBJEXT@ preffw.@OBJEXT@ trace.@OBJEXT@ util.@OBJEXT@ bookmark.@OBJEXT@ version.@OBJEXT@ -o ../bin/ncftpbookmarks@EXEEXT@ $(LDFLAGS) -lncftp -lStrn -lsio $(LIBS)
 	-@$(STRIP) ../bin/ncftpbookmarks@EXEEXT@
+	-@/bin/rm -rf ../bin/ncftpbookmarks.dSYM
 
 bookmark.@OBJEXT@: ../ncftp/bookmark.c ../ncftp/bookmark.h syshdrs.h
 	@CCDV@$(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) ../ncftp/bookmark.c -c

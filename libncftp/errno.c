@@ -117,10 +117,11 @@ static const char *gErrList[kErrLast - kErrFirst + 2] = {
 	"miscellaneous error occurred while trying to login to the host", /* -203 */
 	"ascii seek error",						/* -204 */
 	"you have encountered a bug that we have not fixed yet, sorry!",/* -205 */
+	"could not bind the control connection socket",			/* -206 */
 	NULL,								
 };
 
-int gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
+const char *gLibNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
 
 const char *
 FTPStrError(int e)
@@ -172,26 +173,26 @@ FTPPerror(const FTPCIPtr cip, const int err, const int eerr, const char *const s
 		if (err == eerr) {
 			if ((s2 == NULL) || (s2[0] == '\0')) {
 				if ((s1 == NULL) || (s1[0] == '\0')) { 
-					(void) fprintf(stderr, "server said: %s\n", cip->lastFTPCmdResultStr);
+					FTPLogError(cip, kDontPerror, "server said: %s\n", cip->lastFTPCmdResultStr);
 				} else {
-					(void) fprintf(stderr, "%s: server said: %s\n", s1, cip->lastFTPCmdResultStr);
+					FTPLogError(cip, kDontPerror, "%s: server said: %s\n", s1, cip->lastFTPCmdResultStr);
 				}
 			} else if ((s1 == NULL) || (s1[0] == '\0')) { 
-				(void) fprintf(stderr, "%s: server said: %s\n", s2, cip->lastFTPCmdResultStr);
+				FTPLogError(cip, kDontPerror, "%s: server said: %s\n", s2, cip->lastFTPCmdResultStr);
 			} else {
-				(void) fprintf(stderr, "%s %s: server said: %s\n", s1, s2, cip->lastFTPCmdResultStr);
+				FTPLogError(cip, kDontPerror, "%s %s: server said: %s\n", s1, s2, cip->lastFTPCmdResultStr);
 			}
 		} else {
 			if ((s2 == NULL) || (s2[0] == '\0')) {
 				if ((s1 == NULL) || (s1[0] == '\0')) { 
-					(void) fprintf(stderr, "%s.\n", FTPStrError(err));
+					FTPLogError(cip, kDontPerror, "%s.\n", FTPStrError(err));
 				} else {
-					(void) fprintf(stderr, "%s: %s.\n", s1, FTPStrError(err));
+					FTPLogError(cip, kDontPerror, "%s: %s.\n", s1, FTPStrError(err));
 				}
 			} else if ((s1 == NULL) || (s1[0] == '\0')) { 
-				(void) fprintf(stderr, "%s: %s.\n", s2, FTPStrError(err));
+				FTPLogError(cip, kDontPerror, "%s: %s.\n", s2, FTPStrError(err));
 			} else {
-				(void) fprintf(stderr, "%s %s: %s.\n", s1, s2, FTPStrError(err));
+				FTPLogError(cip, kDontPerror, "%s %s: %s.\n", s1, s2, FTPStrError(err));
 			}
 		}
 	}

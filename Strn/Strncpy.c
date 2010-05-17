@@ -3,7 +3,7 @@
 #	pragma hdrstop
 #endif
 
-const char gStrnLibVersion[] = "@(#) Strn 3.1.1";
+const char gStrnLibVersion[] = "@(#) Strn 3.2.0";
 
 /*
  * Copy src to dst, truncating or null-padding to always copy n-1 bytes.

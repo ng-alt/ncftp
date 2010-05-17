@@ -95,7 +95,7 @@ FTPPutBlock(
 	do {
 		if (! WaitForRemoteOutput(cip)) {	/* could set cancelXfer */
 			cip->errNo = result = kErrDataTimedOut;
-			FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
+			FTPLogError(cip, kDontPerror, "Remote write timed out after " PRINTF_LONG_LONG " bytes had been sent.\n", cip->bytesTransferred);
 			return (result);
 		}
 		if (cip->cancelXfer > 0) {
@@ -108,16 +108,16 @@ FTPPutBlock(
 		if (nwrote < 0) {
 			if (nwrote == kTimeoutErr) {
 				cip->errNo = result = kErrDataTimedOut;
-				FTPLogError(cip, kDontPerror, "Remote write timed out.\n");
+				FTPLogError(cip, kDontPerror, "Remote write timed out after " PRINTF_LONG_LONG " bytes had been sent.\n", cip->bytesTransferred);
 			} else if (errno == EPIPE) {
 				cip->errNo = result = kErrSocketWriteFailed;
 				errno = EPIPE;
-				FTPLogError(cip, kDoPerror, "Lost data connection to remote host.\n");
+				FTPLogError(cip, kDoPerror, "Lost data connection to remote host after " PRINTF_LONG_LONG " bytes had been sent.\n", cip->bytesTransferred);
 			} else if (errno == EINTR) {
 				continue;
 			} else {
 				cip->errNo = result = kErrSocketWriteFailed;
-				FTPLogError(cip, kDoPerror, "Remote write failed.\n");
+				FTPLogError(cip, kDoPerror, "Remote write failed after " PRINTF_LONG_LONG " bytes had been sent.\n", cip->bytesTransferred);
 			}
 			(void) shutdown(cip->dataSocket, 2);
 			return (result);

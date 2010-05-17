@@ -230,6 +230,13 @@ dnl
 dnl
 dnl
 dnl
+AC_DEFUN(wi_ARG_ENABLE_SSP, [
+AC_ARG_ENABLE(ssp,[  --enable-ssp            use stack smashing protection if available],use_ssp="$enableval",use_ssp=no)
+])
+dnl
+dnl
+dnl
+dnl
 AC_DEFUN(wi_TEST_DASH_L, [
 AC_CACHE_CHECK([if shell can test for symlinks], [wi_cv_shell_test_symlinks], [
 wi_cv_shell_test_symlinks="no"
@@ -440,14 +447,71 @@ done
 dnl
 dnl
 dnl
+AC_DEFUN(wi_SSP_CFLAGS,
+[AC_REQUIRE([AC_PROG_CC])
+AC_REQUIRE([wi_OS_VAR])
+ac_cv_ssp_flags='-fstack-protector-all -D_FORTIFY_SOURCE=2'
+oldCFLAGS="$CFLAGS"
+changequote(<<, >>)dnl
+# remove existing ssp flags, if present
+CFLAGS=`echo "$CFLAGS" | sed 's/-D_FORTIFY_SOURCE//g'`
+CFLAGS=`echo "$CFLAGS" | sed 's/-D_FORTIFY_SOURCE=.//g'`
+CFLAGS=`echo "$CFLAGS" | sed 's/-fstack-prot[a-z\-]*//g'`
+# try these
+CFLAGS="$CFLAGS $ac_cv_ssp_flags"
+changequote([, ])dnl
+AC_TRY_LINK([
+#include <stdio.h>
+char testvar[64];
+],[
+	strncpy(testvar, "hello world", sizeof(testvar) - 1);
+],[],[CFLAGS="$oldCFLAGS" ; ac_cv_ssp_flags="no"])
+if test "$SYS" = macosx ; then
+	if test "${use_macosx_universal}" != no ; then
+		CFLAGS="$oldCFLAGS" ; ac_cv_ssp_flags="not compatible with Mac OS X universal"
+	fi
+fi
+unset oldCFLAGS
+AC_MSG_CHECKING([if stack protection CFLAGS can be used])
+AC_MSG_RESULT($ac_cv_ssp_flags)
+])
+dnl
+dnl
+dnl
 AC_DEFUN(wi_MACOSX_UNIVERSAL_CFLAGS,
 [AC_REQUIRE([AC_PROG_CC])
 AC_REQUIRE([wi_OS_VAR])
 if test "$SYS" = macosx ; then
 	ac_cv_macosx_cflags=no
 	ac_cv_macosx_ldflags=no
-	if test "${use_macosx_universal}" != no ; then
-		macosx_sdk_path="/Developer/SDKs/MacOSX10.4u.sdk"
+
+	AC_MSG_CHECKING([if MACOSX_DEPLOYMENT_TARGET environment variable is set])
+	AC_MSG_RESULT([${MACOSX_DEPLOYMENT_TARGET-no}])
+
+	test_macosx_sdk_path=`/bin/ls -1d /Developer/SDKs/MacOSX10.*u.sdk 2>/dev/null | sed -n 1,1p`
+	if test "${test_macosx_sdk_path}" = "" ; then
+		test_macosx_sdk_path="no"
+	fi
+	AC_MSG_CHECKING([if Mac OS X universal SDK is available])
+	AC_MSG_RESULT([${test_macosx_sdk_path-no}])
+
+	if test "${use_macosx_universal}" != no && test "${test_macosx_sdk_path}" != "no" ; then
+		# Note SDK path, e.g., macosx_sdk_path="/Developer/SDKs/MacOSX10.4u.sdk"
+		macosx_sdk_path="$test_macosx_sdk_path"
+		macosx_sdk_ver=`echo "$macosx_sdk_path" | sed 's/^.*OSX1/1/;s/u.sdk.*$//;'`	# E.g., "10.4"
+
+		# Calculate corresponding ver_int, e.g., "10400"
+		macosx_sdk_ver_int_maj=`echo "$macosx_sdk_ver" | cut -d. -f1`
+		macosx_sdk_ver_int_min=`echo "$macosx_sdk_ver" | cut -d. -f2`
+		macosx_sdk_ver_int_minmin=`echo "$macosx_sdk_ver" | cut -d. -f3`
+		macosx_sdk_ver_int=`expr "$macosx_sdk_ver_int_maj" '*' 1000 + "$macosx_sdk_ver_int_min" '*' 100 + "${macosx_sdk_ver_int_minmin-0}"`
+
+		os_base_int=`expr "$os_int" - '(' "$os_int" '%' 10 ')'`
+		# Add OS X minimum version, if SDK is older than version of OS X on the build machine.
+		if test "$os_base_int" -gt "$macosx_sdk_ver_int" && test "x$MACOSX_DEPLOYMENT_TARGET" = "x" ; then
+			# Thanks, Toshi NAGATA
+			macosx_sdk_path="${macosx_sdk_path} -mmacosx-version-min=${macosx_sdk_ver}"
+		fi
 		macosx_arch_flags="-arch i386 -arch ppc"
 		case "$CFLAGS" in
 			*"-isysroot"*"-arch"*|*"-arch"*"-isysroot"*)
@@ -466,6 +530,7 @@ if test "$SYS" = macosx ; then
 				CFLAGS="${ac_cv_macosx_cflags} ${CFLAGS}"
 				;;
 		esac
+
 	#
 	# Apparently, only libtool (glibtool) needs this -syslibroot flag.
 	#
@@ -948,7 +1013,10 @@ AC_DEFUN(wi_USE_STATIC_LIBGCC, [
 				# Now check if this version of GCC
 				# accepts this flag...
 				#
-				AC_TRY_COMPILE([],[int junk;],[],[CFLAGS="$oldCFLAGS"])
+				AC_TRY_LINK([
+#include <stdio.h>
+char testvar[64];
+],[strncpy(testvar, "hello world", sizeof(testvar) - 1);],[],[CFLAGS="$oldCFLAGS"])
 				unset oldCFLAGS
 				;;
 		esac
@@ -1022,6 +1090,10 @@ AC_DEFUN(wi_CFLAGS, [AC_REQUIRE([AC_PROG_CC])
 	wi_OS_DEFAULT_CFLAGS
 	wi_CFLAGS_NO_Y2K_WARNINGS
 	wi_PROG_LDD
+	if test "$use_ssp" = yes  ;then
+		wi_SSP_CFLAGS
+		dnl wi_STATIC_LIBGCC may not be compatible with this
+	fi
 	wi_STATIC_LIBGCC
 	wi_CROSS_COMPILER_CFLAGS
 changequote(<<, >>)dnl
@@ -1128,6 +1200,18 @@ AC_MSG_RESULT(${LIBS-no})
 dnl
 dnl
 dnl
+dnl
+AC_DEFUN(wi_DEFINE_SIZEOF_OFF_T, [
+if test "x$ac_cv_sizeof_stat_st_size" != x ; then
+	AC_DEFINE_UNQUOTED(SIZEOF_ST_SIZE, $ac_cv_sizeof_stat_st_size)
+fi
+if test "x$ac_cv_sizeof_off_t" != x ; then
+	AC_DEFINE_UNQUOTED(SIZEOF_OFF_T, $ac_cv_sizeof_off_t)
+fi
+])
+dnl
+dnl
+dnl
 dnl    Macro: _LARGEFILE_SOURCE If this macro is defined some extra functions
 dnl    are available which rectify a few shortcomings in all previous
 dnl    standards. Specifically, the functions fseeko and ftello are available.
@@ -1193,6 +1277,7 @@ fi
 if test "x$ac_cv_sizeof_off_t" = x ; then
 	wi_SIZEOF_OFF_T
 fi
+orig_CFLAGS="$CFLAGS"
 if test "$ac_cv_sizeof_stat_st_size" -le 4 || test "$ac_cv_sizeof_off_t" -le 4 ; then
 	unset ac_cv_sizeof_stat_st_size ac_cv_sizeof_off_t
 	CFLAGS=`echo "$CFLAGS" | sed 's/-D_LARGEFILE64_SOURCE//g'`
@@ -1209,13 +1294,30 @@ if test "$ac_cv_sizeof_stat_st_size" -le 4 || test "$ac_cv_sizeof_off_t" -le 4 ;
 	esac
 	wi_cv_lfs="yes"
 fi
-AC_MSG_CHECKING([if we should add CFLAGS for Large File Support])
-AC_MSG_RESULT($result)
 if test "x$ac_cv_sizeof_off_t" = x ; then
 	# Recheck, to see if the defines took effect.
 	wi_SIZEOF_ST_SIZE
 	wi_SIZEOF_OFF_T
+	if test "$ac_cv_sizeof_stat_st_size" -le 4 || test "$ac_cv_sizeof_off_t" -le 4 ; then
+		CFLAGS="$orig_CFLAGS"
+		unset orig_CFLAGS
+		wi_cv_lfs64="yes"
+		CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"
+		DEBUGCFLAGS="-D_LARGEFILE64_SOURCE $DEBUGCFLAGS"
+		NOOPTCFLAGS="-D_LARGEFILE64_SOURCE $NOOPTCFLAGS"
+		result="-D_LARGEFILE64_SOURCE"
+		# Re-re-check, to see if the defines took effect.
+		unset ac_cv_sizeof_stat_st_size ac_cv_sizeof_off_t
+		wi_SIZEOF_STAT64_ST_SIZE
+		wi_SIZEOF_OFF64_T
+		wi_SIZEOF_ST_SIZE
+		wi_SIZEOF_OFF_T
+	fi
 fi
+AC_MSG_CHECKING([if we should add CFLAGS for Large File Support])
+AC_MSG_RESULT($result)
+unset orig_CFLAGS
+wi_DEFINE_SIZEOF_OFF_T
 ])
 dnl
 dnl
@@ -1228,6 +1330,7 @@ wi_cv_lfs64="no"
 if test "os_${os}_gcc_${GCC}" = os_hp-ux_gcc_yes ; then
 	wi_HPUX_GCC___STDC_EXT__
 fi
+AC_CHECK_HEADERS([unistd.h])
 if test "x$ac_cv_sizeof_stat_st_size" = x ; then
 	wi_SIZEOF_ST_SIZE
 fi
@@ -1248,9 +1351,51 @@ if test "$ac_cv_sizeof_stat_st_size" -le 4 || test "$ac_cv_sizeof_off_t" -le 4 ;
 			;;
 	esac
 	wi_cv_lfs64="yes"
+	wi_SIZEOF_STAT64_ST_SIZE
+	wi_SIZEOF_OFF64_T
+	wi_SIZEOF_ST_SIZE
+	wi_SIZEOF_OFF_T
 fi
+wi_DEFINE_SIZEOF_OFF_T
 AC_MSG_CHECKING([if we should add CFLAGS for LFS64 support])
 AC_MSG_RESULT($result)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_CFLAGS_LFS_OR_LFS64, [
+changequote(<<, >>)dnl
+wi_cv_lfs_type="lfs"
+if test "$SYS" = "linux" ; then
+	case "$libc" in
+		libc5)
+			wi_cv_lfs_type="lfs64"
+			;;
+		glibc2.[012]*)
+			wi_cv_lfs_type="lfs64"
+			;;
+	esac
+fi
+case "$OS" in
+	bsdos*)
+		wi_cv_lfs_type="lfs64"
+		;;
+	freebsd[234]*)
+		wi_cv_lfs_type="lfs64"
+		;;
+	hpux9.*|hpux10.*)
+		wi_cv_lfs_type="lfs64"
+		;;
+	solaris2.*|solaris7*)
+		wi_cv_lfs_type="lfs64"
+		;;
+esac
+changequote([, ])dnl
+if test "$wi_cv_lfs_type" = "lfs64" ; then
+	wi_CFLAGS_LFS64
+else
+	wi_CFLAGS_LFS
+fi
 ])
 dnl
 dnl
@@ -2252,6 +2397,8 @@ main()
 changequote(<<, >>)dnl
 		[0-9]*)
 changequote([, ])dnl
+			dnl Do not define here... we may redefine it when we re-run this macro.
+			dnl Manually AC_DEFINE_UNQUOTED when you are finished with this macro.
 			dnl AC_DEFINE_UNQUOTED(SIZEOF_OFF_T, $x)
 			ac_cv_sizeof_off_t="$x"
 			;;
@@ -2313,6 +2460,8 @@ main()
 changequote(<<, >>)dnl
 		[0-9]*)
 changequote([, ])dnl
+			dnl Do not define here... we may redefine it when we re-run this macro.
+			dnl Manually AC_DEFINE_UNQUOTED when you are finished with this macro.
 			dnl AC_DEFINE_UNQUOTED(SIZEOF_ST_SIZE, $x)
 			ac_cv_sizeof_stat_st_size="$x"
 			;;
@@ -2331,6 +2480,128 @@ changequote([, ])dnl
 	# action if cross compiling
 	x="unknown"
 	ac_cv_sizeof_stat_st_size="4"
+	rm -f conftest.out
+])
+AC_MSG_RESULT($x)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SIZEOF_OFF64_T, [
+AC_MSG_CHECKING(size of off64_t)
+wi_PREREQ_UNISTD_H([$0])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+main()
+{
+	off64_t x = 0;
+	FILE *fp;
+
+	fp = fopen("conftest.out", "w");
+	if (fp != NULL) {
+		fprintf(fp, "%u\n", (unsigned int) sizeof(x));
+		fclose(fp);
+		exit(0);	/* OK */
+	}
+	exit(1);		/* Not OK */
+}
+],[
+	# action if true
+	x=`cat conftest.out`
+	case "$x" in
+changequote(<<, >>)dnl
+		[0-9]*)
+changequote([, ])dnl
+			AC_DEFINE_UNQUOTED(SIZEOF_OFF64_T, $x)
+			ac_cv_sizeof_off64_t="$x"
+			;;
+		*)
+			x="failed"
+			ac_cv_sizeof_off64_t="4"
+			;;
+	esac
+	rm -f conftest.out
+],[
+	# action if false
+	x="failed"
+	ac_cv_sizeof_off64_t="4"
+	rm -f conftest.out
+],[
+	# action if cross compiling
+	x="unknown"
+	ac_cv_sizeof_off64_t="8"
+	rm -f conftest.out
+])
+AC_MSG_RESULT($x)
+])
+dnl
+dnl
+dnl
+AC_DEFUN(wi_SIZEOF_STAT64_ST_SIZE, [
+AC_MSG_CHECKING(size of st_size field in struct stat64)
+wi_PREREQ_UNISTD_H([$0])
+AC_TRY_RUN([
+	/* program */
+#if defined(AIX) || defined(_AIX) || defined(__HOS_AIX__)
+#	define _ALL_SOURCE 1
+#endif
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+main()
+{
+	struct stat64 x;
+	FILE *fp;
+
+	fp = fopen("conftest.out", "w");
+	if (fp != NULL) {
+		fprintf(fp, "%u\n", (unsigned int) sizeof(x.st_size));
+		fclose(fp);
+		exit(0);	/* OK */
+	}
+	exit(1);		/* Not OK */
+}
+],[
+	# action if true
+	x=`cat conftest.out`
+	case "$x" in
+changequote(<<, >>)dnl
+		[0-9]*)
+changequote([, ])dnl
+			AC_DEFINE_UNQUOTED(SIZEOF_STAT64_ST_SIZE, $x)
+			ac_cv_sizeof_stat64_st_size="$x"
+			;;
+		*)
+			x="failed"
+			ac_cv_sizeof_stat64_st_size="4"
+			;;
+	esac
+	rm -f conftest.out
+],[
+	# action if false
+	x="failed"
+	ac_cv_sizeof_stat64_st_size="4"
+	rm -f conftest.out
+],[
+	# action if cross compiling
+	x="unknown"
+	ac_cv_sizeof_stat64_st_size="8"
 	rm -f conftest.out
 ])
 AC_MSG_RESULT($x)
@@ -3440,6 +3711,8 @@ AC_MSG_CHECKING([CPPFLAGS])
 AC_MSG_RESULT([$CPPFLAGS])
 AC_MSG_CHECKING([DEFS])
 AC_MSG_RESULT([$DEFS])
+AC_MSG_CHECKING([NDEFS])
+AC_MSG_RESULT([$NDEFS])
 AC_MSG_CHECKING([LDFLAGS])
 AC_MSG_RESULT([$LDFLAGS])
 AC_MSG_CHECKING([LIBS])

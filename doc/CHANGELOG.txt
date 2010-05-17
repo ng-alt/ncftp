@@ -1,6 +1,90 @@
 NcFTP Change Log:
 ================
 
+3.2.4.1, 2010-05-16
+
+   + Fixed a bug in Ncftpget/put/ls which could ignore the username (-u)
+     and password (-p) command line parameters.
+
+
+3.2.4, 2010-04-07
+
+   + Ncftpget and ncftpput can now read $HOME/.ncftp/bookmarks and take a
+     bookmark name in place of a hostname.  If the hostname specified is 
+     not fully qualified (i.e. does not contain a period), then bookmarks
+     will be queried; if no bookmarks match, then a local hostname is
+     assumed.  Bookmarks are also queried for the config file option,
+     -f, when the file specified by -f does not exist.
+
+   + Compatibility fixes for FreeBSD 8.
+
+   + Support for local validation of DNSSEC when combined with libraries
+     available from the DNSSEC Tools project (Thanks, Robert Story).
+
+   + Microsoft disabled recursive directory listings altogether when fixing
+     KB975254 (Thanks, Andrew Coggeshall).  When entire directories are
+     downloaded, instead of using "LIST -R" for one efficient listing of
+     all files, the directories are manually traversed with one directory
+     listing for each subdirectory.  This will improve reliability of
+     recursive downloads, except for the case when their are circular
+     symbolic links (which is why "LIST -R" had been favored, which the
+     server can easily handle).
+
+   + Compatibility fixes for Mac OS X for building from source code
+     (Thanks, Mathieu Rene)
+
+
+
+3.2.3, 2009-07-28
+
+   + Large File Support has been updated internally to use newer APIs,
+     rather than the transitional API.
+
+   + You can now specify an IP address for binding the local end of
+     sockets.  Useful if you need connections to originate from a
+     specific IP on the system.
+
+   + Bug fixed where binding an ephemeral port number in a specified
+     range (rare) may not have used all available retries for binding.
+
+   + Local writes now "retry" when the write returns less than the full
+     number of bytes specified, and will call write() again to write
+     out the remaining bytes.  This bug is very rare since local write
+     almost always write out the full number of bytes.  This bug may
+     have been limited to a particular type of filesystem.
+
+   + Using a higher resolution timer on Windows, so that the timer
+     no longer wraps over after a month.
+
+   + The minimum version of Windows that the source code will now
+     compile on is Windows 2000, although with a little tweaking you
+     could compile for Windows NT 4 again.
+
+   + Compatibility fix for Mac OS X when compiling from source to build
+     universal binaries (Thanks, Toshi NAGATA)
+
+   + Compatibility fix for FreeBSD, where a connection attempt may
+     have failed with "Operation now in progress."
+
+   + Fixed a bug where the global firewall pref files were not read
+     if the user's home directory was the root directory.
+
+   + Using MFMT command to set remote timestamps, if available, in
+     preference to SITE UTIME or MDTM.
+
+   + New configure flag, --enable-ssp, will turn on stack smashing
+     protection (if available by compiler) by adding to CFLAGS.
+
+   + Host, user, and pass fields have been increased in size.
+
+   + Bug fixed where the firewall preference files were ignored for
+     the root user.
+
+   + Ncftpls now has a "-Z" option that will disable doing the actual
+     directory listing.  This is useful for use with the "-Y" option
+     to send a raw FTP command without doing a listing.
+
+
 3.2.2, 2008-08-18
 
   + Fixed an assertion failure in NcFTP's "help" command that appeared
@@ -251,7 +335,7 @@ NcFTP Change Log:
     files have CR+CR+LF end-of-lines.
 
   + More fixes related to the above, as well as few other fixes from
-    Martin Storsj√.
+    Martin Storsj.
 
   + Bug fixed where an upload filename could have been limited to 127
     characters.

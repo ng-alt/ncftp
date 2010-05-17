@@ -170,6 +170,18 @@
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
+/* Define to sizeof(off_t) */
+#undef SIZEOF_OFF_T
+
+/* Define to sizeof(off64_t) */
+#undef SIZEOF_OFF64_T
+
+/* Define to sizeof(struct stat.st_size) */
+#undef SIZEOF_ST_SIZE
+
+/* Define to sizeof(struct stat64.st_size) */
+#undef SIZEOF_STAT64_ST_SIZE
+
 #undef SNPRINTF_RETURNS_PTR
 
 #undef SNPRINTF_TERMINATES
@@ -508,6 +520,9 @@
 /* Define if you have the <utime.h> header file.  */
 #undef HAVE_UTIME_H
 
+/* Define if you have the <validator/validator.h> header file.  */
+#undef HAVE_VALIDATOR_VALIDATOR_H
+
 /* Define if you have the 44bsd library (-l44bsd).  */
 #undef HAVE_LIB44BSD
 
@@ -517,6 +532,9 @@
 /* Define if you have the nsl library (-lnsl).  */
 #undef HAVE_LIBNSL
 
+/* Define if you have the pthread library (-lpthread).  */
+#undef HAVE_LIBPTHREAD
+
 /* Define if you have the resolv library (-lresolv).  */
 #undef HAVE_LIBRESOLV
 
@@ -525,3 +543,13 @@
 
 /* Define if you have the socket library (-lsocket).  */
 #undef HAVE_LIBSOCKET
+
+/* Define if you have the sres library (-lsres).  */
+#undef HAVE_LIBSRES
+
+/* Define if you have the ssl library (-lssl).  */
+#undef HAVE_LIBSSL
+
+/* Define if you want local DNSSEC validation support */
+#undef DNSSEC_LOCAL_VALIDATION
+

@@ -18,13 +18,19 @@ typedef enum ExitStatus {
 	kExitInitConnInfoFailed,
 	kExitSpoolFailed,
 	kExitNoMemory,
-	kExitMkdirFailed
+	kExitMkdirFailed,
+	kExitGlobNoMatch
 } ExitStatus;
 
 #define kKilobyte 1024
 #define kMegabyte (kKilobyte * 1024)
 #define kGigabyte ((long) kMegabyte * 1024L)
 #define kTerabyte ((double) kGigabyte * 1024.0)
+
+#define kErrorLoadingConfig (-1)
+#define kConfigNotLoaded 0
+#define kLoadedFromConfigFile 1
+#define kLoadedFromBookmark 2
 
 #ifndef STDIN_FILENO
 #	define STDIN_FILENO 0
@@ -36,7 +42,8 @@ typedef enum ExitStatus {
 double FileSize(double size, const char **uStr0, double *uMult0);
 void PrSizeAndRateMeter(const FTPCIPtr, int);
 void PrStatBar(const FTPCIPtr, int);
-void ReadConfigFile(const char *, FTPCIPtr);
+int ReadConfigFromBookmark(const char *const bmname, FTPCIPtr cip);
+int ReadConfigFile(const char *, FTPCIPtr);
 void SetRedial(const FTPCIPtr, const char *const);
 void SetTimeouts(const FTPCIPtr, const char *const);
 char *GetPass2(const char *const prompt);

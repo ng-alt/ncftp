@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#ifdef HAVE_SYS_UN_H
+
 int
 UConnectByName(int sfd, const char * const addrStr, const int tlen)
 {
@@ -19,3 +21,5 @@ UConnectByName(int sfd, const char * const addrStr, const int tlen)
 	result = UConnect(sfd, &remoteAddr, ualen, tlen);
 	return (result);
 }	/* UConnectByName */
+
+#endif	/* HAVE_SYS_UN_H */

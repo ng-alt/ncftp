@@ -431,6 +431,13 @@ FTPQueryFeatures(const FTPCIPtr cip)
 	if (strcmp(cip->magic, kLibraryMagic))
 		return (kErrBadMagic);
 
+	if (cip->serverType == kServerTypeMicrosoftFTP) {
+		cip->hasNLST_a = kCommandNotAvailable;
+		cip->hasNLST_d = kCommandNotAvailable;
+		cip->hasSITE_UTIME = kCommandNotAvailable;
+		cip->hasRETR_tar = kCommandNotAvailable;
+	}
+
 	if (cip->serverType == kServerTypeNetWareFTP) {
 		/* NetWare 5.00 server freaks out when
 		 * you give it a command it doesn't
@@ -447,6 +454,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 		cip->hasMLSD = kCommandNotAvailable;
 		cip->hasSITE_UTIME = kCommandNotAvailable;
 		cip->hasHELP_SITE = kCommandNotAvailable;
+		cip->hasRETR_tar = kCommandNotAvailable;
 		return (kNoErr);
 	}
 
@@ -465,6 +473,9 @@ FTPQueryFeatures(const FTPCIPtr cip)
 		cip->hasMLSD = kCommandNotAvailable;
 		cip->hasSITE_UTIME = kCommandNotAvailable;
 		cip->hasHELP_SITE = kCommandNotAvailable;
+		cip->hasMFMT = kCommandNotAvailable;
+		cip->hasMFF = kCommandNotAvailable;
+		cip->hasRETR_tar = kCommandNotAvailable;
 	}
 	
 	rp = InitResponse();
@@ -504,6 +515,8 @@ FTPQueryFeatures(const FTPCIPtr cip)
 			 */
 			cip->hasMLST = kCommandNotAvailable;
 			cip->hasMLSD = kCommandNotAvailable;
+			cip->hasMFMT = kCommandNotAvailable;
+			cip->hasMFF = kCommandNotAvailable;
 		} else {
 			cip->hasFEAT = kCommandAvailable;
 
@@ -516,7 +529,7 @@ FTPQueryFeatures(const FTPCIPtr cip)
 				 * (c) A protocol violation.
 				 */
 				cp = lp->line;
-				while ((*cp != '\0') && (isspace(*cp)))
+				while ((*cp != '\0') && (isspace((int) *cp)))
 					cp++;
 				if (*cp == '\0')
 					continue;
@@ -526,6 +539,10 @@ FTPQueryFeatures(const FTPCIPtr cip)
 					cip->hasSIZE = kCommandAvailable;
 				} else if (ISTRNCMP(cp, "MDTM", 4) == 0) {
 					cip->hasMDTM = kCommandAvailable;
+				} else if (ISTRNCMP(cp, "MFMT", 4) == 0) {
+					cip->hasMFMT = kCommandAvailable;
+				} else if (ISTRNCMP(cp, "MFF", 3) == 0) {
+					cip->hasMFF = kCommandAvailable;
 				} else if (ISTRNCMP(cp, "REST", 4) == 0) {
 					cip->hasREST = kCommandAvailable;
 				} else if (ISTRNCMP(cp, "UTIME", 5) == 0) {
@@ -1000,6 +1017,8 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->hasSIZE = kCommandAvailabilityUnknown;
 	cip->hasMDTM = kCommandAvailabilityUnknown;
 	cip->hasMDTM_set = kCommandAvailabilityUnknown;
+	cip->hasMFMT = kCommandAvailabilityUnknown;
+	cip->hasMFF = kCommandAvailabilityUnknown;
 	cip->hasREST = kCommandAvailabilityUnknown;
 	cip->hasNLST_a = kCommandAvailabilityUnknown;
 	cip->hasNLST_d = kCommandAvailabilityUnknown;
@@ -1017,6 +1036,7 @@ FTPInitConnectionInfo2(const FTPLIPtr lip, const FTPCIPtr cip, char *const buf, 
 	cip->hasSITE_SBUFSZ = kCommandAvailabilityUnknown;
 	cip->STATfileParamWorks = kCommandAvailabilityUnknown;
 	cip->NLSTfileParamWorks = kCommandAvailabilityUnknown;
+	cip->hasRETR_tar = kCommandAvailabilityUnknown;
 	cip->firewallType = kFirewallNotInUse;
 	cip->startingWorkingDirectory = NULL;
 	cip->shutdownUnusedSideOfSockets = 0;

@@ -44,6 +44,7 @@ int SpoolX(
 	const time_t when,
 	const unsigned int delaySinceLastFailure,
 	const char *const manualOverrideFeatures,
+	const char *const preferredLocalAddrStr,
 	const int reserved);
 void RunBatch(void);
 void RunBatchWithCore(const FTPCIPtr);

@@ -45,7 +45,7 @@ SAccept(int sfd, struct sockaddr_in *const addr, int tlen)
 		tv.tv_sec = (tv_sec_t) tlen;
 		tv.tv_usec = 0;
 		result = select(sfd + 1, SELECT_TYPE_ARG234 &ss, NULL, NULL, SELECT_TYPE_ARG5 &tv);
-		if (result == 1) {
+		if (result >= 1) {
 			/* ready */
 			break;
 		} else if (result == 0) {

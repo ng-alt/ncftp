@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#ifdef HAVE_SYS_UN_H
+
 int
 USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockaddr_un *const toAddr, int ualen, int tlen)
 {
@@ -43,7 +45,7 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 			tv.tv_sec = (tv_sec_t) tleft;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG5 &tv);
-			if (result == 1) {
+			if (result >= 1) {
 				/* ready */
 				break;
 			} else if (result == 0) {
@@ -71,3 +73,5 @@ USendto(int sfd, const char *const buf, size_t size, int fl, const struct sockad
 
 	return ((int) nwrote);
 }	/* USendto */
+
+#endif	/* HAVE_SYS_UN_H */

@@ -241,7 +241,7 @@ MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t 
 	for (*cargc = 0; *cargc < cargcmax; ) {
 		/* Eat preceding junk. */
 		for ( ; ; scp++) {
-			c = *scp;
+			c = (int) *scp;
 			if (c == '\0')
 				goto done;
 			if (isspace(c))
@@ -274,7 +274,7 @@ MakeArgv(char *line, int *cargc, char **cargv, int cargcmax, char *dbuf, size_t 
 		}
 
 		/* Tilde expansion for this user -- local or remote as needed. */
-		if ((*cargc > 1) && (fromReadln == 0) && (scp[0] == '~') && ((scp[1] == '\0') || (scp[1] == '/') || isspace(scp[1]))) {
+		if ((*cargc > 1) && (fromReadln == 0) && (scp[0] == '~') && ((scp[1] == '\0') || (scp[1] == '/') || isspace((int) scp[1]))) {
 			scp++;
 			vcp = NULL;
 			cmdp = GetCommandByName(cargv[0], 0);

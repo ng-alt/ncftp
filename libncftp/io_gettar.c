@@ -115,6 +115,12 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 	result = kNoErr;
 	cip->usingTAR = 0;
 
+	if (cip->hasRETR_tar == kCommandNotAvailable) {
+		result = kErrOpenFailed;
+		cip->errNo = kErrOpenFailed;
+		return (result);
+	}
+
 	if ((file[0] == '\0') || ((file[0] == '/') && (file[1] == '\0'))) {
 		/* It was "/"
 		 * We can't do that, because "get /.tar"
@@ -217,6 +223,8 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 		if (result == kErrGeneric)
 			result = kErrRETRFailed;
 		cip->errNo = result;
+		if (cip->hasRETR_tar == kCommandAvailabilityUnknown)
+			cip->hasRETR_tar = kCommandNotAvailable;
 
 #ifndef NO_SIGNALS
 		(void) signal(SIGPIPE, SIG_IGN);
@@ -242,6 +250,8 @@ FTPGetOneTarF(const FTPCIPtr cip, const char *file, const char *const dstdir)
 		return (result);
 	}
 
+	if (cip->hasRETR_tar == kCommandAvailabilityUnknown)
+		cip->hasRETR_tar = kCommandAvailable;
 	cip->usingTAR = 1;
 	buf = cip->buf;
 	bufSize = cip->bufSize;

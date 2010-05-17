@@ -120,4 +120,5 @@
 #define kErrLoginHostMiscErr			(-203)
 #define kErrAsciiSeekErr			(-204)
 #define kErrKnownBug				(-205)
-#define kErrLast				(205)
+#define kErrBindCtrlSocket			(-206)
+#define kErrLast				(206)

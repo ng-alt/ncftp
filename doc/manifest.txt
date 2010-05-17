@@ -1,5 +1,5 @@
-autoconf/acconfig.h
-autoconf/aclocal.m4
+autoconf_local/acconfig.h
+autoconf_local/aclocal.m4
 config.h.in
 configure
 configure.in
@@ -13,6 +13,7 @@ doc/html/ncftpls.html
 doc/html/ncftpput.html
 doc/html/ncftpspooler.html
 doc/LICENSE.txt
+doc/Location_of_Programs_is_C_Windows.txt
 doc/man/ncftp.1
 doc/man/ncftpbatch.1
 doc/man/ncftpget.1
@@ -23,6 +24,7 @@ doc/manifest
 doc/manifest.txt
 doc/READLINE.txt
 doc/readme_ncftpget_windows.txt
+doc/readme_windows.rtf
 doc/readme_windows.txt
 doc/what_changed_between_v2_v3.txt
 DONATE.txt
@@ -68,6 +70,7 @@ libncftp/lglob.c
 libncftp/lglobr.c
 libncftp/libncftp.dsp
 libncftp/libncftp.dsw
+libncftp/libncftp.vcproj
 libncftp/linelist.c
 libncftp/Makefile.in
 libncftp/ncftp.h
@@ -138,6 +141,7 @@ ncftp/Makefile.in
 ncftp/ncftp.dsp
 ncftp/ncftp.dsw
 ncftp/ncftp.ico
+ncftp/ncftp.vcproj
 ncftp/pref.c
 ncftp/pref.h
 ncftp/preffw.c
@@ -160,6 +164,8 @@ ncftp/util.h
 ncftp/version.c
 NcFTP_All.dsp
 NcFTP_All.dsw
+NcFTP_All.sln
+NcFTP_All.vcproj
 README.txt
 sh/autoconfall.sh
 sh/config.guess
@@ -171,6 +177,7 @@ sh/install-sh
 sh/man2html.sh
 sh/mksrctar.sh
 sh/mksrczip.bat
+sh/ncftpput_schedule.sh
 sh/unix2dos.sh
 sh/winsetver.pl
 sh_util/gpshare.c
@@ -180,16 +187,20 @@ sh_util/ncftp.ico
 sh_util/ncftpbatch.c
 sh_util/ncftpbatch.dsp
 sh_util/ncftpbatch.dsw
+sh_util/ncftpbatch.vcproj
 sh_util/ncftpget.c
 sh_util/ncftpget.dsp
 sh_util/ncftpget.dsw
+sh_util/ncftpget.vcproj
 sh_util/ncftpls.1
 sh_util/ncftpls.c
 sh_util/ncftpls.dsp
 sh_util/ncftpls.dsw
+sh_util/ncftpls.vcproj
 sh_util/ncftpput.c
 sh_util/ncftpput.dsp
 sh_util/ncftpput.dsw
+sh_util/ncftpput.vcproj
 sh_util/rc.rc
 sh_util/resource.h
 sh_util/syshdrs.h
@@ -212,6 +223,7 @@ sio/SError.c
 sio/sio.dsp
 sio/sio.dsw
 sio/sio.h
+sio/sio.vcproj
 sio/SNew.c
 sio/SocketUtil.c
 sio/SRead.c
@@ -256,8 +268,11 @@ Strn/Strn.3
 Strn/Strn.dsp
 Strn/Strn.dsw
 Strn/Strn.h
+Strn/Strn.vcproj
 Strn/Strncat.c
+Strn/Strncat_NoZeroPad.c
 Strn/Strncpy.c
+Strn/Strncpy_NoZeroPad.c
 Strn/Strnpcat.c
 Strn/Strnpcpy.c
 Strn/Strntok.c
@@ -277,6 +292,7 @@ win/bmed/bmed.dsp
 win/bmed/bmed.dsw
 win/bmed/bmed.h
 win/bmed/bmed.rc
+win/bmed/bmed.vcproj
 win/bmed/bmedDlg.cpp
 win/bmed/bmedDlg.h
 win/bmed/bookmark.c
@@ -292,3 +308,5 @@ win/bmed/syshdrs.h
 win/bmed/util.c
 win/bmed/util.h
 win/setup/ncftp.wse
+win/setup/Windows Installer Wizard/NcFTP/NcFTP.sln
+win/setup/Windows Installer Wizard/NcFTP/NcFTP.vdproj

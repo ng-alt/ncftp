@@ -43,6 +43,8 @@ mkdir -p -m755 $TMPDIR/TAR/$TARDIR 2>/dev/null
 chmod 755 configure sh/*
 
 find . -depth -follow -type f | sed '
+/\/autoconf$/d
+/\/autoheader$/d
 /\/\./d
 /\/samples/d
 /libncftp\/configure$/d
@@ -53,6 +55,9 @@ find . -depth -follow -type f | sed '
 /\.a$/d
 /\.lib$/d
 /\.ncb$/d
+/\.suo$/d
+/\.user$/d
+/\.msi$/d
 /\.pdb$/d
 /\.idb$/d
 /\.pch$/d

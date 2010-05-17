@@ -46,7 +46,7 @@ SSendtoByName(int sfd, const char *const buf, size_t size, int fl, const char *c
 			tv.tv_sec = (tv_sec_t) tleft;
 			tv.tv_usec = 0;
 			result = select(sfd + 1, NULL, SELECT_TYPE_ARG234 &ss, NULL, SELECT_TYPE_ARG5 &tv);
-			if (result == 1) {
+			if (result >= 1) {
 				/* ready */
 				break;
 			} else if (result == 0) {

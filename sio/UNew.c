@@ -3,6 +3,8 @@
 #	pragma hdrstop
 #endif
 
+#ifdef HAVE_SYS_UN_H
+
 int
 MakeSockAddrUn(struct sockaddr_un *uaddr, const char *const sockfile)
 {
@@ -118,3 +120,5 @@ UNewDatagramServer(const char *const astr, const int nTries, const int reuseFlag
 
 	return (sfd);
 }	/* UNewDatagramServer */
+
+#endif	/* HAVE_SYS_UN_H */

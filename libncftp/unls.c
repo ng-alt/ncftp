@@ -309,6 +309,7 @@ UnLslRLine(	char *const line,
 -rw-rw-r--   1 gleason  sysdevzz     1829 Jul 7   1996 README
 -rw-rw-r--   1 gleason  sysdevzz     1829 Jul  7 1996  README
 -rw-rw-r--   1 gleason  sysdevzz     1829 Jul 7  1996  README
+drwxrwxrwx   1 pvr pvr              45056 Jan  1 2000 DataFiles
          *
 	 *------------------------------^
 	 *                              0123456789012345
@@ -348,7 +349,12 @@ UnLslRLine(	char *const line,
 				cp[1] = '\0';	/* end size */
 				cp[5] = '\0';	/* end mon */
 				cp[8] = '\0';	/* end day */
-				cp[14] = '\0';	/* end year */
+				if (! isspace((int) filestart[-1])) {
+					if (isspace((int) filestart[-2])) {
+						filestart--;
+					}
+				}
+				filestart[-1] = '\0';	/* end year */
 				mon = LsMonthNameToNum(monstart);
 				day = atoi(daystart);
 				hr = 23;
@@ -504,20 +510,23 @@ UnLslRLine(	char *const line,
 		ftm.tm_isdst = -1;
 		if (year == 0) {
 			/* We guess the year, based on what the
-			 * current year is.  We know the file
-			 * on the remote server is either less
-			 * than six months old or less than
-			 * one hour into the future.
+			 * current year is.
+			 *
+			 * UNIX ls would always print the year
+			 * if the file was older than 6 months,
+			 * but many non-UNIX based servers do
+			 * not honor that convention, so we
+			 * now assume that if the year was not
+			 * given it implies the current year,
+			 * unless the file is up to two days 
+			 * into the future.
 			 */
 			ftm.tm_year = thisyear - 1900;
 			*ftime = mktime(&ftm);
 			if (*ftime == (time_t) -1) {
 				/* panic */
-			} else if (*ftime > (now + (15552000L + 86400L))) {
+			} else if (*ftime > (now + (2 * 86400L))) {
 				--ftm.tm_year;
-				*ftime = mktime(&ftm);
-			} else if (*ftime < (now - (15552000L + 86400L))) {
-				++ftm.tm_year;
 				*ftime = mktime(&ftm);
 			}
 		} else {

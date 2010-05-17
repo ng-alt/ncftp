@@ -46,7 +46,8 @@ FTPUtime(const FTPCIPtr cip, const char *const file, time_t actime, time_t modti
 {
 	char mstr[64], astr[64], cstr[64];
 	time_t now;
-	int result;
+	int result = kNoErr;
+	int wantToSetCrTime = 1;
 	ResponsePtr rp;
 
 	if (cip == NULL)
@@ -59,25 +60,52 @@ FTPUtime(const FTPCIPtr cip, const char *const file, time_t actime, time_t modti
 		modtime = time(&now);
 	(void) GmTimeStr(mstr, sizeof(mstr), modtime);
 
-	result = kErrUTIMENotAvailable;
-	if (cip->hasSITE_UTIME != kCommandNotAvailable) {
-		if ((actime == (time_t) 0) || (actime == (time_t) -1)) {
-			if (now != (time_t) 0) {
-				actime = now;
-			} else {
-				actime = time(&now);
-			}
+	if ((actime == (time_t) 0) || (actime == (time_t) -1)) {
+		if (now != (time_t) 0) {
+			actime = now;
+		} else {
+			actime = time(&now);
 		}
-		if ((crtime == (time_t) 0) || (crtime == (time_t) -1)) {
-			if (now != (time_t) 0) {
-				crtime = now;
-			} else {
-				crtime = time(&now);
-			}
+	}
+	if ((crtime == (time_t) 0) || (crtime == (time_t) -1)) {
+		wantToSetCrTime = 0;
+		if (now != (time_t) 0) {
+			crtime = now;
+		} else {
+			crtime = time(&now);
 		}
-		(void) GmTimeStr(astr, sizeof(astr), actime);
-		(void) GmTimeStr(cstr, sizeof(cstr), crtime);
+	}
+	(void) GmTimeStr(astr, sizeof(astr), actime);
+	(void) GmTimeStr(cstr, sizeof(cstr), crtime);
 
+	if ((cip->hasMFF == kCommandAvailable) && (wantToSetCrTime != 0)) {
+		result = FTPCmd(cip, "MFF Modify=%s;Create=%s %s", mstr, cstr, file); 	
+		if ((result == 2) || (result == 0)) {
+			result = kNoErr;
+			return (result);
+		} else {
+			cip->errNo = kErrUTIMEFailed;
+			result = kErrUTIMEFailed;
+			/* It may not have liked us trying to set the creation time.
+			 * Fallthrough and try just setting the modification time.
+			 */
+		}
+	}
+
+	if (cip->hasMFMT == kCommandAvailable) {
+		result = FTPCmd(cip, "MFMT %s %s", mstr, file); 	
+		if ((result == 2) || (result == 0)) {
+			result = kNoErr;
+		} else {
+			cip->errNo = kErrUTIMEFailed;
+			result = kErrUTIMEFailed;
+		}
+		return (result);
+	}
+
+	if (result == kNoErr)
+		result = kErrUTIMENotAvailable;
+	if (cip->hasSITE_UTIME != kCommandNotAvailable) {
 		rp = InitResponse();
 		if (rp == NULL) {
 			result = kErrMallocFailed;

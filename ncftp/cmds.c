@@ -2244,7 +2244,7 @@ LookupCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvIn
 	const char *host;
 	char **cpp;
 	struct in_addr ip_address;
-	int shortMode, optrc;
+	int shortMode, optrc, dnsrc;
 	char ipStr[16];
 	GetoptInfo opt;
 
@@ -2267,11 +2267,17 @@ LookupCmd(const int argc, char **const argv, const CommandPtr cmdp, const ArgvIn
 
 	for (i=opt.ind; i<argc; i++) {
 		hpok = 0;
-		if (GetHostEntry(&hp, (host = argv[i]), &ip_address, gConn.buf, gConn.bufSize) == 0)
+		dnsrc = GetHostEntry(&hp, (host = argv[i]), &ip_address, gConn.buf, gConn.bufSize);
+		if (dnsrc == 0)
 			hpok = 1;
 		if ((i > opt.ind) && (shortMode == 0))
 			Trace(-1, "\n");
 		if (hpok == 0) {
+#ifndef DNSSEC_LOCAL_VALIDATION
+                        if (dnsrc == -2)
+			    Trace(-1, "DNS response for site %s is untrused.\n", host);
+			else
+#endif
 			Trace(-1, "Unable to get information about site %s.\n", host);
 		} else if (shortMode) {
 			MyInetAddr(ipStr, sizeof(ipStr), hp.h_addr_list, 0);
@@ -2542,6 +2548,7 @@ DoOpen(void)
 	if (gConn.firewallType == kFirewallNotInUse) {
 		(void) STRNCPY(ohost, gConn.host);
 		OpenMsg("Resolving %s...", ohost);
+#ifndef DNSSEC_LOCAL_VALIDATION
 		if ((gLoadedBm != 0) && (gBm.lastIP[0] != '\0')) {
 			result = MyGetHostByName(ipstr, sizeof(ipstr), ohost, 3);
 			if (result < 0) {
@@ -2558,6 +2565,21 @@ DoOpen(void)
 			(void) printf("Unknown host \"%s\".\n", ohost);
 			return (-1);
 		}
+#else
+                result = MyGetHostByName(ipstr, sizeof(ipstr), ohost, 15);
+		if (result < 0) {
+			(void) printf("\n");
+                        /*
+                         * It would be nice to print a little more information,
+                         * but that would mean an API change to MyGetHostByName.
+                         */
+			(void) printf("%s host \"%s\".\n",
+                                      (result == -2) ?
+                                      "Untrusted DNS response for" : "Unknown",
+                                      ohost);
+                        return (-1);
+                }
+#endif
 		(void) STRNCPY(gConn.host, ipstr);
 		OpenMsg("Connecting to %s...", ipstr);
 	} else {
@@ -3689,8 +3711,23 @@ SpoolCheck(void)
 	} else if (HaveSpool() == 0) {
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 		(void) printf("Sorry, the \"ncftpbatch\" program could not be found.\nPlease re-run Setup to correct this problem.\n");
+#elif (defined(BINDIR) || defined(PREFIX_BINDIR))
+		char ncftpbatch[256];
+
+#ifdef PREFIX_BINDIR
+		STRNCPY(ncftpbatch, PREFIX_BINDIR);
 #else
-		(void) printf("Sorry, the \"ncftpbatch\" program could not be found.\nThis program must be installed and in your PATH in order to use this feature.\n");
+		STRNCPY(ncftpbatch, BINDIR);
+#endif
+		STRNCAT(ncftpbatch, "/");
+		STRNCAT(ncftpbatch, "ncftpbatch");
+		(void) printf("Sorry, the \"ncftpbatch\" program could not be found.\nThis program must be installed as %s in order to use this feature.\n", ncftpbatch);
+#else
+		if (geteuid() == 0) {
+			(void) printf("Sorry, the \"ncftpbatch\" program could not be found at %s.\nFor the security of the root user, this program must be installed at that location in order to use this feature.\n", "/usr/bin/ncftpbatch");
+		} else {
+			(void) printf("Sorry, the \"ncftpbatch\" program could not be found.\nThis program must be installed and in your PATH in order to use this feature.\n");
+		}
 #endif
 		return (-1);
 	}
@@ -3744,6 +3781,11 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 	int rc;
 	int toplevel;
 	SpoolCmdInfo *cinfop;
+	char preferredLocalAddrStr[64];
+
+	preferredLocalAddrStr[0] = '\0';
+	if (gConn.preferredLocalAddr.sin_family != 0)
+		AddrToAddrStr(preferredLocalAddrStr, sizeof(preferredLocalAddrStr), &gConn.preferredLocalAddr, 0, "%h");
 
 	if (ftwip->depth >= 50) {
 		Trace(-1, "Aborting -- recursion depth is %u.\nPerhaps an infinite loop exists on the remote filesystem?", (unsigned int) ftwip->depth);
@@ -3765,22 +3807,22 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 		/* "get -R /" == "rcp -r remote:/ ." */
 		/* Special case files in top-level, i.e. /vmunix */
 		toplevel = 1;
-		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+		if (Dynscpy(&rdir1, gRemoteCWD, (char *) 0) == NULL)
 			return (-1);
-		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+		if (Dynscpy(&ldir1, gLocalCWD, (char *) 0) == NULL)
 			return (-1);
 	} else if ((ftwip->curPath[0] == '.') && ((ftwip->curPath[1] == '\0') || (((ftwip->curPath[1] == '/') || (ftwip->curPath[1] == '\\')) && (strchr(ftwip->curPath + 2, '/') == NULL) && (strchr(ftwip->curPath + 2, '\\') == NULL)) )) {
 		/* "get -R ." == "rcp -r remote:. ." */
 		/* Special case files in top- .level, i.e. ./vmunix but not ./bin/ls */
 		toplevel = 1;
-		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+		if (Dynscpy(&rdir1, gRemoteCWD, (char *) 0) == NULL)
 			return (-1);
-		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+		if (Dynscpy(&ldir1, gLocalCWD, (char *) 0) == NULL)
 			return (-1);
 	} else {
-		if (Dynscpy(&rdir1, cinfop->rcwd, "/", curPath, 0) == NULL)
+		if (Dynscpy(&rdir1, cinfop->rcwd, "/", curPath, (char *) 0) == NULL)
 			return (-1);
-		if (Dynscpy(&ldir1, cinfop->lcwd, dirsep, baserelpath, 0) == NULL)
+		if (Dynscpy(&ldir1, cinfop->lcwd, dirsep, baserelpath, (char *) 0) == NULL)
 			return (-1);
 	}
 
@@ -3810,7 +3852,7 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 		*cp = '\0';
 
 	if (ftwip->curType != '-') {
-		if (Dynscpy(&lpath, ldir, "/", ftwip->curFile, 0) == NULL)
+		if (Dynscpy(&lpath, ldir, "/", ftwip->curFile, (char *) 0) == NULL)
 			return (-1);
 		TVFSPathToLocalPath(lpath);
 		Trace(0, "  // Lpath [%s] ([%s]/%s)\n", lpath, ldir, ftwip->curFile);
@@ -3874,6 +3916,7 @@ BggetFtwProc(const FtwInfoPtr ftwip)
 			cinfop->when,
 			0,
 			gConn.manualOverrideFeatures,
+			preferredLocalAddrStr,
 			0
 		);
 		if (rc == 0) {
@@ -3906,6 +3949,11 @@ SpoolGetCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 	GetoptInfo opt;
 	FtwInfo ftwi;
 	SpoolCmdInfo cinfo;
+	char preferredLocalAddrStr[64];
+
+	preferredLocalAddrStr[0] = '\0';
+	if (gConn.preferredLocalAddr.sin_family != 0)
+		AddrToAddrStr(preferredLocalAddrStr, sizeof(preferredLocalAddrStr), &gConn.preferredLocalAddr, 0, "%h");
 
 	cinfo.xtype = gBm.xferType;
 	cinfo.deleteFlag = kDeleteNo;
@@ -4009,6 +4057,7 @@ SpoolGetCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 			cinfo.when,
 			0,
 			gConn.manualOverrideFeatures,
+			preferredLocalAddrStr,
 			0
 		);
 		if (rc == 0) {
@@ -4064,6 +4113,7 @@ SpoolGetCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 					cinfo.when,
 					0,
 					gConn.manualOverrideFeatures,
+					preferredLocalAddrStr,
 					0
 				);
 				if (rc == 0) {
@@ -4107,6 +4157,11 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 	int toplevel;
 	SpoolCmdInfo *cinfop;
 	char errStr[128];
+	char preferredLocalAddrStr[64];
+
+	preferredLocalAddrStr[0] = '\0';
+	if (gConn.preferredLocalAddr.sin_family != 0)
+		AddrToAddrStr(preferredLocalAddrStr, sizeof(preferredLocalAddrStr), &gConn.preferredLocalAddr, 0, "%h");
 
 	cinfop = (SpoolCmdInfo *) ftwip->userdata;
 	/* rerpath = ftwip->curPath + ftwip->startPathLen + 1; */
@@ -4123,27 +4178,27 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 		/* "get -R /" == "rcp -r remote:/ ." */
 		/* Special case files in top-level, i.e. /vmunix */
 		toplevel = 1;
-		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+		if (Dynscpy(&rdir1, gRemoteCWD, (char *) 0) == NULL)
 			return (-1);
-		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+		if (Dynscpy(&ldir1, gLocalCWD, (char *) 0) == NULL)
 			return (-1);
 	} else if ((ftwip->curPath[0] == '.') && ((ftwip->curPath[1] == '\0') || (((ftwip->curPath[1] == '/') || (ftwip->curPath[1] == '\\')) && (strchr(ftwip->curPath + 2, '/') == NULL) && (strchr(ftwip->curPath + 2, '\\') == NULL)) )) {
 		/* "get -R ." == "rcp -r remote:. ." */
 		/* Special case files in top- .level, i.e. ./vmunix but not ./bin/ls */
 		toplevel = 1;
-		if (Dynscpy(&rdir1, gRemoteCWD, 0) == NULL)
+		if (Dynscpy(&rdir1, gRemoteCWD, (char *) 0) == NULL)
 			return (-1);
-		if (Dynscpy(&ldir1, gLocalCWD, 0) == NULL)
+		if (Dynscpy(&ldir1, gLocalCWD, (char *) 0) == NULL)
 			return (-1);
 	} else {
 		if (IsLocalPathDelim(curPath[0])) {
-			if (Dynscpy(&ldir1, curPath, 0) == NULL)
+			if (Dynscpy(&ldir1, curPath, (char *) 0) == NULL)
 				return (-1);
 		} else {
-			if (Dynscpy(&ldir1, cinfop->lcwd, "/", curPath, 0) == NULL)
+			if (Dynscpy(&ldir1, cinfop->lcwd, "/", curPath, (char *) 0) == NULL)
 				return (-1);
 		}
-		if (Dynscpy(&rdir1, cinfop->rcwd, dirsep, basererpath, 0) == NULL)
+		if (Dynscpy(&rdir1, cinfop->rcwd, dirsep, basererpath, (char *) 0) == NULL)
 			return (-1);
 	}
 
@@ -4173,7 +4228,7 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 		*cp = '\0';
 
 	if (ftwip->curType != '-') {
-		if (Dynscpy(&rpath, rdir, "/", ftwip->curFile, 0) == NULL)
+		if (Dynscpy(&rpath, rdir, "/", ftwip->curFile, (char *) 0) == NULL)
 			return (-1);
 		TVFSPathToLocalPath(rpath);
 		Trace(0, "  // Rpath [%s] ([%s]/%s)\n", rpath, rdir, ftwip->curFile);
@@ -4228,6 +4283,7 @@ BgputFtwProc(const FtwInfoPtr ftwip)
 			cinfop->when,
 			0,
 			gConn.manualOverrideFeatures,
+			preferredLocalAddrStr,
 			0
 		);
 		if (rc == 0) {
@@ -4262,6 +4318,11 @@ SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 	GetoptInfo opt;
 	FtwInfo ftwi;
 	SpoolCmdInfo cinfo;
+	char preferredLocalAddrStr[64];
+
+	preferredLocalAddrStr[0] = '\0';
+	if (gConn.preferredLocalAddr.sin_family != 0)
+		AddrToAddrStr(preferredLocalAddrStr, sizeof(preferredLocalAddrStr), &gConn.preferredLocalAddr, 0, "%h");
 
 	cinfo.xtype = gBm.xferType;
 	cinfo.deleteFlag = kDeleteNo;
@@ -4365,6 +4426,7 @@ SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 			cinfo.when,
 			0,
 			gConn.manualOverrideFeatures,
+			preferredLocalAddrStr,
 			0
 		);
 		if (rc == 0) {
@@ -4420,6 +4482,7 @@ SpoolPutCmd(const int argc, char **const argv, const CommandPtr cmdp, const Argv
 					cinfo.when,
 					0,
 					gConn.manualOverrideFeatures,
+					preferredLocalAddrStr,
 					0
 				);
 				if (rc == 0) {

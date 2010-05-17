@@ -14,11 +14,13 @@
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 #	include "..\ncftp\util.h"
+#	include "..\ncftp\bookmark.h"
 #	include "..\ncftp\spool.h"
 #	include "..\ncftp\pref.h"
 #	include "..\ncftp\gl_getline.h"
 #else
 #	include "../ncftp/util.h"
+#	include "../ncftp/bookmark.h"
 #	include "../ncftp/spool.h"
 #	include "../ncftp/pref.h"
 #	include "../ncftp/gl_getline.h"
@@ -37,6 +39,7 @@ extern unsigned int gFirewallPort;
 extern char gFirewallExceptionList[256];
 extern int gFwDataPortMode;
 extern const char gOS[], gVersion[];
+extern Bookmark gBm;
 
 static int FTPRemoteRecursiveMList(FTPCIPtr cip, const char *const rdir, /* FTPFileInfoListPtr files, */ FTPLineListPtr lines);
 
@@ -70,7 +73,7 @@ FTPRemoteRecursiveMListSubdir(FTPCIPtr cip, char *const parentdir, const size_t 
 	}
 
 	(void) AddLine(lines, "");
-	if (Dynscpy(&newl, relpath, ":", 0) != NULL) {
+	if (Dynscpy(&newl, relpath, ":", (char *) 0) != NULL) {
 		(void) AddLine(lines, newl);
 		free(newl);
 	}
@@ -103,7 +106,7 @@ FTPRemoteRecursiveMListSubdir(FTPCIPtr cip, char *const parentdir, const size_t 
 				 */
 				newl = NULL;
 				*cp++ = '\0';
-				if (Dynscpy(&newl, lp->line, " ", relpath, "/", cp, 0) != NULL) {
+				if (Dynscpy(&newl, lp->line, " ", relpath, "/", cp, (char *) 0) != NULL) {
 					free(lp->line);
 					lp->line = newl;
 				}
@@ -232,6 +235,7 @@ Usage(void)
 	(void) fprintf(fp, "\
   -t XX  Timeout after XX seconds.\n\
   -f XX  Read the file XX for user and password information.\n\
+         If file XX does not exist, check for bookmark XX in $HOME/.ncftp/bookmarks.\n\
   -E     Use regular (PORT) data connections.\n\
   -F     Use passive (PASV) data connections (default).\n\
   -K     Show disk usage by attempting SITE DF.\n");
@@ -240,6 +244,7 @@ Usage(void)
   -W XX  Send raw FTP command XX after logging in.\n\
   -X XX  Send raw FTP command XX after each listing.\n\
   -Y XX  Send raw FTP command XX before logging out.\n\
+  -Z     Do not actually perform the directory listing.  Useful with -Y.\n\
   -r XX  Redial XX times until connected.\n");
 	(void) fprintf(fp, "\nExamples:\n\
   ncftpls ftp://ftp.freebsd.org/pub/FreeBSD/\n\
@@ -310,13 +315,16 @@ main(int argc, char **argv)
 	const char *patterntouse = NULL;
 	const char *userflags = NULL, *lsflagstouse;
 	int lslong = 0, lsrecursive = 0, lsall = 0, lsone = 0, lscolumned = -1, lslikefind = 0, lsF = 0;
+	int do_listings = 1;
 	char lsflags[32];
 	char *curdir, *coloncp, *slashcp, *lslinecp;
 	const char *tailcp;
 	MLstItem mli;
 	ResponsePtr rp;
-	FILE *ofp;
+	FILE *ofp, *savedDebugLog = NULL;
 	char precmd[320], postcmd[320], perfilecmd[320];
+	int do_extracmds = 0;
+	int configLoaded = kConfigNotLoaded;
 	GetoptInfo opt;
 
 	InitWinsock();
@@ -359,34 +367,14 @@ main(int argc, char **argv)
 	es = kExitSuccess;
 
 	GetoptReset(&opt);
-	while ((c = Getopt(&opt, argc, argv, "1lRx:P:u:j:p:h:e:d:t:r:f:o:EFKW:X:Y:maCi:g")) > 0) switch(c) {
+#define kGetoptOptions "1lRx:P:u:j:p:h:e:d:t:r:f:o:EFKW:X:Y:maCi:gI:Z"
+	while ((c = Getopt(&opt, argc, argv, kGetoptOptions)) > 0) switch(c) {
 		case 'P':
-			fi.port = atoi(opt.arg);	
-			break;
 		case 'u':
-			(void) STRNCPY(fi.user, opt.arg);
-			memset(opt.arg, 0, strlen(fi.user));
-			opt.arg[0] = '?';
-			break;
 		case 'j':
-			(void) STRNCPY(fi.acct, opt.arg);
-			memset(opt.arg, 0, strlen(fi.acct));
-			opt.arg[0] = '?';
-			break;
 		case 'p':
-			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
-			if (fi.pass[0] == '\0')
-				fi.passIsEmpty = 1;
-			memset(opt.arg, 0, strlen(fi.pass));
-			opt.arg[0] = '?';
-			break;
 		case 'h':
-			/* Doesn't make sense really, but implement for
-			 * compatibility with the other utilities.
-			 */
-			(void) STRNCPY(fi.host, opt.arg);
-			memset(opt.arg, 0, strlen(fi.user));
-			opt.arg[0] = '?';
+			/* Use these options later */
 			break;
 		case 'e':
 			if (strcmp(opt.arg, "stdout") == 0)
@@ -395,8 +383,10 @@ main(int argc, char **argv)
 				fi.errLog = stdout;
 			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.errLog = stderr;
-			else
-				fi.errLog = fopen(opt.arg, "a");
+			else {
+				fi.errLog = fopen(opt.arg, FOPEN_APPEND_TEXT);
+				fi.debugTimestamping = 2;
+			}
 			break;
 		case 'd':
 			if (strcmp(opt.arg, "stdout") == 0)
@@ -405,8 +395,10 @@ main(int argc, char **argv)
 				fi.debugLog = stdout;
 			else if (strcmp(opt.arg, "stderr") == 0)
 				fi.debugLog = stderr;
-			else
-				fi.debugLog = fopen(opt.arg, "a");
+			else {
+				fi.debugLog = fopen(opt.arg, FOPEN_APPEND_TEXT);
+				fi.debugTimestamping = 2;
+			}
 			break;
 		case 't':
 			SetTimeouts(&fi, opt.arg);
@@ -415,7 +407,10 @@ main(int argc, char **argv)
 			SetRedial(&fi, opt.arg);
 			break;
 		case 'f':
-			ReadConfigFile(opt.arg, &fi);
+			if ((configLoaded = ReadConfigFile(opt.arg, &fi)) == kErrorLoadingConfig) {
+				perror(opt.arg);
+				exit(kExitBadConfigFile);
+			}
 			break;
 		case 'o':
 			fi.manualOverrideFeatures = opt.arg;
@@ -473,11 +468,58 @@ main(int argc, char **argv)
 			STRNCAT(postcmd, opt.arg);
 			STRNCAT(postcmd, "\n");
 			break;
+		case 'Z':
+			/* This option can be used to use ncftpls as a
+			 * quick and dirty FTP command program.  In other words,
+			 * use this option to skip the actual listing and then
+			 * do an FTP command with -Y.
+			 */
+			do_listings = 0;
+			break;
+		case 'I':
+			if (AddrStrToAddr(opt.arg, &fi.preferredLocalAddr, 21) < 0) {
+				fprintf(stderr, "Bad IP address (\"%s\") used with -I.\n", opt.arg);
+				Usage();
+			}
+			break;
 		default:
 			Usage();
 	}
 	if (opt.ind > argc - 1)
 		Usage();
+
+	/* In case we loaded a bookmark or config file, we allow the following
+	 * options to override those settings.
+	 */
+	GetoptReset(&opt);
+	while ((c = Getopt(&opt, argc, argv, kGetoptOptions)) > 0) switch(c) {
+		case 'P':
+			fi.port = atoi(opt.arg);	
+			break;
+		case 'u':
+			(void) STRNCPY(fi.user, opt.arg);
+			memset(opt.arg, 0, strlen(fi.user));
+			opt.arg[0] = '?';
+			break;
+		case 'j':
+			(void) STRNCPY(fi.acct, opt.arg);
+			memset(opt.arg, 0, strlen(fi.acct));
+			opt.arg[0] = '?';
+			break;
+		case 'p':
+			(void) STRNCPY(fi.pass, opt.arg);	/* Don't recommend doing this! */
+			fi.leavePass = 1;
+			if (fi.pass[0] == '\0')
+				fi.passIsEmpty = 1;
+			memset(opt.arg, 0, strlen(fi.pass));
+			opt.arg[0] = '?';
+			break;
+		case 'h':
+			(void) STRNCPY(fi.host, opt.arg);
+			memset(opt.arg, 0, strlen(fi.user));
+			opt.arg[0] = '?';
+			break;
+	}
 
 	STRNCPY(lsflags, "-CF");
 	if (lslong != 0) {
@@ -505,6 +547,8 @@ main(int argc, char **argv)
 
 	InitOurDirectory();
 
+	if ((precmd[0] != '\0') || (postcmd[0] != '\0') || (perfilecmd[0] != '\0'))
+		do_extracmds = 1;
 	startfi = fi;
 	memset(&savedfi, 0, sizeof(savedfi));
 	ndirs = argc - opt.ind;
@@ -538,7 +582,13 @@ main(int argc, char **argv)
 			}
 		} else {
 			if (savedfi.connected != 0) {
+				if (do_extracmds != 0)
+					(void) FTPSetTransferType(&fi, kTypeBinary);
+				savedDebugLog = fi.debugLog;
+				if ((do_listings == 0) && (fi.debugLog == NULL))
+					fi.debugLog = stdout;
 				(void) AdditionalCmd(&fi, postcmd, NULL);
+				fi.debugLog = savedDebugLog;
 
 				(void) FTPCloseHost(&savedfi);
 			}
@@ -569,7 +619,13 @@ main(int argc, char **argv)
 			if (fi.hasCLNT != kCommandNotAvailable)
 				(void) FTPCmd(&fi, "CLNT NcFTPLs %.5s %s", gVersion + 11, gOS);
 
+			if (do_extracmds != 0)
+				(void) FTPSetTransferType(&fi, kTypeBinary);
+			savedDebugLog = fi.debugLog;
+			if ((do_listings == 0) && (fi.debugLog == NULL))
+				fi.debugLog = stdout;
 			(void) AdditionalCmd(&fi, precmd, NULL);
+			fi.debugLog = savedDebugLog;
 			
 			if (FTPGetCWD(&fi, rootcwd, sizeof(rootcwd)) < 0) {
 				FTPPerror(&fi, fi.errNo, kErrPWDFailed, "ncftpls", "could not get current remote working directory");
@@ -615,86 +671,101 @@ main(int argc, char **argv)
 		}
 
 		es = kExitXferTimedOut;
-		(void) signal(SIGINT, Abort);
 
-		PrintF(&fi, "ncftpls DIRLIST: directory, file, or wildcard = \"%s\";  lsflags = \"%s\";  tryMLS = %d.\n", patterntouse, lsflagstouse, tryMLSD);
-		if (
-			(lsrecursive && tryMLSD && FTPRemoteRecursiveMList(&fi, patterntouse, &dirlisting) >= 0) ||
-			(FTPListToMemory2(&fi, patterntouse, &dirlisting, lsflagstouse, /* allow blank lines from server? yes */ 1, &tryMLSD) >= 0)
-		) {
-			es = kExitSuccess;
-			(void) AdditionalCmd(&fi, perfilecmd, curcwd);
-			savedfi = fi;
+		if (do_listings != 0) {
+			(void) signal(SIGINT, Abort);
+			PrintF(&fi, "ncftpls DIRLIST: directory, file, or wildcard = \"%s\";  lsflags = \"%s\";  tryMLS = %d.\n", patterntouse, lsflagstouse, tryMLSD);
+			if (
+				(lsrecursive && tryMLSD && FTPRemoteRecursiveMList(&fi, patterntouse, &dirlisting) >= 0) ||
+				(FTPListToMemory2(&fi, patterntouse, &dirlisting, lsflagstouse, /* allow blank lines from server? yes */ 1, &tryMLSD) >= 0)
+			) {
+				es = kExitSuccess;
+				if (do_extracmds != 0)
+					(void) FTPSetTransferType(&fi, kTypeBinary);
+				savedDebugLog = fi.debugLog;
+				if ((do_listings == 0) && (fi.debugLog == NULL))
+					fi.debugLog = stdout;
+				(void) AdditionalCmd(&fi, perfilecmd, curcwd);
+				fi.debugLog = savedDebugLog;
+				savedfi = fi;
 
-			if (lslikefind > 0) {
-				curdir = NULL;
-				for (lp = dirlisting.first; lp != NULL; ) {
-					lp2 = lp;
-					lp = lp->next;
-					tailcp = "";
-					if (tryMLSD != 0) {
-						if (UnMlsT(&fi, lp2->line, &mli) < 0)
-							continue;
-						if (mli.ftype == 'd') {
-							tailcp = "/";
-						} else {
-							tailcp = "";
-						}
-						lslinecp = strchr(lp2->line, ' ');
-						if ((lslinecp != NULL) && (lslinecp != lp2->line) && (lslinecp[-1] == ';')) {
-							/* Valid MLSD format; skip ahead one byte to the pathname. */
-							lslinecp++;
+				if (lslikefind > 0) {
+					curdir = NULL;
+					for (lp = dirlisting.first; lp != NULL; ) {
+						lp2 = lp;
+						lp = lp->next;
+						tailcp = "";
+						if (tryMLSD != 0) {
+							if (UnMlsT(&fi, lp2->line, &mli) < 0)
+								continue;
+							if (mli.ftype == 'd') {
+								tailcp = "/";
+							} else {
+								tailcp = "";
+							}
+							lslinecp = strchr(lp2->line, ' ');
+							if ((lslinecp != NULL) && (lslinecp != lp2->line) && (lslinecp[-1] == ';')) {
+								/* Valid MLSD format; skip ahead one byte to the pathname. */
+								lslinecp++;
+							} else {
+								lslinecp = lp2->line;
+							}
 						} else {
 							lslinecp = lp2->line;
 						}
-					} else {
-						lslinecp = lp2->line;
-					}
-					if (lslinecp != NULL) {
-						if ((lslinecp[0] == '.') && ((lslinecp[1] == '/') || (lslinecp[1] == '\\')))
-							lslinecp += 2;
-						coloncp = strrchr(lslinecp, ':');
-						if ((coloncp != NULL) && (coloncp[1] == '\0')) {
-							*coloncp = '\0';
-							curdir = lslinecp;
-							if (strcmp(curdir, ".") == 0)
-								curdir = NULL;
-						} else if ((tryMLSD == 0) && (coloncp != NULL) && (strlen(coloncp) > 4) && (strncmp(coloncp + 3, "ermission denied", strlen("ermission denied")) == 0)) {
-							continue;
-						} else if ((lslinecp[0] != '\0') && (lslinecp[0] != '\n') && (lslinecp[0] != '\r')) {
-							slashcp = strchr(lslinecp, '/');
-							if (slashcp == NULL)
-								slashcp = strchr(lslinecp, '\\');
-							if ((slashcp == NULL) || (slashcp[1] == '\0') || (slashcp[1] == '\n') || (slashcp[1] == '\r')) {
-								if (curdir == NULL) {
-									/* Could print "./" then file */
-									(void) fprintf(stdout, "%s%s\n", lslinecp, tailcp);
+						if (lslinecp != NULL) {
+							if ((lslinecp[0] == '.') && ((lslinecp[1] == '/') || (lslinecp[1] == '\\')))
+								lslinecp += 2;
+							coloncp = strrchr(lslinecp, ':');
+							if ((coloncp != NULL) && (coloncp[1] == '\0')) {
+								*coloncp = '\0';
+								curdir = lslinecp;
+								if (strcmp(curdir, ".") == 0)
+									curdir = NULL;
+							} else if ((tryMLSD == 0) && (coloncp != NULL) && (strlen(coloncp) > 4) && (strncmp(coloncp + 3, "ermission denied", strlen("ermission denied")) == 0)) {
+								continue;
+							} else if ((lslinecp[0] != '\0') && (lslinecp[0] != '\n') && (lslinecp[0] != '\r')) {
+								slashcp = strchr(lslinecp, '/');
+								if (slashcp == NULL)
+									slashcp = strchr(lslinecp, '\\');
+								if ((slashcp == NULL) || (slashcp[1] == '\0') || (slashcp[1] == '\n') || (slashcp[1] == '\r')) {
+									if (curdir == NULL) {
+										/* Could print "./" then file */
+										(void) fprintf(stdout, "%s%s\n", lslinecp, tailcp);
+									} else {
+										(void) fprintf(stdout, "%s/%s%s\n", curdir, lslinecp, tailcp);
+									}
 								} else {
-									(void) fprintf(stdout, "%s/%s%s\n", curdir, lslinecp, tailcp);
+									(void) fprintf(stdout, "%s%s\n", lslinecp, tailcp);
 								}
-							} else {
-								(void) fprintf(stdout, "%s%s\n", lslinecp, tailcp);
 							}
+						}
+					}
+				} else {
+					/* Print the completed listing. */
+					for (lp = dirlisting.first; lp != NULL; ) {
+						lp2 = lp;
+						lp = lp->next;
+						if (lp2->line != NULL) {
+							(void) fprintf(stdout, "%s\n", lp2->line);
 						}
 					}
 				}
 			} else {
-				/* Print the completed listing. */
-				for (lp = dirlisting.first; lp != NULL; ) {
-					lp2 = lp;
-					lp = lp->next;
-					if (lp2->line != NULL) {
-						(void) fprintf(stdout, "%s\n", lp2->line);
-					}
-				}
+				es = kExitXferFailed;
 			}
-		} else {
-			es = kExitXferFailed;
+			(void) signal(SIGINT, SIG_DFL);
 		}
-		(void) signal(SIGINT, SIG_DFL);
 	}
 
+	if (do_extracmds != 0)
+		(void) FTPSetTransferType(&fi, kTypeBinary);
+
+	savedDebugLog = fi.debugLog;
+	if ((do_listings == 0) && (fi.debugLog == NULL))
+		fi.debugLog = stdout;
 	(void) AdditionalCmd(&fi, postcmd, NULL);
+	fi.debugLog = savedDebugLog;
 	
 	(void) FTPCloseHost(&fi);
 

@@ -290,7 +290,7 @@ WinFStat64(const int h0, struct WinStat64 *const stp)
 	stp->st_uid = st32.st_uid;
 
 	if (S_ISREG(stp->st_mode)) {
-		fSize = (_int64)0;
+		fSize = (__int64)0;
 		fSize1 = GetFileSize(h, &fSize2);
 		if ((fSize1 == 0xFFFFFFFF) && ((winErr = GetLastError()) != NO_ERROR))
 			goto return_err;
@@ -353,7 +353,7 @@ WinStat64(const char *const path, struct WinStat64 *const stp)
 		if (h == INVALID_HANDLE_VALUE)
 			goto return_err;
 
-		fSize = (_int64)0;
+		fSize = (__int64)0;
 		fSize1 = GetFileSize(h, &fSize2);
 		if ((fSize1 == 0xFFFFFFFF) && ((winErr = GetLastError()) != NO_ERROR))
 			goto return_err;

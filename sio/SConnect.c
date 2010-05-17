@@ -215,7 +215,7 @@ _SConnect(const int sfd, const struct sockaddr_in *const addr, const size_t sadd
 		 *
 		 * EINPROGRESS
 		 *
-		 * The socket is non-blocking and the connection can­
+		 * The socket is non-blocking and the connection can
 		 * not  be  completed immediately.  It is possible to
 		 * select(2) or poll(2) for completion  by  selecting
 		 * the  socket  for  writing.  After select indicates
