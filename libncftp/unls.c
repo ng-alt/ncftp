@@ -947,8 +947,13 @@ UnMlsD(const FTPCIPtr cip, FTPFileInfoListPtr filp, FTPLineListPtr llp)
 				m1 = (mli.mode & 00700) >> 6;
 				m2 = (mli.mode & 00070) >> 3;
 				m3 = (mli.mode & 00007);
-			}
-			if (mli.perm[0] != '\0') {
+			} else if (mli.perm[0] != '\0') {
+				/* Note that if both UNIX.mode and
+				 * perm are avaiable, we will use
+				 * UNIX.mode.  This is probably
+				 * not what the RFC would like
+				 * us to do.
+				 */
 				m3 = 0;
 				if (fi.type == 'd') {
 					if (strchr(mli.perm, 'e') != NULL) {

@@ -1,6 +1,20 @@
 NcFTP Change Log:
 ================
 
+3.2.5, 2011-01-01
+
+   + Fixed a problem on Mac OS X Snow Leopard for universal binary support. 
+
+   + ncftpls now prefers that you omit the leading dash when you use the -x
+     option.  For example, if you wanted to try "ls -lrt", then try doing
+     "ncftpls -x lrt" rather than "ncftpls -x -lrt".
+
+   + If a server's MLSx output returns both the "UNIX.mode" and the "perm"
+     parameters, UNIX.mode will take precedence (Thanks, Jay Kulpinski).
+
+   + confirm-close is now off by default.
+
+
 3.2.4.1, 2010-05-16
 
    + Fixed a bug in Ncftpget/put/ls which could ignore the username (-u)

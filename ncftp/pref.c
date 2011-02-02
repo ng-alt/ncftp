@@ -612,7 +612,7 @@ InitPrefs(void)
 	gAutoResume = 0;
 	gSOBufsize = 0;
 	gMaxLogSize = 10240;
-	gConfirmClose = 1;
+	gConfirmClose = 0;
 	gAutoSaveChangesToExistingBookmarks = 0;
 	gRedialDelay = kDefaultRedialDelay;
 	STRNCPY(gAutoAscii, "|.txt|.asc|.html|.htm|.css|.xml|.ini|.pl|.hqx|.cfg|.c|.h|.cpp|.hpp|.bat|.m3u|.pls|");

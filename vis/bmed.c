@@ -5,7 +5,6 @@
  *
  */
 
-
 #include "syshdrs.h"
 #ifdef PRAGMA_HDRSTOP
 #	pragma hdrstop
@@ -228,7 +227,6 @@ void DrawHostList(void)
 	wmove(gHostWin, maxy - 1, 0);
 	UpdateHostWindows(0);
 }	/* DrawHostList */
-
 
 
 

@@ -19,7 +19,7 @@ char gHome[256];
 char gShell[256];
 char gOurDirectoryPath[260];
 char gOurInstallationPath[260];
-int gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = 0;
+const char *gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = NULL;
 #ifdef ncftp
 static int gResolveSig;
 #endif

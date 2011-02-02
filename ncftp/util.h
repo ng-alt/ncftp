@@ -59,10 +59,10 @@ typedef volatile sigproc_t vsigproc_t;
 #	define kOurDirectoryName	".ncftp"
 #endif
 
-extern int gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
+extern const char *gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 
 #if (defined(__APPLE_CC__)) && (__APPLE_CC__ < 10000)
-#	define NCFTP_USE_VAR(a) a = 0; gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	define NCFTP_USE_VAR(a) gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (const char *) (&a);
 #	ifndef UNUSED
 #		define UNUSED(a) a
 #	endif
@@ -77,7 +77,7 @@ extern int gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 #	endif
 #	define NCFTP_USE_VAR(a)
 #else
-#	define NCFTP_USE_VAR(a) a = 0; gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	define NCFTP_USE_VAR(a) gNcFTP_Uses_Me_To_Quiet_Variable_Unused_Warnings = (const char *) (&a);
 #	ifndef UNUSED
 #		define UNUSED(a) a
 #	endif

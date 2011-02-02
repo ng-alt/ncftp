@@ -1,6 +1,6 @@
 /* ncftp.h
  *
- * Copyright (c) 1996-2010 Mike Gleason, NcFTP Software.
+ * Copyright (c) 1996-2011 Mike Gleason, NcFTP Software.
  * All rights reserved.
  *
  */
@@ -13,10 +13,10 @@ extern "C"
 {
 #endif	/* __cplusplus */
 
-#define kLibraryVersion "@(#) LibNcFTP 3.2.4 (April 3, 2010)"
+#define kLibraryVersion "@(#) LibNcFTP 3.2.5 (January 17, 2011)"
 
 /* This is used to verify validty of the data passed in. */
-#define kLibraryMagic "LibNcFTP 3.2.4"
+#define kLibraryMagic "LibNcFTP 3.2.5"
 
 #if (defined(WIN32) || defined(_WINDOWS)) && !defined(__CYGWIN__)
 	/* Includes for Windows */

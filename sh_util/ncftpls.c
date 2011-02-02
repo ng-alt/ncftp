@@ -225,7 +225,7 @@ Usage(void)
   -gg    As above, but append a \"/\" character to directory pathnames.\n\
   -a     Show all files, if server allows it (as in \"/bin/ls -a\").\n\
   -i XX  Filter the listing (if server supports it) with the wildcard XX.\n\
-  -x XX  List command flags to use on the remote server.\n");
+  -x XX  List command flags to try on the remote server (without leading dash).\n");
 	(void) fprintf(fp, "\nFTP Flags:\n\
   -u XX  Use username XX instead of anonymous.\n\
   -p XX  Use password XX with the username.\n\
@@ -251,7 +251,7 @@ Usage(void)
   ncftpls -1 ftp://ftp.freebsd.org/pub/FreeBSD/\n\
   ncftpls -la -i '*.TXT' ftp://ftp.freebsd.org/pub/FreeBSD/\n\
   ncftpls -m ftp://ftp.ncftp.com/ncftpd/\n\
-  ncftpls -x \"-lrt\" ftp://ftp.freebsd.org/pub/FreeBSD/\n");
+  ncftpls -x \"lrt\" ftp://ftp.freebsd.org/pub/FreeBSD/\n");
 
 	(void) fprintf(fp, "%s", "\nNote: The standard specifies that URL pathnames are are relative pathnames.\n  For FTP, this means that URLs specify relative pathnames from the start\n  directory, which for user logins, are typically the user's home directory.\n  If you want to use absolute pathnames, you need to include a literal slash,\n  using the \"%2F\" code for a \"/\" character.  Examples:\n\n");
 
@@ -542,8 +542,13 @@ main(int argc, char **argv)
 		STRNCAT(lsflags, "a");
 	}
 	lsflagstouse = lsflags;
-	if (userflags != NULL)
-		lsflagstouse = userflags;
+	if (userflags != NULL) {
+		lsflags[0] = '-';
+		lsflags[1] = '\0';
+		while (*userflags== '-')
+			userflags++;
+		STRNCAT(lsflags, userflags);
+	}
 
 	InitOurDirectory();
 

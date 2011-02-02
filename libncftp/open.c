@@ -477,128 +477,133 @@ FTPQueryFeatures(const FTPCIPtr cip)
 		cip->hasMFF = kCommandNotAvailable;
 		cip->hasRETR_tar = kCommandNotAvailable;
 	}
+
+	/* We cheat here and pre-populate some
+	 * fields when the server is wu-ftpd.
+	 * This server is very common and we
+	 * know it has always had these.
+	 */
+	 if (cip->serverType == kServerTypeWuFTPd) {
+		cip->hasPASV = kCommandAvailable;
+		cip->hasSIZE = kCommandAvailable;
+		cip->hasMDTM = kCommandAvailable;
+		cip->hasMDTM_set = kCommandAvailable;
+		cip->hasREST = kCommandAvailable;
+		cip->NLSTfileParamWorks = kCommandAvailable;
+	} else if (cip->serverType == kServerTypeNcFTPd) {
+		cip->hasPASV = kCommandAvailable;
+		cip->hasSIZE = kCommandAvailable;
+		cip->hasMDTM = kCommandAvailable;
+		cip->hasREST = kCommandAvailable;
+		cip->NLSTfileParamWorks = kCommandAvailable;
+	}
+
+	if (cip->hasFEAT == kCommandNotAvailable) {
+		return (kNoErr);
+	}
 	
 	rp = InitResponse();
 	if (rp == NULL) {
 		cip->errNo = kErrMallocFailed;
 		result = cip->errNo;
-	} else if (cip->hasFEAT != kCommandNotAvailable) {
-		rp->printMode = (kResponseNoPrint|kResponseNoSave);
-		result = RCmd(cip, rp, "FEAT");
-		if (result < kNoErr) {
-			DoneWithResponse(cip, rp);
-			return (result);
-		} else if (result != 2) {
-			/* We cheat here and pre-populate some
-			 * fields when the server is wu-ftpd.
-			 * This server is very common and we
-			 * know it has always had these.
-			 */
-			 if (cip->serverType == kServerTypeWuFTPd) {
-				cip->hasPASV = kCommandAvailable;
-				cip->hasSIZE = kCommandAvailable;
-				cip->hasMDTM = kCommandAvailable;
-				cip->hasMDTM_set = kCommandAvailable;
-				cip->hasREST = kCommandAvailable;
-				cip->NLSTfileParamWorks = kCommandAvailable;
-			} else if (cip->serverType == kServerTypeNcFTPd) {
-				cip->hasPASV = kCommandAvailable;
-				cip->hasSIZE = kCommandAvailable;
-				cip->hasMDTM = kCommandAvailable;
-				cip->hasREST = kCommandAvailable;
-				cip->NLSTfileParamWorks = kCommandAvailable;
-			}
-
-			/* Newer commands are only shown in FEAT,
-			 * so we don't have to do the "try it,
-			 * then save that it didn't work" thing.
-			 */
-			cip->hasMLST = kCommandNotAvailable;
-			cip->hasMLSD = kCommandNotAvailable;
-			cip->hasMFMT = kCommandNotAvailable;
-			cip->hasMFF = kCommandNotAvailable;
-		} else {
-			cip->hasFEAT = kCommandAvailable;
-
-			for (lp = rp->msg.first; lp != NULL; lp = lp->next) {
-				/* If first character was not a space it is
-				 * either:
-				 *
-				 * (a) The header line in the response;
-				 * (b) The trailer line in the response;
-				 * (c) A protocol violation.
-				 */
-				cp = lp->line;
-				while ((*cp != '\0') && (isspace((int) *cp)))
-					cp++;
-				if (*cp == '\0')
-					continue;
-				if (ISTRNCMP(cp, "PASV", 4) == 0) {
-					cip->hasPASV = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "SIZE", 4) == 0) {
-					cip->hasSIZE = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "MDTM", 4) == 0) {
-					cip->hasMDTM = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "MFMT", 4) == 0) {
-					cip->hasMFMT = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "MFF", 3) == 0) {
-					cip->hasMFF = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "REST", 4) == 0) {
-					cip->hasREST = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "UTIME", 5) == 0) {
-					cip->hasSITE_UTIME = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "MLST", 4) == 0) {
-					cip->hasMLST = kCommandAvailable;
-					cip->hasMLSD = kCommandAvailable;
-					FTPExamineMlstFeatures(cip, cp + 5);
-				} else if (ISTRNCMP(cp, "CLNT", 4) == 0) {
-					cip->hasCLNT = kCommandAvailable;
-				} else if (ISTRNCMP(cp, "Compliance Level: ", 18) == 0) {
-					/* Probably only NcFTPd will ever implement this.
-					 * But we use it internally to differentiate
-					 * between different NcFTPd implementations of
-					 * IETF extensions.
-					 */
-					cip->ietfCompatLevel = atoi(cp + 18);
-				}
-			}
-		}
-
-		/* You can set cip->hasHELP_SITE to kCommandNotAvailable
-		 * if your host chokes (i.e. IBM Mainframes) when you
-		 * do "HELP SITE".
-		 */
-		ReInitResponse(cip, rp);
-		result = (cip->hasHELP_SITE == kCommandNotAvailable) ? (-1) : RCmd(cip, rp, "HELP SITE");
-		if (result == 2) {
-			cip->hasHELP_SITE = kCommandAvailable;
-			for (lp = rp->msg.first; lp != NULL; lp = lp->next) {
-				cp = lp->line;
-				if (strstr(cp, "RETRBUFSIZE") != NULL)
-					cip->hasSITE_RETRBUFSIZE = kCommandAvailable;
-				if (strstr(cp, "RBUFSZ") != NULL)
-					cip->hasSITE_RBUFSZ = kCommandAvailable;
-				/* See if RBUFSIZ matches (but not STORBUFSIZE) */
-				if (
-					((p = strstr(cp, "RBUFSIZ")) != NULL) &&
-					(
-					 	(p == cp) ||
-						((p > cp) && (!isupper((int) p[-1])))
-					)
-				)
-					cip->hasSITE_RBUFSIZ = kCommandAvailable;
-				if (strstr(cp, "STORBUFSIZE") != NULL)
-					cip->hasSITE_STORBUFSIZE = kCommandAvailable;
-				if (strstr(cp, "SBUFSIZ") != NULL)
-					cip->hasSITE_SBUFSIZ = kCommandAvailable;
-				if (strstr(cp, "SBUFSZ") != NULL)
-					cip->hasSITE_SBUFSZ = kCommandAvailable;
-				if (strstr(cp, "BUFSIZE") != NULL)
-					cip->hasSITE_BUFSIZE = kCommandAvailable;
-			}
-		}
-		DoneWithResponse(cip, rp);
+		return (result);
 	}
+
+	rp->printMode = (kResponseNoPrint|kResponseNoSave);
+	result = RCmd(cip, rp, "FEAT");
+	if (result < kNoErr) {
+		DoneWithResponse(cip, rp);
+		return (result);
+	} else if (result != 2) {
+		/* Newer commands are only shown in FEAT,
+		 * so we don't have to do the "try it,
+		 * then save that it didn't work" thing.
+		 */
+		cip->hasMLST = kCommandNotAvailable;
+		cip->hasMLSD = kCommandNotAvailable;
+		cip->hasMFMT = kCommandNotAvailable;
+		cip->hasMFF = kCommandNotAvailable;
+	} else {
+		cip->hasFEAT = kCommandAvailable;
+
+		for (lp = rp->msg.first; lp != NULL; lp = lp->next) {
+			/* If first character was not a space it is
+			 * either:
+			 *
+			 * (a) The header line in the response;
+			 * (b) The trailer line in the response;
+			 * (c) A protocol violation.
+			 */
+			cp = lp->line;
+			while ((*cp != '\0') && (isspace((int) *cp)))
+				cp++;
+			if (*cp == '\0')
+				continue;
+			if (ISTRNCMP(cp, "PASV", 4) == 0) {
+				cip->hasPASV = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "SIZE", 4) == 0) {
+				cip->hasSIZE = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "MDTM", 4) == 0) {
+				cip->hasMDTM = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "MFMT", 4) == 0) {
+				cip->hasMFMT = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "MFF", 3) == 0) {
+				cip->hasMFF = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "REST", 4) == 0) {
+				cip->hasREST = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "UTIME", 5) == 0) {
+				cip->hasSITE_UTIME = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "MLST", 4) == 0) {
+				cip->hasMLST = kCommandAvailable;
+				cip->hasMLSD = kCommandAvailable;
+				FTPExamineMlstFeatures(cip, cp + 5);
+			} else if (ISTRNCMP(cp, "CLNT", 4) == 0) {
+				cip->hasCLNT = kCommandAvailable;
+			} else if (ISTRNCMP(cp, "Compliance Level: ", 18) == 0) {
+				/* Probably only NcFTPd will ever implement this.
+				 * But we use it internally to differentiate
+				 * between different NcFTPd implementations of
+				 * IETF extensions.
+				 */
+				cip->ietfCompatLevel = atoi(cp + 18);
+			}
+		}
+	}
+
+	/* You can set cip->hasHELP_SITE to kCommandNotAvailable
+	 * if your host chokes (i.e. IBM Mainframes) when you
+	 * do "HELP SITE".
+	 */
+	ReInitResponse(cip, rp);
+	result = (cip->hasHELP_SITE == kCommandNotAvailable) ? (-1) : RCmd(cip, rp, "HELP SITE");
+	if (result == 2) {
+		cip->hasHELP_SITE = kCommandAvailable;
+		for (lp = rp->msg.first; lp != NULL; lp = lp->next) {
+			cp = lp->line;
+			if (strstr(cp, "RETRBUFSIZE") != NULL)
+				cip->hasSITE_RETRBUFSIZE = kCommandAvailable;
+			if (strstr(cp, "RBUFSZ") != NULL)
+				cip->hasSITE_RBUFSZ = kCommandAvailable;
+			/* See if RBUFSIZ matches (but not STORBUFSIZE) */
+			if (
+				((p = strstr(cp, "RBUFSIZ")) != NULL) &&
+				(
+					(p == cp) ||
+					((p > cp) && (!isupper((int) p[-1])))
+				)
+			)
+				cip->hasSITE_RBUFSIZ = kCommandAvailable;
+			if (strstr(cp, "STORBUFSIZE") != NULL)
+				cip->hasSITE_STORBUFSIZE = kCommandAvailable;
+			if (strstr(cp, "SBUFSIZ") != NULL)
+				cip->hasSITE_SBUFSIZ = kCommandAvailable;
+			if (strstr(cp, "SBUFSZ") != NULL)
+				cip->hasSITE_SBUFSZ = kCommandAvailable;
+			if (strstr(cp, "BUFSIZE") != NULL)
+				cip->hasSITE_BUFSIZE = kCommandAvailable;
+		}
+	}
+	DoneWithResponse(cip, rp);
 
 	return (kNoErr);
 }	/* FTPQueryFeatures */

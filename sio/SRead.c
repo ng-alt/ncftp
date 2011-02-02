@@ -4,7 +4,7 @@
 #endif
 
 static const char UNUSED(gSioVersion[]) = kSioVersion;
-static const char UNUSED(gCopyright[]) = "@(#) libsio Copyright 1992-2005, by Mike Gleason.  All rights reserved.";
+static const char UNUSED(gCopyright[]) = "@(#) libsio Copyright 1992-2011, by Mike Gleason.  All rights reserved.";
 
 
 /* Read up to "size" bytes on sfd before "tlen" seconds.

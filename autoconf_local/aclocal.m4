@@ -488,10 +488,32 @@ if test "$SYS" = macosx ; then
 	AC_MSG_CHECKING([if MACOSX_DEPLOYMENT_TARGET environment variable is set])
 	AC_MSG_RESULT([${MACOSX_DEPLOYMENT_TARGET-no}])
 
+changequote(<<, >>)dnl
 	test_macosx_sdk_path=`/bin/ls -1d /Developer/SDKs/MacOSX10.*u.sdk 2>/dev/null | sed -n 1,1p`
 	if test "${test_macosx_sdk_path}" = "" ; then
 		test_macosx_sdk_path="no"
 	fi
+	case "$test_macosx_sdk_path" in
+		*/MacOSX10.4u.sdk)
+			#
+			# On Snow Leopard, you can't use gcc-4.2 to build the
+			# universal binary, but you can use gcc-4.0 if that
+			# is also installed.
+			#
+			case "$wi_cv_gcc_version" in
+				[56789]*|4.[123456789]*)
+					if [ -e "/usr/bin/gcc-4.0" ] ; then
+						CC="/usr/bin/gcc-4.0"
+						GCC="/usr/bin/gcc-4.0"
+						wi_cv_gcc_version="4.0.1"
+					else
+						test_macosx_sdk_path="no"
+					fi
+					;;
+			esac
+			;;
+	esac
+changequote([, ])dnl
 	AC_MSG_CHECKING([if Mac OS X universal SDK is available])
 	AC_MSG_RESULT([${test_macosx_sdk_path-no}])
 
@@ -512,6 +534,7 @@ if test "$SYS" = macosx ; then
 			# Thanks, Toshi NAGATA
 			macosx_sdk_path="${macosx_sdk_path} -mmacosx-version-min=${macosx_sdk_ver}"
 		fi
+		# macosx_arch_flags="-arch x86_64 -arch i386 -arch ppc"		# This works too
 		macosx_arch_flags="-arch i386 -arch ppc"
 		case "$CFLAGS" in
 			*"-isysroot"*"-arch"*|*"-arch"*"-isysroot"*)
@@ -3705,6 +3728,8 @@ dnl
 dnl
 dnl
 AC_DEFUN(wi_SUMMARIZE_COMPILER_FLAGS, [
+AC_MSG_CHECKING([CC])
+AC_MSG_RESULT([$CC])
 AC_MSG_CHECKING([CFLAGS])
 AC_MSG_RESULT([$CFLAGS])
 AC_MSG_CHECKING([CPPFLAGS])
@@ -4828,6 +4853,7 @@ do
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -4849,6 +4875,7 @@ do
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -4937,6 +4964,7 @@ cat << 'EOF' > "$wi_tmpdir/curses.c"
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5033,6 +5061,7 @@ wi_CURSES_FUNC_PARAM_TYPES
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5066,6 +5095,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5098,6 +5128,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5130,6 +5161,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5161,6 +5193,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5192,6 +5225,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5224,6 +5258,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5255,6 +5290,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>
@@ -5284,6 +5320,7 @@ AC_MSG_RESULT([_maxx])
 #include <stdlib.h>
 
 #ifdef HAVE_NCURSES_H
+#	define NCURSES_OPAQUE 0
 #	include <ncurses.h>
 #else
 #	include <curses.h>

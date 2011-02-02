@@ -1,6 +1,6 @@
 /* sio.h 
  *
- * Copyright 1992-2003 Mike Gleason, NcFTP Software.  All Rights Reserved.
+ * Copyright 1992-2011 Mike Gleason, NcFTP Software.  All Rights Reserved.
  *
  */
 
@@ -157,10 +157,10 @@ typedef struct SReadlineInfo {
 
 typedef void (*sio_sigproc_t)(int);
 
-extern int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings;
+extern const char *gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 
 #if (defined(__APPLE_CC__)) && (__APPLE_CC__ < 10000)
-#	define LIBSIO_USE_VAR(a) gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	define LIBSIO_USE_VAR(a) gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = (const char *) (&a)
 #	ifndef UNUSED
 #		define UNUSED(a) a
 #	endif
@@ -175,7 +175,7 @@ extern int gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings;
 #	endif
 #	define LIBSIO_USE_VAR(a)
 #else
-#	define LIBSIO_USE_VAR(a) gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = (a == 0)
+#	define LIBSIO_USE_VAR(a) gLibSio_Uses_Me_To_Quiet_Variable_Unused_Warnings = (const char *) (&a)
 #	ifndef UNUSED
 #		define UNUSED(a) a
 #	endif
